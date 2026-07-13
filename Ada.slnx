@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="Ada.API/Ada.API.csproj" />
+  <Project Path="Ada.Console/Ada.Console.csproj" />
+  <Project Path="Ada.Core/Ada.Core.csproj" />
+  <Project Path="Ada.Db/Ada.Db.csproj" />
+  <Project Path="Ada.Game/Ada.Game.csproj" />
+  <Project Path="Ada.Networking.Encryption/Ada.Networking.Encryption.csproj" />
+  <Project Path="Ada.Networking.Events/Ada.Networking.Events.csproj" />
+  <Project Path="Ada.Networking.Writers/Ada.Networking.Writers.csproj" />
+  <Project Path="Ada.Networking/Ada.Networking.csproj" />
+  <Project Path="Ada.Server/Ada.Server.csproj" />
+  <Project Path="Ada.Tests/Ada.Tests.csproj" />
+</Solution>

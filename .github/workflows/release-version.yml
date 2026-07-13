@@ -1,0 +1,147 @@
+name: Build and Release Executables for Windows and Linux
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.x'
+
+      - name: Install xmlstarlet (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xmlstarlet
+
+      - name: Install xmlstarlet (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install xmlstarlet -y
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore ./Ada.sln
+
+      - name: Find Ada.Server .csproj file
+        id: find_server_csproj
+        run: |
+          file=$(find . -name "Ada.Server.csproj" | head -n 1)
+          echo "server_csproj=$file" >> $GITHUB_OUTPUT
+
+      - name: Get version from Ada.Server .csproj
+        id: get_version
+        run: |
+          version=$(xmlstarlet sel -t -v "/Project/PropertyGroup/AssemblyVersion" "${{ steps.find_server_csproj.outputs.server_csproj }}" || echo "1.0.0")
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Find Ada.Console .csproj file
+        id: find_console_csproj
+        run: |
+          file=$(find . -name "Ada.Console.csproj" | head -n 1)
+          echo "console_csproj=$file" >> $GITHUB_OUTPUT
+
+      - name: Build Ada.Console project
+        run: |
+          dotnet build "${{ steps.find_console_csproj.outputs.console_csproj }}" -c Release
+
+      - name: Publish for Linux (self-contained binary)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet publish "${{ steps.find_console_csproj.outputs.console_csproj }}" -c Release -r linux-x64 --self-contained true -o ./publish/linux
+
+      - name: Publish for Windows (self-contained executable)
+        if: runner.os == 'Windows'
+        run: |
+          dotnet publish "${{ steps.find_console_csproj.outputs.console_csproj }}" -c Release -r win-x64 --self-contained true -o ./publish/windows
+
+      - name: Combine Executables for Release
+        run: |
+          mkdir -p ./publish/release/linux
+          mkdir -p ./publish/release/windows
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            mv ./publish/linux/Ada.Console ./publish/release/linux/Ada.Console
+          fi
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            mv ./publish/windows/Ada.Console.exe ./publish/release/windows/Ada.Console.exe
+          fi
+
+      - name: Check if release tag exists
+        id: check_tag
+        run: |
+          tag="v${{ steps.get_version.outputs.version }}"
+          exists=$(curl -s --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/tags/$tag" | jq -r .message)
+          if [[ "$exists" == "Not Found" ]]; then
+            echo "tag_exists=false" >> $GITHUB_ENV
+          else
+            echo "tag_exists=true" >> $GITHUB_ENV
+          fi
+
+      - name: Pack Ada.Core
+        run: |
+          dotnet pack ./Ada.Core/Ada.Core.csproj \
+            -c Release \
+            -p:PackageVersion=${{ steps.get_version.outputs.version }} \
+            -o ./nuget
+
+      - name: Pack Ada.Networking.Writers
+        run: |
+          dotnet pack ./Ada.Networking.Writers/Ada.Networking.Writers.csproj \
+            -c Release \
+            -p:PackageVersion=${{ steps.get_version.outputs.version }} \
+            -o ./nuget
+
+      - name: Publish Ada.Core to NuGet
+        if: env.tag_exists == 'false'
+        run: |
+          dotnet nuget push "./nuget/Ada.Core.*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Publish Ada.Networking.Writers to NuGet
+        if: env.tag_exists == 'false'
+        run: |
+          dotnet nuget push "./nuget/Ada.Networking.Writers.*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release and Upload Executables
+        if: env.tag_exists == 'false'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          generateReleaseNotes: true
+          artifacts: |
+            ./publish/release/linux/Ada.Console
+            ./publish/release/windows/Ada.Console.exe
+
+      - name: Send Discord Notification
+        if: env.tag_exists == 'false'
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"🚀 A new version \`v${{ steps.get_version.outputs.version }}\` has been released! Check it out: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.get_version.outputs.version }} @here\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
