@@ -1,4 +1,4 @@
-![](https://i.imgur.com/4XNDVHB.png)
+![Ada Emulator](.github/banner.png)
 
 A lightweight and customizable emulation server designed to recreate and host your own virtual Habbo hotel environment. 
 
