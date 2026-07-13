@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Game.Catalog;
 using Ada.Core.Enums.Game.Catalog;
 using Ada.Db;
 using Ada.Db.Models.Catalog.Items;

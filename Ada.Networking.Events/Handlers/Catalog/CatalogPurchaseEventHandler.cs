@@ -10,7 +10,6 @@ using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Constants;
 using Ada.Db;
 using Ada.Db.Models.Catalog.Pages;
-using Ada.Game.Catalog.Purchase;
 
 namespace Ada.Networking.Events.Handlers.Catalog;
 

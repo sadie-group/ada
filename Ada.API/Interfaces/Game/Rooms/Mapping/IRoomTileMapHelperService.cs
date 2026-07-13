@@ -36,7 +36,12 @@ public interface IRoomTileMapHelperService
         IRoomTileMap tileMap, 
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems);
 
-    bool   (
+    bool CanPlaceAt(
+        IEnumerable<Point> points,
+        IRoomTileMap tileMap,
+        bool checkForUsers = true);
+
+    bool CanPlaceAt(
         IEnumerable<Point> points,  
         IRoomTileMap tileMap,
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
