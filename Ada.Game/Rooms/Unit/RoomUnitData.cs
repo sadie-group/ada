@@ -1,0 +1,245 @@
+using System.Drawing;
+using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Mapping;
+using Ada.API.Interfaces.Game.Rooms.Pathfinding;
+using Ada.API.Interfaces.Game.Rooms.Unit;
+using Ada.Core.Enums.Game.Rooms.Users;
+using Ada.Core.Enums.Miscellaneous;
+
+namespace Ada.Game.Rooms.Unit;
+
+public class RoomUnitData(
+    IRoomLogic room,
+    Point point,
+    double pointZ,
+    HDirection directionHead,
+    HDirection direction,
+    IRoomTileMapHelperService tileMapHelperService,
+    IRoomPathFinderHelperService pathFinderHelperService) : IRoomUnitData
+{
+    public HDirection DirectionHead { get; set; } = directionHead;
+    public HDirection Direction { get; set; } = direction;
+    public bool CanWalk { get; set; } = true;
+    public Point Point { get; private set; } = point;
+    public double PointZ { get; set; } = pointZ;
+    public bool IsWalking { get; set; }
+    protected bool NeedsPathCalculated { get; set; }
+    
+    public bool NeedsUpdate { get; set; }
+    public Point? NextPoint { get; set; }
+    protected int StepsWalked { get; set; }
+    protected Point PathGoal { get; set; }
+    protected List<Point> PathPoints { get; set; } = [];
+    public Dictionary<string, string> StatusMap { get; } = [];
+    public List<Point> OverridePoints { get; set; } = [];
+
+    public void RemoveStatuses(params string[] statuses)
+    {
+        foreach (var status in statuses)
+        {
+            StatusMap.Remove(status);
+        }
+
+        NeedsUpdate = true;
+    }
+
+    private void ClearWalking(bool reachedGoal = true)
+    {
+        IsWalking = false;
+        RemoveStatuses(RoomUserStatus.Move);
+        CheckStatusForCurrentTile();
+
+        if (reachedGoal && OnReachedGoal != null)
+        {
+            OnReachedGoal.Invoke();
+            OnReachedGoal = null;
+        }
+    }
+
+    private Action? OnReachedGoal { get; set; }
+
+    public void CheckStatusForCurrentTile()
+    {
+        if (IsWalking)
+        {
+            return;
+        }
+        
+        var tileItems = tileMapHelperService.GetItemsForPosition(Point.X, Point.Y, room.Room.FurnitureItems);
+
+        if (tileItems.Count == 0)
+        {
+            PointZ = room.TileMap.ZMap[Point.Y, Point.X];
+            RemoveStatuses(RoomUserStatus.Sit, RoomUserStatus.Lay);
+        }
+
+        var topItem = tileItems.MaxBy(item => item.PositionZ);
+
+        if (topItem == null)
+        {
+            return;
+        }
+        
+        var topFurnitureItem = topItem.PlayerFurnitureItem.FurnitureItem;
+
+        if (topFurnitureItem.CanSit)
+        {
+            AddStatus(
+                RoomUserStatus.Sit, 
+                (topFurnitureItem.StackHeight * 1.0D).ToString());
+            
+            Direction = topItem.Direction;
+            DirectionHead = topItem.Direction;
+        }
+        else if (topFurnitureItem.CanLay)
+        {
+            AddStatus(
+                RoomUserStatus.Lay, 
+                (topFurnitureItem.StackHeight + 0.1).ToString());
+            
+            Direction = topItem.Direction;
+            DirectionHead = topItem.Direction;
+        }
+        else
+        {
+            RemoveStatuses(RoomUserStatus.Sit, RoomUserStatus.Lay);
+        }
+        
+        var topItemSitOrLay = topFurnitureItem is { CanSit: false, CanLay: false };
+        var zHeightNextStep = topItem.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
+        
+        PointZ = zHeightNextStep;
+        NeedsUpdate = true;
+    }
+
+    public void AddStatus(string key, string value)
+    {
+        StatusMap[key] = value;
+        NeedsUpdate = true;
+    }
+
+    private void CalculatePath()
+    {
+        PathPoints = pathFinderHelperService.BuildPathForWalk(
+            room,
+            Point,
+            PathGoal,
+            OverridePoints);
+
+        if (PathPoints.Count > 1)
+        {
+            StepsWalked = 0;
+            IsWalking = true;
+            NeedsPathCalculated = false;
+        }
+        else
+        {
+            NeedsPathCalculated = true;
+        }
+    }
+    
+    public void WalkToPoint(Point point, Action? onReachedGoal = null)
+    {
+        if (room.TileMap.UsersAtPoint(point) &&
+            !room.Room.Settings.CanUsersOverlap)
+        {
+            return;
+        }
+        
+        PathGoal = point;
+        NeedsPathCalculated = true;
+        OnReachedGoal = onReachedGoal;
+    }
+
+    protected async Task ProcessGenericChecksAsync()
+    {
+        if (NextPoint != null)
+        {
+            room.TileMap.UnitMap[Point].Remove(this);
+            room.TileMap.AddUnitToMap(NextPoint.Value, this);
+            
+            PointZ = NextZ;
+
+            await SetPositionAsync(NextPoint.Value);
+            NextPoint = null;
+
+            if (Point == PathGoal)
+            {
+                ClearWalking();
+                return;
+            }
+        }
+        
+        if (NeedsPathCalculated)
+        {
+            CalculatePath();
+        }
+
+        if (IsWalking)
+        {
+            await ProcessMovementAsync();
+        }
+    }
+
+    private async Task ProcessMovementAsync()
+    {
+        StepsWalked++;
+
+        if (StepsWalked >= PathPoints.Count)
+        {
+            ClearWalking();
+            return;
+        }
+        
+        var nextStep = PathPoints[StepsWalked];
+        var lastStep = PathPoints.Count == StepsWalked + 1;
+        
+        if (room.TileMap.Map[nextStep.Y, nextStep.X] == 0 && !OverridePoints.Contains(nextStep) || 
+            (room.TileMap.Map[nextStep.Y, nextStep.X] == 2 && !lastStep) || 
+            room.TileMap.UnitMap.GetValueOrDefault(nextStep, []).Count > 0)
+        {
+            NeedsPathCalculated = true;
+            return;
+        }
+        
+        var topItemNextStep = tileMapHelperService
+            .GetItemsForPosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
+            .MaxBy(x => x.PositionZ);
+
+        var topFurnitureItem = topItemNextStep?.PlayerFurnitureItem.FurnitureItem;
+        var topItemSitOrLay = topFurnitureItem is { CanSit: false, CanLay: false };
+        
+        var zHeightNextStep = topItemNextStep == null || topFurnitureItem == null ?
+            room.TileMap.ZMap[nextStep.Y, nextStep.X] : 
+            topItemNextStep.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
+
+        ClearStatuses();
+
+        AddStatus(RoomUserStatus.Move, $"{nextStep.X},{nextStep.Y},{zHeightNextStep}");
+
+        var newDirection = pathFinderHelperService.GetDirectionForNextStep(Point, nextStep);
+                
+        Direction = newDirection;
+        DirectionHead = newDirection;
+        NextZ = zHeightNextStep;
+        NextPoint = nextStep;
+    }
+
+    public double NextZ { get; set; }
+    public int HandItemId { get; set; }
+    public DateTime HandItemSet { get; set; }
+    
+    public async Task SetPositionAsync(Point point)
+    {
+        Point = point;
+        NeedsUpdate = true;
+    }
+
+    private void ClearStatuses()
+    {
+        RemoveStatuses(
+            RoomUserStatus.Sit,
+            RoomUserStatus.Lay,
+            RoomUserStatus.Move);
+    }
+}

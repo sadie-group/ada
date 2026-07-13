@@ -1,0 +1,28 @@
+﻿using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Shared.Attributes;
+using Ada.Networking.Writers.Players.Other;
+
+namespace Ada.Networking.Events.Handlers.Players;
+
+[PacketId(EventHandlerId.PlayerMeMenuSettings)]
+public class PlayerMeMenuSettingsEventHandler : INetworkPacketEventHandler
+{
+    public async Task HandleAsync(INetworkClient client)
+    {
+        var player = client.Player!;
+        var playerGameSettings = player.Player.GameSettings;
+        
+        await client.WriteToStreamAsync(new PlayerMeMenuSettingsWriter
+        {
+            SystemVolume = playerGameSettings.SystemVolume,
+            FurnitureVolume = playerGameSettings.FurnitureVolume,
+            TraxVolume = playerGameSettings.TraxVolume,
+            OldChat = playerGameSettings.PreferOldChat,
+            BlockRoomInvites = playerGameSettings.BlockRoomInvites,
+            BlockCameraFollow = playerGameSettings.BlockCameraFollow,
+            UiFlags = playerGameSettings.UiFlags,
+            ChatBubble = (int) player.Player.AvatarData.ChatBubbleId
+        });
+    }
+}

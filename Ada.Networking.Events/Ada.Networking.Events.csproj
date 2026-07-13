@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Ada.Networking.Writers\Ada.Networking.Writers.csproj" />
+      <ProjectReference Include="..\Ada.Networking\Ada.Networking.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="AutoMapper" Version="13.0.1" />
+      <ProjectReference Include="..\Ada.API\Ada.API.csproj" />
+      <ProjectReference Include="..\Ada.Networking.Encryption\Ada.Networking.Encryption.csproj" />
+      <PackageReference Include="Scrutor" Version="4.2.2" />
+      <PackageReference Include="Serilog" Version="4.2.1-dev-02356" />
+    </ItemGroup>
+</Project>

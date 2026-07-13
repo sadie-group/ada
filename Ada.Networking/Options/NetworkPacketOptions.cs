@@ -1,0 +1,8 @@
+﻿namespace Ada.Networking.Options;
+
+public class NetworkPacketOptions
+{
+    public required int BufferByteSize { get; init; }
+    public required int FrameLengthByteCount { get; init; }
+    public bool NotifyMissingPacket { get; init; }
+}

@@ -1,0 +1,137 @@
+using System.Drawing;
+using AutoMapper;
+using Moq;
+using Ada.Core.Enums.Game.Furniture;
+using Ada.Core.Enums.Miscellaneous;
+using Ada.Game.Rooms.Furniture;
+using Ada.Game.Rooms.Furniture.Processors;
+using Ada.Game.Rooms.Mapping;
+using Ada.Tests.Common;
+
+namespace Ada.Tests.Game.Rooms.Furniture.Processors;
+
+public class RollerProcessorTests : MockHelpers
+{
+    [Test]
+    public async Task GetUpdatesForRoomAsync_NothingOnRoller_NoUpdatesReturned()
+    {
+        var room = MockRoomWithUserRepoAndFurniture("00", [
+            MockFurnitureItemPlacementData(FurnitureItemInteractionType.Roller)
+        ]);
+        
+        var tMapService = new RoomTileMapHelperService();
+        var dbFactory = TestDbFactory.CreateDbFactory();
+        var playerRepository = CreatePlayerRepositoryMock();
+        var mapper = new Mock<IMapper>();
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var processor = new RollerProcessor(tMapService, fHelperService);
+        var updates = await processor.GetUpdatesForRoomAsync(room);
+        
+        Assert.That(updates.Count(), Is.EqualTo(0));
+        Assert.That(updates.Count(), Is.EqualTo(0));
+    }
+    
+    [Test]
+    public async Task GetUpdatesForRoomAsync_FurnitureOnRoller_PositionUpdated()
+    {
+        var roller = MockFurnitureItemPlacementData(FurnitureItemInteractionType.Roller);
+        roller.Direction = HDirection.East;
+        
+        var roomItem1 = MockFurnitureItemPlacementData("");
+        var room = MockRoomWithUserRepoAndFurniture("00\n\r00", [roller, roomItem1]);
+        var tMapService = new RoomTileMapHelperService();
+        var dbFactory = TestDbFactory.CreateDbFactory();
+        var playerRepository = CreatePlayerRepositoryMock();
+        var mapper = new Mock<IMapper>();
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var processor = new RollerProcessor(tMapService, fHelperService);
+        var updates = await processor.GetUpdatesForRoomAsync(room);
+        
+        Assert.Multiple(() =>
+        {
+            Assert.That(updates.Count(), Is.EqualTo(1));
+            Assert.That(roomItem1.PositionX, Is.EqualTo(1));
+        });
+    }
+    
+    [Test]
+    public async Task GetUpdatesForRoomAsync_UserOnRoller_PositionUpdated()
+    {
+        var roller = MockFurnitureItemPlacementData(FurnitureItemInteractionType.Roller);
+        roller.Direction = HDirection.East;
+        
+        var userOne = MockRoomUser();
+        var room = MockRoomWithUserRepoAndFurniture("00\n\r00", [roller], [userOne]);
+        var tMapService = new RoomTileMapHelperService();
+        var dbFactory = TestDbFactory.CreateDbFactory();
+        var playerRepository = CreatePlayerRepositoryMock();
+        var mapper = new Mock<IMapper>();
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var processor = new RollerProcessor(tMapService, fHelperService);
+        var updates = await processor.GetUpdatesForRoomAsync(room);
+        
+        Assert.Multiple(() =>
+        {
+            Assert.That(updates.Count(), Is.EqualTo(1));
+            Assert.That(room.TileMap.UsersAtPoint(new Point(0,0)), Is.False);
+        });
+    }
+    
+    [Test]
+    public async Task GetUpdatesForRoomAsync_UserOnRollerWithInvalidNextStep_NoUpdatesReturned()
+    {
+        var roller = MockFurnitureItemPlacementData(FurnitureItemInteractionType.Roller);
+        
+        roller.PositionX = 1;
+        roller.PositionY = 1;
+        var userOne = MockRoomUser();
+        var room = MockRoomWithUserRepoAndFurniture("0", [roller], [userOne]);
+        var tMapService = new RoomTileMapHelperService();
+        var dbFactory = TestDbFactory.CreateDbFactory();
+        var playerRepository = CreatePlayerRepositoryMock();
+        var mapper = new Mock<IMapper>();
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var processor = new RollerProcessor(tMapService, fHelperService);
+        var updates = await processor.GetUpdatesForRoomAsync(room);
+        
+        Assert.Multiple(() =>
+        {
+            Assert.That(updates.Count(), Is.EqualTo(0));
+            Assert.That(room.TileMap.UsersAtPoint(new Point(0,0)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task GetUpdatesForRoomAsync_UserOnRollerWithUnwalkableNextStep_NoUpdatesReturned()
+    {
+        var roller = MockFurnitureItemPlacementData(FurnitureItemInteractionType.Roller);
+        var item = MockFurnitureItemPlacementData("", 1, 1);
+        var userOne = MockRoomUser();
+        var room = MockRoomWithUserRepoAndFurniture("00", [roller, item], [userOne]);
+        var tMapService = new RoomTileMapHelperService();
+        var dbFactory = TestDbFactory.CreateDbFactory();
+        var playerRepository = CreatePlayerRepositoryMock();
+        var mapper = new Mock<IMapper>();
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var processor = new RollerProcessor(tMapService, fHelperService);
+        var updates = await processor.GetUpdatesForRoomAsync(room);
+        
+        Assert.Multiple(() =>
+        {
+            Assert.That(updates.Count(), Is.EqualTo(0));
+            Assert.That(room.TileMap.UsersAtPoint(new Point(0,0)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task GetUpdatesForRoomAsync_FurnitureOnRollerWithInvalidNextStep_PositionNotUpdated()
+    {
+        var item = MockFurnitureItemPlacementData("");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(item.PositionX, Is.EqualTo(0));
+            Assert.That(item.PositionY, Is.EqualTo(0));
+        });
+    }
+}
