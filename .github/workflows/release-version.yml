@@ -18,6 +18,7 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -118,11 +119,17 @@ jobs:
             -p:PackageVersion=${{ steps.get_version.outputs.version }} \
             -o ./nuget
 
+      - name: NuGet login (trusted publishing)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: habtard
+
       - name: Publish Ada.API to NuGet
         if: env.tag_exists == 'false'
         run: |
           dotnet nuget push "./nuget/Ada.API.*.nupkg" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
@@ -130,7 +137,7 @@ jobs:
         if: env.tag_exists == 'false'
         run: |
           dotnet nuget push "./nuget/Ada.Core.*.nupkg" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
@@ -138,7 +145,7 @@ jobs:
         if: env.tag_exists == 'false'
         run: |
           dotnet nuget push "./nuget/Ada.Networking.Writers.*.nupkg" \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key ${{ steps.login.outputs.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
