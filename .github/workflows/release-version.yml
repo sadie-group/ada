@@ -26,7 +26,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '9.x'
+          dotnet-version: '10.x'
 
       - name: Install xmlstarlet (Linux)
         if: runner.os == 'Linux'
@@ -41,7 +41,7 @@ jobs:
 
       - name: Restore dependencies
         run: |
-          dotnet restore ./Ada.sln
+          dotnet restore ./Ada.slnx
 
       - name: Find Ada.Server .csproj file
         id: find_server_csproj
@@ -97,6 +97,13 @@ jobs:
             echo "tag_exists=true" >> $GITHUB_ENV
           fi
 
+      - name: Pack Ada.API
+        run: |
+          dotnet pack ./Ada.API/Ada.API.csproj \
+            -c Release \
+            -p:PackageVersion=${{ steps.get_version.outputs.version }} \
+            -o ./nuget
+
       - name: Pack Ada.Core
         run: |
           dotnet pack ./Ada.Core/Ada.Core.csproj \
@@ -110,6 +117,14 @@ jobs:
             -c Release \
             -p:PackageVersion=${{ steps.get_version.outputs.version }} \
             -o ./nuget
+
+      - name: Publish Ada.API to NuGet
+        if: env.tag_exists == 'false'
+        run: |
+          dotnet nuget push "./nuget/Ada.API.*.nupkg" \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
 
       - name: Publish Ada.Core to NuGet
         if: env.tag_exists == 'false'
