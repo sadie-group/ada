@@ -138,4 +138,6 @@ public static class EventHandlerId
     public const short ModToolsUpdateRoomSettings = 3260;
     public const short ModToolsRoomInfo = 707;
     public const short ModToolsRoomChatLog = 2587;
+    public const short UnseenResetItems = 2343;
+    public const short UnseenResetCategory = 3493;
 }
