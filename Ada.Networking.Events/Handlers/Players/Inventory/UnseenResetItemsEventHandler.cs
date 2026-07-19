@@ -8,5 +8,11 @@ namespace Ada.Networking.Events.Handlers.Players.Inventory;
 public class UnseenResetItemsEventHandler : INetworkPacketEventHandler
 {
     public int Category { get; set; }
-    public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
+    public List<int> ItemIds { get; set; } = [];
+
+    public Task HandleAsync(INetworkClient client)
+    {
+        client.Player?.State.UnseenItems.Remove(Category, ItemIds);
+        return Task.CompletedTask;
+    }
 }

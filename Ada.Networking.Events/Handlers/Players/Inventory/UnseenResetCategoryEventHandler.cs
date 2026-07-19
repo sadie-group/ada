@@ -9,5 +9,9 @@ public class UnseenResetCategoryEventHandler : INetworkPacketEventHandler
 {
     public int Category { get; set; }
 
-    public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
+    public Task HandleAsync(INetworkClient client)
+    {
+        client.Player?.State.UnseenItems.ClearCategory(Category);
+        return Task.CompletedTask;
+    }
 }
