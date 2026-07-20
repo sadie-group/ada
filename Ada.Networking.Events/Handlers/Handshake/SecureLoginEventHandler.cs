@@ -10,6 +10,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared;
 using Ada.Core.Shared.Attributes;
+using Ada.Networking.Events.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Server;
@@ -19,6 +20,7 @@ using Ada.Options.Options;
 namespace Ada.Networking.Events.Handlers.Handshake;
 
 [PacketId(EventHandlerId.SecureLogin)]
+[AllowUnauthenticated]
 public class SecureLoginEventHandler(
     ILogger<SecureLoginEventHandler> logger,
     IOptions<EncryptionOptions> encryptionOptions,

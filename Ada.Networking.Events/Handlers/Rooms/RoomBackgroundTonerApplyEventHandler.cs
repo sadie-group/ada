@@ -21,11 +21,6 @@ public class RoomBackgroundTonerApplyEventHandler(
     [RequiresRoomRights]
     public async Task HandleAsync(INetworkClient client)
     {
-        if (client.Player == null)
-        {
-            return;
-        }
-
         var roomFurnitureItem = client
             .RoomUser!
             .Room

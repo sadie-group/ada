@@ -12,11 +12,6 @@ public class PlayerDataEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
-        if (client.Player == null)
-        {
-            return;
-        }
-        
         await client.WriteToStreamAsync(new PlayerDataWriter
         {
             Player = client.Player
