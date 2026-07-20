@@ -124,10 +124,12 @@ public class PlayerHelperService : IPlayerHelperService
 
     public async Task SendUnseenInventoryItemsAsync(IPlayerLogic player, List<PlayerFurnitureItemDto> items)
     {
+        player.State.UnseenItems.Add(UnseenItemCategory.Furniture, items.Select(x => x.Id));
+
         await player.NetworkObject!.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
         {
-            Count = items.Count,
-            Category = 1,
+            Count = 1,
+            Category = UnseenItemCategory.Furniture,
             FurnitureItems = items
         });
     }
