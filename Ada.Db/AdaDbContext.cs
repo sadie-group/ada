@@ -62,6 +62,7 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<PlayerWebsiteData> PlayerWebsiteData { get; init; }
     public DbSet<ServerLocaleText> ServerLocaleTexts { get; init; }
     public DbSet<PlayerWardrobeItem> PlayerWardrobeItems { get; set; }
+    public DbSet<WordFilterEntry> WordFilterEntries { get; set; }
     public DbSet<PlayerRespect> PlayerRespects { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
