@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.API.Interfaces.Plugins;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared;
 using Ada.Core.Shared.Attributes;
@@ -33,7 +34,9 @@ public class SecureLoginEventHandler(
     IPlayerLoaderService playerLoaderService,
     IPlayerHelperService playerHelperService,
     IConfiguration config,
-    PlayerLoginPacketService playerLoginPacketService)
+    PlayerLoginPacketService playerLoginPacketService,
+    IPlayerSessionResumeService sessionResumeService,
+    IEnumerable<IPlayerSessionListener> sessionListeners)
     : INetworkPacketEventHandler
 {
     public string? Token { get; set; }
@@ -112,13 +115,20 @@ public class SecureLoginEventHandler(
 
         var playerId = player.Id;
         var existingPlayer = playerRepository.GetPlayerLogicById(playerId);
+        var resumed = false;
 
-        if (existingPlayer?.NetworkObject != null)
+        if (existingPlayer != null && await sessionResumeService.TryResumeAsync(existingPlayer, client))
+        {
+            playerLogic = existingPlayer;
+            playerLogic.NetworkObject = client;
+            resumed = true;
+        }
+        else if (existingPlayer?.NetworkObject != null)
         {
             await networkClientRepository.TryRemoveAsync(existingPlayer.NetworkObject.Guid);
         }
 
-        if (!playerRepository.TryAddPlayer(playerLogic))
+        if (!resumed && !playerRepository.TryAddPlayer(playerLogic))
         {
             logger.LogError($"Player {playerLogic.Player.Username} could not be registered");
             await client.DisposeAsync();
@@ -159,7 +169,26 @@ public class SecureLoginEventHandler(
             logger.LogError(e, "Post-login notifications failed for {Username}; login stands.", playerLogic.Player.Username);
         }
 
+        client.Player = playerLogic;
+
+        await NotifySessionListenersAsync(client, playerLogic, resumed);
+
         logger.LogInformation($"Player '{playerLogic.Player.Username}' has logged in from {ipAddress} ({Math.Round(sw.Elapsed.TotalMilliseconds)}ms)");
+    }
+
+    private async Task NotifySessionListenersAsync(INetworkClient client, IPlayerLogic player, bool resumed)
+    {
+        foreach (var listener in sessionListeners)
+        {
+            try
+            {
+                await listener.OnLoginAsync(client, player, resumed);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Session listener {Listener} failed on login", listener.GetType().Name);
+            }
+        }
     }
 
     private async Task SendWelcomeMessageAsync(IPlayerLogic player)

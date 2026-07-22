@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Ada.API;
+using Ada.API.Interfaces.Plugins;
 using Ada.API.Interfaces.Server;
 using Ada.API.Interfaces.Server.Tasks;
 using Ada.Db;
@@ -70,6 +71,12 @@ public static class ServerServiceCollection
             .FromAssemblies(assemblies)
             .AddClasses(c => c.AssignableTo<IServerTask>())
             .AsImplementedInterfaces()
+            .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<IPlayerSessionListener>())
+            .As<IPlayerSessionListener>()
             .WithSingletonLifetime());
     }
 }

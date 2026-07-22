@@ -10,7 +10,8 @@ public class NetworkClientConnectionHandler(
     INetworkClientRepository clientRepository,
     IWebSocketMessageReader webSocketMessageReader,
     INetworkPacketDecoder packetDecoder,
-    PacketDispatcher packetDispatcher)
+    PacketDispatcher packetDispatcher,
+    IClientDisposalService clientDisposalService)
     : INetworkClientConnectionHandler
 {
     public async Task HandleClientAsync(INetworkClient client, CancellationToken ct)
@@ -37,8 +38,7 @@ public class NetworkClientConnectionHandler(
         }
         finally
         {
-            await clientRepository.TryRemoveAsync(client.Guid);
-            await client.DisposeAsync();
+            await clientDisposalService.HandleDisconnectAsync(client);
         }
     }
 }
