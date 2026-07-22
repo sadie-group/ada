@@ -163,4 +163,5 @@ public static class ServerPacketId
     public const short ModToolsRoomInfo = 1333;
     public const short ModToolsRoomChatLog = 3434;
     public const short RoomUserFloodControl = 566;
+    public const short WiredCondition = 1108;
 }
