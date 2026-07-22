@@ -90,16 +90,17 @@ public class TeleportInteractor(
 
         if (link == null)
         {
+            await ReleaseUserAsync(room, item, roomUser);
             return;
         }
 
         var targetItemId = link.ParentId == item.PlayerFurnitureItemId ? link.ChildId : link.ParentId;
-        
+
         var targetRoomItem = room
             .Room
             .FurnitureItems
             .FirstOrDefault(x => x.PlayerFurnitureItemId == targetItemId);
-        
+
         if (targetRoomItem != null)
         {
             await UseTeleportInSameRoomAsync(
@@ -107,13 +108,28 @@ public class TeleportInteractor(
                 item,
                 targetRoomItem,
                 room);
+            return;
         }
-        
+
         await UseTeleportInDifferentRoomAsync(
-            roomUser, 
+            roomUser,
             item,
             targetItemId,
             room);
+    }
+
+    /// <summary>
+    /// Backs the user out of a teleport that has no usable destination, e.g.
+    /// when the linked pad is unplaced; without this they stay frozen inside it.
+    /// </summary>
+    private async Task ReleaseUserAsync(
+        IRoomLogic room,
+        PlayerFurnitureItemPlacementDataDto item,
+        IRoomUser roomUser)
+    {
+        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+        roomUser.CanWalk = true;
+        roomUser.NeedsUpdate = true;
     }
 
     private async Task UseTeleportInDifferentRoomAsync(
@@ -130,32 +146,38 @@ public class TeleportInteractor(
             .Select(x => x.RoomId)
             .FirstOrDefaultAsync();
 
-        if (targetRoomId != 0)
+        if (targetRoomId == 0)
         {
-            var targetRoom = await RoomHelpers.TryLoadRoomByIdAsync(targetRoomId,
-                roomRepository,
-                dbContextFactory,
-                mapper);
-
-            var targetItem = targetRoom?.Room.FurnitureItems
-                .FirstOrDefault(x => x.PlayerFurnitureItemId == targetItemId);
-
-            if (targetItem != null)
-            {
-                roomUser.Player.State.Teleport = targetItem;
-                
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "2");
-                await Task.Delay(_delay);
-                    
-                await roomUser.NetworkObject.WriteToStreamAsync(new RoomForwardEntryWriter
-                {
-                    RoomId = targetRoomId
-                });
-                
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "1");
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
-            }
+            await ReleaseUserAsync(room, item, roomUser);
+            return;
         }
+
+        var targetRoom = await RoomHelpers.TryLoadRoomByIdAsync(targetRoomId,
+            roomRepository,
+            dbContextFactory,
+            mapper);
+
+        var targetItem = targetRoom?.Room.FurnitureItems
+            .FirstOrDefault(x => x.PlayerFurnitureItemId == targetItemId);
+
+        if (targetItem == null)
+        {
+            await ReleaseUserAsync(room, item, roomUser);
+            return;
+        }
+
+        roomUser.Player.State.Teleport = targetItem;
+
+        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "2");
+        await Task.Delay(_delay);
+
+        await roomUser.NetworkObject.WriteToStreamAsync(new RoomForwardEntryWriter
+        {
+            RoomId = targetRoomId
+        });
+
+        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "1");
+        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
     }
 
     private async Task UseTeleportInSameRoomAsync(
