@@ -28,11 +28,6 @@ public class NavigatorSearchEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
-        if (client.Player == null)
-        {
-            return;
-        }
-        
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
         var tab = await dbContext.Set<NavigatorTab>()

@@ -23,11 +23,6 @@ public class RoomRemoveUserRightsEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
-        if (client.Player == null)
-        {
-            return;
-        }
-        
         var room = roomRepository.TryGetRoomById(client.Player.State.CurrentRoomId);
 
         if (room == null)

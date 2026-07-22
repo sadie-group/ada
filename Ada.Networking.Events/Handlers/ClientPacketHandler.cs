@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -38,6 +39,7 @@ public class ClientPacketHandler(
 
             if (!ValidateAttributes(eventHandler, client))
             {
+                _ = RejectAsync(eventHandler, client);
                 return;
             }
             
@@ -84,21 +86,47 @@ public class ClientPacketHandler(
         }
     }
 
-    private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler, 
+    private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler,
         INetworkClient client)
     {
-        var method = eventHandler.GetType().GetMethods()
+        var type = eventHandler.GetType();
+
+        var method = type.GetMethods()
             .SingleOrDefault(x => x.Name == "HandleAsync");
 
-        var requiresRoomRights = method?.GetCustomAttributes(typeof(RequiresRoomRightsAttribute), true)
-            .FirstOrDefault() != null;
+        var allowsUnauthenticated = HasAttribute<AllowUnauthenticatedAttribute>(type, method);
 
-        if (requiresRoomRights)
+        if (!allowsUnauthenticated && client.Player == null)
+        {
+            return false;
+        }
+
+        if (HasAttribute<RequiresRoomRightsAttribute>(type, method))
         {
             return client.RoomUser != null && client.RoomUser.HasRights();
         }
 
         return true;
+    }
+
+    private static bool HasAttribute<T>(Type type, MemberInfo? method) where T : Attribute
+    {
+        return method?.GetCustomAttributes(typeof(T), true).FirstOrDefault() != null ||
+               type.GetCustomAttributes(typeof(T), true).FirstOrDefault() != null;
+    }
+
+    private async Task RejectAsync(INetworkPacketEventHandler eventHandler, INetworkClient client)
+    {
+        logger.LogWarning($"Rejected packet '{eventHandler.GetType().Name}' (authenticated: {client.Player != null})");
+
+        try
+        {
+            await client.WriteToStreamAsync(new GenericErrorWriter { ErrorCode = 1 });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e.ToString());
+        }
     }
 
     private async Task ExecuteAsync(INetworkClient client, INetworkPacketEventHandler eventHandler)

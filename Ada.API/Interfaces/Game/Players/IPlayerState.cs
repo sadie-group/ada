@@ -8,8 +8,9 @@ public interface IPlayerState
     DateTime LastDirectMessage { get; set; }
     DateTime LastCatalogPurchase { get; set; }
     DateTime LastSubscriptionModification { get; set; }
-    string CatalogMode { get; set; }
+    string? CatalogMode { get; set; }
     PlayerFurnitureItemPlacementDataDto? Teleport { get; set; }
     int CurrentRoomId { get; set; }
     PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
+    IPlayerUnseenItems UnseenItems { get; }
 }

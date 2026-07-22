@@ -11,6 +11,7 @@ using Ada.API.Interfaces.Plugins;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared;
 using Ada.Core.Shared.Attributes;
+using Ada.Networking.Events.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Server;
@@ -20,6 +21,7 @@ using Ada.Options.Options;
 namespace Ada.Networking.Events.Handlers.Handshake;
 
 [PacketId(EventHandlerId.SecureLogin)]
+[AllowUnauthenticated]
 public class SecureLoginEventHandler(
     ILogger<SecureLoginEventHandler> logger,
     IOptions<EncryptionOptions> encryptionOptions,
@@ -140,23 +142,32 @@ public class SecureLoginEventHandler(
         
         playerLogic.Authenticated = true;
 
+        client.Player = playerLogic;
+
         await playerLoginPacketService.SendAsync(client, playerLogic);
         await PlayerSubscriptionPacketHelper.SendAsync(playerLogic);
-        
-        await playerHelperService.SendPlayerFriendListUpdate(playerLogic, playerRepository);
 
-        var playersFriends = player.OutgoingFriendships
-            .Concat(player.IncomingFriendships)
-            .Where(x => x.Status == PlayerFriendshipStatus.Accepted);
-        
-        await playerHelperService.UpdatePlayerStatusForFriendsAsync(
-            playerLogic, 
-            playersFriends, 
-            true, 
-            false, 
-            playerRepository);
-        
-        await SendWelcomeMessageAsync(playerLogic);
+        try
+        {
+            await playerHelperService.SendPlayerFriendListUpdate(playerLogic, playerRepository);
+
+            var playersFriends = player.OutgoingFriendships
+                .Concat(player.IncomingFriendships)
+                .Where(x => x.Status == PlayerFriendshipStatus.Accepted);
+
+            await playerHelperService.UpdatePlayerStatusForFriendsAsync(
+                playerLogic,
+                playersFriends,
+                true,
+                false,
+                playerRepository);
+
+            await SendWelcomeMessageAsync(playerLogic);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Post-login notifications failed for {Username}; login stands.", playerLogic.Player.Username);
+        }
 
         client.Player = playerLogic;
 

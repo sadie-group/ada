@@ -44,16 +44,15 @@ jobs:
         run: |
           dotnet restore ./Ada.slnx
 
-      - name: Find Ada.Server .csproj file
-        id: find_server_csproj
-        run: |
-          file=$(find . -name "Ada.Server.csproj" | head -n 1)
-          echo "server_csproj=$file" >> $GITHUB_OUTPUT
-
-      - name: Get version from Ada.Server .csproj
+      - name: Get version from Directory.Build.props
         id: get_version
+        shell: bash
         run: |
-          version=$(xmlstarlet sel -t -v "/Project/PropertyGroup/AssemblyVersion" "${{ steps.find_server_csproj.outputs.server_csproj }}" || echo "1.0.0")
+          version=$(xmlstarlet sel -t -v "/Project/PropertyGroup/Version" ./Directory.Build.props 2>/dev/null || true)
+          if [ -z "$version" ]; then
+            echo "::error::Could not read <Version> from Directory.Build.props"
+            exit 1
+          fi
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Find Ada.Console .csproj file
