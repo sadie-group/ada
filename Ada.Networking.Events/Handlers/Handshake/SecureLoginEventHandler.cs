@@ -132,25 +132,33 @@ public class SecureLoginEventHandler(
         
         playerLogic.Authenticated = true;
 
+        client.Player = playerLogic;
+
         await playerLoginPacketService.SendAsync(client, playerLogic);
         await PlayerSubscriptionPacketHelper.SendAsync(playerLogic);
-        
-        await playerHelperService.SendPlayerFriendListUpdate(playerLogic, playerRepository);
 
-        var playersFriends = player.OutgoingFriendships
-            .Concat(player.IncomingFriendships)
-            .Where(x => x.Status == PlayerFriendshipStatus.Accepted);
-        
-        await playerHelperService.UpdatePlayerStatusForFriendsAsync(
-            playerLogic, 
-            playersFriends, 
-            true, 
-            false, 
-            playerRepository);
-        
-        await SendWelcomeMessageAsync(playerLogic);
+        try
+        {
+            await playerHelperService.SendPlayerFriendListUpdate(playerLogic, playerRepository);
 
-        client.Player = playerLogic;
+            var playersFriends = player.OutgoingFriendships
+                .Concat(player.IncomingFriendships)
+                .Where(x => x.Status == PlayerFriendshipStatus.Accepted);
+
+            await playerHelperService.UpdatePlayerStatusForFriendsAsync(
+                playerLogic,
+                playersFriends,
+                true,
+                false,
+                playerRepository);
+
+            await SendWelcomeMessageAsync(playerLogic);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Post-login notifications failed for {Username}; login stands.", playerLogic.Player.Username);
+        }
+
         logger.LogInformation($"Player '{playerLogic.Player.Username}' has logged in from {ipAddress} ({Math.Round(sw.Elapsed.TotalMilliseconds)}ms)");
     }
 
