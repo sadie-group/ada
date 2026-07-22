@@ -434,6 +434,10 @@ namespace Ada.Db.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("interaction_type");
 
+                    b.Property<string>("MultiHeights")
+                        .HasColumnType("longtext")
+                        .HasColumnName("multi_heights");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext")

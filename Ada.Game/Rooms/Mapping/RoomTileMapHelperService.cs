@@ -7,6 +7,8 @@ using Ada.Core.Enums.Game.Rooms.Mapping;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Enums.Miscellaneous;
 
+using Ada.Game.Rooms.Furniture;
+
 namespace Ada.Game.Rooms.Mapping;
 
 public class RoomTileMapHelperService : IRoomTileMapHelperService
@@ -310,7 +312,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         }
 
         var highestItem = i.MaxBy(x => x.PositionZ)!;
-        return highestItem.PositionZ + highestItem.PlayerFurnitureItem.FurnitureItem.StackHeight;
+        return highestItem.PositionZ + highestItem.GetEffectiveStackHeight();
     }
 
     public int GetSquaresBetweenPoints(Point a, Point b)

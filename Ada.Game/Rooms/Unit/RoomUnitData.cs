@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
 using Ada.API.Interfaces.Game.Rooms.Unit;
 using Ada.Core.Enums.Game.Rooms.Users;
+using Ada.Game.Rooms.Furniture;
 using Ada.Core.Enums.Miscellaneous;
 
 namespace Ada.Game.Rooms.Unit;
@@ -86,7 +87,7 @@ public class RoomUnitData(
         {
             AddStatus(
                 RoomUserStatus.Sit, 
-                (topFurnitureItem.StackHeight * 1.0D).ToString());
+                (topItem.GetEffectiveStackHeight() * 1.0D).ToString());
             
             Direction = topItem.Direction;
             DirectionHead = topItem.Direction;
@@ -95,7 +96,7 @@ public class RoomUnitData(
         {
             AddStatus(
                 RoomUserStatus.Lay, 
-                (topFurnitureItem.StackHeight + 0.1).ToString());
+                (topItem.GetEffectiveStackHeight() + 0.1).ToString());
             
             Direction = topItem.Direction;
             DirectionHead = topItem.Direction;
@@ -106,7 +107,7 @@ public class RoomUnitData(
         }
         
         var topItemSitOrLay = topFurnitureItem is { CanSit: false, CanLay: false };
-        var zHeightNextStep = topItem.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
+        var zHeightNextStep = topItem.PositionZ + (topItemSitOrLay ? topItem.GetEffectiveStackHeight() : 0);
         
         PointZ = zHeightNextStep;
         NeedsUpdate = true;
@@ -211,7 +212,7 @@ public class RoomUnitData(
         
         var zHeightNextStep = topItemNextStep == null || topFurnitureItem == null ?
             room.TileMap.ZMap[nextStep.Y, nextStep.X] : 
-            topItemNextStep.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
+            topItemNextStep.PositionZ + (topItemSitOrLay ? topItemNextStep.GetEffectiveStackHeight() : 0);
 
         ClearStatuses();
 

@@ -14,6 +14,7 @@ public class FurnitureItem
     public int TileSpanX { get; init; }
     public int TileSpanY { get; set; }
     public double StackHeight { get; init; }
+    public string? MultiHeights { get; init; }
     public bool CanStack { get; init; }
     public bool CanWalk { get; init; }
     public bool CanSit { get; init; }
