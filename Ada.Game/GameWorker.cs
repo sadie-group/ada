@@ -3,10 +3,14 @@ using System.Net.WebSockets;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Services;
 
 namespace Ada.Game
 {
-    public class GameWorker(IRoomRepository roomRepository, ILogger<GameWorker> logger) : IHostedService
+    public class GameWorker(
+        IRoomRepository roomRepository,
+        IRoomWiredService wiredService,
+        ILogger<GameWorker> logger) : IHostedService
     {
         private CancellationTokenSource? _cts;
         private Thread? _thread;
@@ -50,6 +54,7 @@ namespace Ada.Game
                         {
                             await room.BotRepository.RunPeriodicCheckAsync();
                             await room.UserRepository.RunPeriodicCheckAsync();
+                            await wiredService.RunPeriodicTriggersForRoomAsync(room);
 
                             foreach (var user in room.UserRepository.GetAll())
                             {
