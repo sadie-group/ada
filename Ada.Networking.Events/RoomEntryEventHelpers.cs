@@ -44,7 +44,22 @@ public static class RoomEntryEventHelpers
             
             player.State.Teleport = null;
         }
-        
+
+        var entryOverride = player.State.RoomEntryOverride;
+
+        if (entryOverride != null)
+        {
+            if (teleport == null &&
+                entryOverride.RoomId == room.Room.Id &&
+                room.TileMap.TileExists(entryOverride.Point))
+            {
+                entryPoint = entryOverride.Point;
+                entryDirection = (int) entryOverride.Direction;
+            }
+
+            player.State.RoomEntryOverride = null;
+        }
+
         var roomUser = RoomHelpers.CreateUserForEntry(roomUserFactory, room, player, entryPoint, (HDirection) entryDirection);
         roomUser.ApplyFlatCtrlStatus();
         

@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 
@@ -12,4 +13,5 @@ public class PlayerState : IPlayerState
     public string CatalogMode { get; set; }
     public PlayerFurnitureItemPlacementDataDto? Teleport { get; set; }
     public int CurrentRoomId { get; set; }
+    public PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
 }
