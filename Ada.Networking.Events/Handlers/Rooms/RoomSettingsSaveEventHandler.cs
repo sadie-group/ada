@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
+using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Extensions;
 using Ada.Db;
@@ -15,8 +17,9 @@ namespace Ada.Networking.Events.Handlers.Rooms;
 [PacketId(EventHandlerId.RoomSettingsSave)]
 public class RoomSettingsSaveEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository, 
-    ServerRoomConstants roomConstants) : INetworkPacketEventHandler
+    IRoomRepository roomRepository,
+    ServerRoomConstants roomConstants,
+    IWordFilterService wordFilterService) : INetworkPacketEventHandler
 {
     public long RoomId { get; init; }
     public required string Name { get; init; }
@@ -78,6 +81,47 @@ public class RoomSettingsSaveEventHandler(
             return;
         }
 
+        var nameResult = wordFilterService.Filter(Name, WordFilterContext.RoomName);
+
+        if (nameResult.IsBlocked || nameResult.IsShadowBlocked)
+        {
+            await client.WriteToStreamAsync(new RoomSettingsErrorWriter
+            {
+                RoomId = room.Room.Id,
+                ErrorCode = (int)RoomSettingsError.NameBadWords,
+                Message = ""
+            });
+            return;
+        }
+
+        var descriptionResult = wordFilterService.Filter(Description, WordFilterContext.RoomDescription);
+
+        if (descriptionResult.IsBlocked || descriptionResult.IsShadowBlocked)
+        {
+            await client.WriteToStreamAsync(new RoomSettingsErrorWriter
+            {
+                RoomId = room.Room.Id,
+                ErrorCode = (int)RoomSettingsError.DescriptionBadWords,
+                Message = ""
+            });
+            return;
+        }
+
+        var tagResults = Tags
+            .Select(x => wordFilterService.Filter(x, WordFilterContext.RoomTag))
+            .ToList();
+
+        if (tagResults.Any(x => x.IsBlocked || x.IsShadowBlocked))
+        {
+            await client.WriteToStreamAsync(new RoomSettingsErrorWriter
+            {
+                RoomId = room.Room.Id,
+                ErrorCode = (int)RoomSettingsError.TagsBadWords,
+                Message = ""
+            });
+            return;
+        }
+
         if (AccessType == (int) RoomAccessType.Password && string.IsNullOrEmpty(Password))
         {
             await client.WriteToStreamAsync(new RoomSettingsErrorWriter
@@ -90,15 +134,15 @@ public class RoomSettingsSaveEventHandler(
             return;
         }
 
-        room.Room.Name = Name.Truncate(roomConstants.MaxNameLength);
-        room.Room.Description = Description.Truncate(roomConstants.MaxDescriptionLength);
+        room.Room.Name = nameResult.FilteredText.Truncate(roomConstants.MaxNameLength);
+        room.Room.Description = descriptionResult.FilteredText.Truncate(roomConstants.MaxDescriptionLength);
         room.Room.MaxUsersAllowed = MaxUsers;
 
-        foreach (var tag in Tags)
+        foreach (var tagResult in tagResults)
         {
             room.Room.Tags.Add(new RoomTagDto
             {
-                Name = tag
+                Name = tagResult.FilteredText
             });
         }
         

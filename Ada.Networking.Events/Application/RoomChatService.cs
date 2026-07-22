@@ -2,12 +2,17 @@ using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.WordFilter;
+using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Game.Rooms;
+using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms.Users;
+using Ada.Networking.Writers.Rooms.Users.Chat;
 
 namespace Ada.Networking.Events.Application;
 
@@ -22,7 +27,9 @@ public static class RoomChatService
         IRoomChatCommandRepository commandRepository,
         ChatBubble bubble,
         IRoomWiredService wiredService,
-        IRoomHelperService roomHelperService)
+        IRoomHelperService roomHelperService,
+        IWordFilterService wordFilterService,
+        IRoomFloodProtectionService floodProtectionService)
     {
         if (string.IsNullOrWhiteSpace(message) ||
             message.Length > roomConstants.MaxChatMessageLength)
@@ -49,6 +56,53 @@ public static class RoomChatService
             return;
         }
 
+        var playerId = roomUser.Player.Player.Id;
+
+        if (floodProtectionService.IsMuted(playerId, out var remainingSeconds))
+        {
+            await roomUser.NetworkObject.WriteToStreamAsync(new RoomUserFloodControlWriter
+            {
+                Seconds = remainingSeconds
+            });
+            return;
+        }
+
+        var muteSeconds = floodProtectionService.RegisterMessage(
+            playerId,
+            room.Room.ChatSettings.ChatProtection,
+            playerId == room.Room.OwnerId);
+
+        if (muteSeconds != null)
+        {
+            await roomUser.NetworkObject.WriteToStreamAsync(new RoomUserFloodControlWriter
+            {
+                Seconds = muteSeconds.Value
+            });
+            return;
+        }
+
+        var filterResult = wordFilterService.Filter(message, WordFilterContext.Chat);
+
+        if (filterResult.IsBlocked)
+        {
+            return;
+        }
+
+        message = filterResult.FilteredText;
+
+        var emotionId = roomHelperService.GetEmotionFromMessage(message);
+
+        if (filterResult.IsShadowBlocked)
+        {
+            await roomUser.NetworkObject.WriteToStreamAsync(BuildChatWriter(
+                shouting,
+                playerId,
+                message,
+                emotionId,
+                bubble));
+            return;
+        }
+
         var excludedIds = room.UserRepository
             .GetAll()
             .Where(x =>
@@ -57,36 +111,9 @@ public static class RoomChatService
             .Select(x => x.Player.Player.Id)
             .ToList();
 
-        var emotionId = roomHelperService.GetEmotionFromMessage(message);
-
-        if (shouting)
-        {
-            await room.BroadcastDataAsync(
-                new RoomUserShoutWriter
-                {
-                    SenderId = roomUser.Player.Player.Id,
-                    Message = message,
-                    EmotionId = (int)emotionId,
-                    ChatBubbleId = (int)bubble,
-                    Urls = [],
-                    MessageLength = message.Length
-                },
-                excludedIds);
-        }
-        else
-        {
-            await room.BroadcastDataAsync(
-                new RoomUserChatWriter
-                {
-                    SenderId = roomUser.Player.Player.Id,
-                    Message = message,
-                    EmotionId = (int)emotionId,
-                    ChatBubbleId = (int)bubble,
-                    Urls = [],
-                    MessageLength = message.Length
-                },
-                excludedIds);
-        }
+        await room.BroadcastDataAsync(
+            BuildChatWriter(shouting, playerId, message, emotionId, bubble),
+            excludedIds);
 
         room.Room.ChatMessages.Add(new RoomChatMessageDto
         {
@@ -113,5 +140,36 @@ public static class RoomChatService
                 trigger,
                 roomUser);
         }
+    }
+
+    private static AbstractPacketWriter BuildChatWriter(
+        bool shouting,
+        long senderId,
+        string message,
+        RoomUserEmotion emotionId,
+        ChatBubble bubble)
+    {
+        if (shouting)
+        {
+            return new RoomUserShoutWriter
+            {
+                SenderId = senderId,
+                Message = message,
+                EmotionId = (int)emotionId,
+                ChatBubbleId = (int)bubble,
+                Urls = [],
+                MessageLength = message.Length
+            };
+        }
+
+        return new RoomUserChatWriter
+        {
+            SenderId = senderId,
+            Message = message,
+            EmotionId = (int)emotionId,
+            ChatBubbleId = (int)bubble,
+            Urls = [],
+            MessageLength = message.Length
+        };
     }
 }

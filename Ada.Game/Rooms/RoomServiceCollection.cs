@@ -32,6 +32,7 @@ public static class RoomServiceCollection
         serviceCollection.AddTransient<IRoomWiredService, RoomWiredService>();
         serviceCollection.AddSingleton<IRoomTileMapHelperService, RoomTileMapHelperService>();
         serviceCollection.AddSingleton<IRoomHelperService, RoomHelperService>();
+        serviceCollection.AddSingleton<IRoomFloodProtectionService, RoomFloodProtectionService>();
         serviceCollection.AddSingleton<IRoomFurnitureItemHelperService, RoomFurnitureItemHelperService>();
         serviceCollection.AddSingleton<IRoomPathFinderHelperService, RoomPathFinderHelperService>();
     }

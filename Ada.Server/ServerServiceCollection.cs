@@ -14,6 +14,7 @@ using Ada.Game.Mappers;
 using Ada.Game.Navigator;
 using Ada.Game.Players;
 using Ada.Game.Rooms;
+using Ada.Game.WordFilter;
 using Ada.Networking;
 using Ada.Networking.Encryption;
 using Ada.Networking.Events;
@@ -57,6 +58,7 @@ public static class ServerServiceCollection
         EncryptionServiceProvider.AddServices(services, config);
         LocaleServiceCollection.AddServices(services);
         CatalogServiceCollection.AddServices(services, config);
+        WordFilterServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)
