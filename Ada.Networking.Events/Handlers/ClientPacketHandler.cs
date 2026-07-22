@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Events.Attributes;
@@ -17,7 +18,8 @@ public class ClientPacketHandler(
     ILogger<ClientPacketHandler> logger,
     Dictionary<short, Type> packetHandlerTypeMap,
     PacketHandlerFactory handlerFactory,
-    IOptions<NetworkPacketOptions> packetOptions)
+    IOptions<NetworkPacketOptions> packetOptions,
+    IEnumerable<INetworkPacketEventFilter> packetFilters)
     : INetworkPacketHandler
 {
     public async Task HandleAsync(INetworkClient client, INetworkPacket packet)
@@ -57,6 +59,17 @@ public class ClientPacketHandler(
                  packetEventType == typeof(RoomUserLookAtEventHandler)))
             {
                 client.RoomUser.LastAction = DateTime.Now;
+            }
+
+            foreach (var filter in packetFilters)
+            {
+                if (await filter.AllowAsync(client, eventHandler))
+                {
+                    continue;
+                }
+                
+                logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
+                return;
             }
 
             await ExecuteAsync(client, eventHandler);
