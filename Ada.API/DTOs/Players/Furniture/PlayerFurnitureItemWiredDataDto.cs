@@ -7,5 +7,6 @@ public record PlayerFurnitureItemWiredDataDto
     public required PlayerFurnitureItemPlacementDataDto PlacementData { get; init; }
     public ICollection<PlayerFurnitureItemPlacementDataDto> SelectedItems { get; init; } = [];
     public required string Message { get; init; }
+    public string IntParameters { get; init; } = "";
     public int Delay { get; init; }
 }
