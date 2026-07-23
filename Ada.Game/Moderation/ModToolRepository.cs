@@ -117,4 +117,31 @@ public class ModToolRepository(IDbContextFactory<AdaDbContext> dbContextFactory)
 
         return (username, rooms);
     }
+
+    public async Task<bool> CreateBanAsync(long moderatorId, long targetId, string reason, DateTimeOffset? expiresAt)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        var moderator = await db.Players.FirstOrDefaultAsync(p => p.Id == moderatorId);
+        var target = await db.Players.FirstOrDefaultAsync(p => p.Id == targetId);
+
+        if (moderator == null || target == null)
+        {
+            return false;
+        }
+
+        db.PlayerBans.Add(new Db.Models.Players.PlayerBan
+        {
+            CreatorId = moderatorId,
+            Creator = moderator,
+            PlayerId = targetId,
+            Player = target,
+            Reason = reason,
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = expiresAt
+        });
+
+        await db.SaveChangesAsync();
+        return true;
+    }
 }

@@ -146,4 +146,6 @@ public static class EventHandlerId
     public const short ModToolsUserRoomVisits = 3526;
     public const short ModToolsAlertUser = 1840;
     public const short ModToolsKickUser = 2582;
+    public const short ModToolsSanctionAlert = 229;
+    public const short ModToolsSanctionBan = 2766;
 }
