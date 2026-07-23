@@ -18,6 +18,13 @@ public interface IGroupRepository
     bool IsOwner(GroupDto group, long playerId);
     Task<bool> HasAdminRightsAsync(GroupDto group, long playerId);
 
+    Task<IReadOnlyList<GroupCreationRoomDto>> GetRoomsForGroupCreationAsync(long playerId);
+    Task<bool> RoomHasGroupAsync(int roomId);
+    Task<bool> PlayerOwnsRoomAsync(int roomId, long playerId);
+    Task<int> CreateGroupAsync(
+        long ownerId, int roomId, string name, string description, string badge,
+        int colorA, int colorB, GroupType type);
+
     Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending);
     Task RemoveMembershipAsync(int groupId, long playerId);
     Task SetPendingAsync(int groupId, long playerId, bool isPending);

@@ -158,6 +158,67 @@ public class GroupRepository(IDbContextFactory<AdaDbContext> dbContextFactory) :
         return membership is { IsPending: false, Rank: GroupMemberRank.Admin };
     }
 
+    public async Task<IReadOnlyList<GroupCreationRoomDto>> GetRoomsForGroupCreationAsync(long playerId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.Rooms
+            .AsNoTracking()
+            .Where(r => r.OwnerId == playerId && !dbContext.Groups.Any(g => g.RoomId == r.Id))
+            .Select(r => new GroupCreationRoomDto { Id = r.Id, Name = r.Name })
+            .ToListAsync();
+    }
+
+    public async Task<bool> RoomHasGroupAsync(int roomId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.Groups.AnyAsync(g => g.RoomId == roomId);
+    }
+
+    public async Task<bool> PlayerOwnsRoomAsync(int roomId, long playerId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.Rooms.AnyAsync(r => r.Id == roomId && r.OwnerId == playerId);
+    }
+
+    public async Task<int> CreateGroupAsync(
+        long ownerId, int roomId, string name, string description, string badge,
+        int colorA, int colorB, GroupType type)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var group = new Db.Models.Group
+        {
+            PlayerId = ownerId,
+            RoomId = roomId,
+            Name = name,
+            Description = description,
+            Badge = badge,
+            ColorA = colorA,
+            ColorB = colorB,
+            Type = type,
+            CreatedAt = (int) DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        };
+
+        dbContext.Groups.Add(group);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.GroupMemberships.Add(new Db.Models.Groups.GroupMembership
+        {
+            GroupId = group.Id,
+            PlayerId = ownerId,
+            Rank = GroupMemberRank.Admin,
+            IsPending = false,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        return group.Id;
+    }
+
     public async Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
