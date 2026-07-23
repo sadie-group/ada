@@ -45,5 +45,6 @@ public class PlayerProfile : Profile
         CreateMap<PlayerRoomBan, PlayerRoomBanDto>();
         CreateMap<PlayerIgnore, PlayerIgnoreDto>();
         CreateMap<PlayerBot, PlayerBotDto>();
+        CreateMap<PlayerPet, PlayerPetDto>();
     }
 }

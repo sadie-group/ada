@@ -5,6 +5,7 @@ using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.DTOs.Rooms.Rights;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Db.Models.Rooms;
 using Ada.Db.Models.Rooms.Chat;
@@ -37,7 +38,8 @@ public class RoomProfile : Profile
                         tileMap,
                         pathFinder,
                         provider.GetRequiredService<IRoomUserRepository>(),
-                        provider.GetRequiredService<IRoomBotRepository>())
+                        provider.GetRequiredService<IRoomBotRepository>(),
+                        provider.GetRequiredService<IRoomPetRepository>())
                     {
                         Name = x.Name,
                         Description = x.Description
