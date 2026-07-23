@@ -193,6 +193,8 @@ public static class ServerPacketId
     public const short ModToolsUserRoomVisits = 1752;
     public const short RoomUserFloodControl = 566;
     public const short WiredCondition = 1108;
+    public const short JukeboxTrackData = 3365;
+    public const short JukeboxTrackCode = 1381;
     public const short PetInformation = 2901;
     public const short PetError = 2913;
     public const short PetRespect = 2788;

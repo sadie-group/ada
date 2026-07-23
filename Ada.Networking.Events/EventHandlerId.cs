@@ -197,4 +197,6 @@ public static class EventHandlerId
     public const short ModToolsKickUser = 2582;
     public const short ModToolsSanctionAlert = 229;
     public const short ModToolsSanctionBan = 2766;
+    public const short JukeboxRequestTrackData = 3082;
+    public const short JukeboxRequestTrackCode = 3189;
 }
