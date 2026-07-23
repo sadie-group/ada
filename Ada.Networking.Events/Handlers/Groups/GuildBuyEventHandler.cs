@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using Ada.API.DTOs.Groups;
 using Ada.API.Interfaces.Game.Groups;
 using Ada.API.Interfaces.Networking.Client;
@@ -42,7 +40,7 @@ public class GuildBuyEventHandler(IGroupRepository groupRepository) : INetworkPa
             return;
         }
 
-        var badge = BuildBadge(Parts);
+        var badge = GroupBadgeCodec.Build(Parts);
 
         var groupId = await groupRepository.CreateGroupAsync(
             player.Player.Id, RoomId, Name.Trim(), Description ?? "", badge,
@@ -53,22 +51,5 @@ public class GuildBuyEventHandler(IGroupRepository groupRepository) : INetworkPa
             RoomId = RoomId,
             GuildId = groupId
         });
-    }
-
-    private static string BuildBadge(IReadOnlyList<GroupBadgePart> parts)
-    {
-        var badge = new StringBuilder();
-
-        for (var i = 0; i < parts.Count; i++)
-        {
-            var part = parts[i];
-
-            badge.Append(i == 0 ? 'b' : 's');
-            badge.Append(part.PartId.ToString("D3", CultureInfo.InvariantCulture));
-            badge.Append(part.ColorId.ToString("D2", CultureInfo.InvariantCulture));
-            badge.Append(part.Position.ToString(CultureInfo.InvariantCulture));
-        }
-
-        return badge.ToString();
     }
 }

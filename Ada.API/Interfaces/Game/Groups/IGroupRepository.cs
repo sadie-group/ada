@@ -25,6 +25,12 @@ public interface IGroupRepository
         long ownerId, int roomId, string name, string description, string badge,
         int colorA, int colorB, GroupType type);
 
+    Task UpdateInfoAsync(int groupId, string name, string description);
+    Task UpdateColorsAsync(int groupId, int colorA, int colorB);
+    Task UpdatePreferencesAsync(int groupId, GroupType type, bool adminOnlyDecoration);
+    Task UpdateBadgeAsync(int groupId, string badge);
+    Task DeleteGroupAsync(int groupId);
+
     Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending);
     Task RemoveMembershipAsync(int groupId, long playerId);
     Task SetPendingAsync(int groupId, long playerId, bool isPending);

@@ -219,6 +219,57 @@ public class GroupRepository(IDbContextFactory<AdaDbContext> dbContextFactory) :
         return group.Id;
     }
 
+    public async Task UpdateInfoAsync(int groupId, string name, string description)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.Groups
+            .Where(x => x.Id == groupId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Name, name)
+                .SetProperty(x => x.Description, description));
+    }
+
+    public async Task UpdateColorsAsync(int groupId, int colorA, int colorB)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.Groups
+            .Where(x => x.Id == groupId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.ColorA, colorA)
+                .SetProperty(x => x.ColorB, colorB));
+    }
+
+    public async Task UpdatePreferencesAsync(int groupId, GroupType type, bool adminOnlyDecoration)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.Groups
+            .Where(x => x.Id == groupId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Type, type)
+                .SetProperty(x => x.AdminOnlyDecoration, adminOnlyDecoration));
+    }
+
+    public async Task UpdateBadgeAsync(int groupId, string badge)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.Groups
+            .Where(x => x.Id == groupId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Badge, badge));
+    }
+
+    public async Task DeleteGroupAsync(int groupId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.Groups
+            .Where(x => x.Id == groupId)
+            .ExecuteDeleteAsync();
+    }
+
     public async Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
