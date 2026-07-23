@@ -1,21 +1,34 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Game.Rooms.Furniture;
-using Ada.Core.Enums.Miscellaneous;
 using Ada.Db;
-using Ada.Networking.Writers.Rooms.Users;
 
 namespace Ada.Game.Rooms.Services;
 
 public class RoomWiredService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomFurnitureItemHelperService furnitureItemHelperService) : IRoomWiredService
+    IRoomFurnitureItemHelperService furnitureItemHelperService,
+    IEnumerable<IWiredEffectStrategy> effectStrategies,
+    IEnumerable<IWiredConditionStrategy> conditionStrategies,
+    IWiredTimerService timerService) : IRoomWiredService
 {
+    private const int PulseMilliseconds = 500;
+
+    private readonly Dictionary<string, IWiredEffectStrategy> _effectStrategies =
+        effectStrategies.ToDictionary(x => x.InteractionType);
+
+    private readonly Dictionary<string, IWiredConditionStrategy> _conditionStrategies =
+        conditionStrategies.ToDictionary(x => x.InteractionType);
+
+    private static readonly ConcurrentDictionary<int, DateTimeOffset> PeriodicLastRuns = new();
+
     public IEnumerable<PlayerFurnitureItemPlacementDataDto> GetTriggers(
         string interactionType,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems,
@@ -25,27 +38,101 @@ public class RoomWiredService(
         return roomItems.Where(x =>
             x.WiredData != null &&
             x.PlayerFurnitureItem.FurnitureItem.InteractionType == interactionType &&
-            (string.IsNullOrWhiteSpace(requiredMessage) || x.WiredData!.Message == requiredMessage) &&
+            MatchesMessage(x.WiredData.Message, requiredMessage) &&
             (requiredSelectedIds == null ||
-             requiredSelectedIds.All(r => x.WiredData.SelectedItems.Select(i => i.Id)
-                 .Contains(r))));
+             x.WiredData.SelectedItems.Any(i => requiredSelectedIds.Contains(i.Id))));
     }
-    
+
+    private static bool MatchesMessage(string wiredMessage, string requiredMessage)
+    {
+        return string.IsNullOrWhiteSpace(requiredMessage) ||
+               string.IsNullOrWhiteSpace(wiredMessage) ||
+               requiredMessage.Contains(wiredMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     public async Task RunTriggerForRoomAsync(IRoomLogic room,
         PlayerFurnitureItemPlacementDataDto trigger,
-        IRoomUser userWhoTriggered)
+        IRoomUser? userWhoTriggered)
     {
-        _ = CycleInteractionStateAsync(room, trigger);
-        
-        var effectsOnTrigger = GetEffectsForTrigger(trigger, room.Room.FurnitureItems);
+        var stack = GetWiredStackForTrigger(trigger, room.Room.FurnitureItems).ToList();
 
-        foreach (var effect in effectsOnTrigger)
+        var conditionsPass = stack
+            .Where(x => IsCondition(GetInteractionType(x)))
+            .All(condition =>
+                !_conditionStrategies.TryGetValue(GetInteractionType(condition), out var strategy) ||
+                strategy.IsSatisfied(room, condition, userWhoTriggered));
+
+        if (!conditionsPass)
+        {
+            return;
+        }
+
+        _ = CycleInteractionStateAsync(room, trigger);
+
+        foreach (var effect in stack.Where(x => IsEffect(GetInteractionType(x))))
         {
             await RunEffectForRoomAsync(room, effect, userWhoTriggered);
         }
     }
-    
+
+    public async Task RunPeriodicTriggersForRoomAsync(IRoomLogic room)
+    {
+        foreach (var trigger in room.Room.FurnitureItems)
+        {
+            var interactionType = GetInteractionType(trigger);
+
+            if (trigger.WiredData == null)
+            {
+                continue;
+            }
+
+            if (interactionType == FurnitureItemInteractionType.WiredTriggerAtGivenTime)
+            {
+                var dueAfter = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * PulseMilliseconds);
+
+                if (timerService.GetElapsed(room.Room.Id) >= dueAfter &&
+                    timerService.TryMarkFired(room.Room.Id, trigger.Id))
+                {
+                    await RunTriggerForRoomAsync(room, trigger, null);
+                }
+
+                continue;
+            }
+
+            if (interactionType is not
+                    (FurnitureItemInteractionType.WiredTriggerPeriodically or
+                    FurnitureItemInteractionType.WiredTriggerPeriodicallyLong))
+            {
+                continue;
+            }
+
+            var pulseLength = interactionType == FurnitureItemInteractionType.WiredTriggerPeriodicallyLong
+                ? PulseMilliseconds * 10
+                : PulseMilliseconds;
+
+            var interval = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * pulseLength);
+            var now = DateTimeOffset.Now;
+            var lastRun = PeriodicLastRuns.GetOrAdd(trigger.Id, now);
+
+            if (now - lastRun < interval)
+            {
+                continue;
+            }
+
+            PeriodicLastRuns[trigger.Id] = now;
+            await RunTriggerForRoomAsync(room, trigger, null);
+        }
+    }
+
     public IEnumerable<PlayerFurnitureItemPlacementDataDto> GetEffectsForTrigger(
+        PlayerFurnitureItemPlacementDataDto trigger,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems)
+    {
+        return GetWiredStackForTrigger(trigger, roomItems)
+            .Where(x => IsEffect(GetInteractionType(x)));
+    }
+
+    private static IEnumerable<PlayerFurnitureItemPlacementDataDto> GetWiredStackForTrigger(
         PlayerFurnitureItemPlacementDataDto trigger,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems)
     {
@@ -55,59 +142,65 @@ public class RoomWiredService(
                 x.PositionY == trigger.PositionY &&
                 x.PositionZ > trigger.PositionZ)
             .OrderBy(x => x.PositionZ);
-        
-        foreach (var playerFurnitureItemPlacementData in stack)
+
+        foreach (var item in stack)
         {
-            var interactionType = playerFurnitureItemPlacementData
-                .PlayerFurnitureItem
-                .FurnitureItem
-                .InteractionType;
-            
-            if (!string.IsNullOrEmpty(interactionType) && 
-                !interactionType.Contains("_act_"))
+            var interactionType = GetInteractionType(item);
+
+            if (!string.IsNullOrEmpty(interactionType) &&
+                !IsEffect(interactionType) &&
+                !IsCondition(interactionType))
             {
                 break;
             }
-            
-            yield return playerFurnitureItemPlacementData;
+
+            yield return item;
         }
     }
-    
+
+    private static string GetInteractionType(PlayerFurnitureItemPlacementDataDto item)
+    {
+        return item.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "";
+    }
+
+    private static bool IsEffect(string interactionType) => interactionType.Contains("_act_");
+    private static bool IsCondition(string interactionType) => interactionType.Contains("_cnd_");
+
     private async Task RunEffectForRoomAsync(
         IRoomLogic room,
         PlayerFurnitureItemPlacementDataDto effect,
-        IRoomUser userWhoTriggered)
+        IRoomUser? userWhoTriggered)
     {
-        if (effect.WiredData == null)
+        if (effect.WiredData == null ||
+            !_effectStrategies.TryGetValue(GetInteractionType(effect), out var strategy))
         {
             return;
         }
-        
-        switch (effect.PlayerFurnitureItem.FurnitureItem.InteractionType)
+
+        var delay = effect.WiredData.Delay;
+
+        if (delay > 0)
         {
-            case FurnitureItemInteractionType.WiredEffectShowMessage:
-                await userWhoTriggered.NetworkObject.WriteToStreamAsync(new RoomUserWhisperWriter
-                {
-                    SenderId = userWhoTriggered.Player.Player.Id,
-                    Message = effect.WiredData.Message,
-                    EmotionId = 0,
-                    ChatBubbleId = (int)ChatBubble.Alert,
-                    MessageLength = effect.WiredData.Message.Length,
-                    Urls = []
-                });
-                break;
-            case FurnitureItemInteractionType.WiredEffectKickUser:
-                foreach (var user in room.UserRepository.GetAll())
-                {
-                    await user.Room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true, true);
-                    await user.Player.SendAlertAsync(effect.WiredData.Message);
-                }
-                break;
+            _ = RunEffectDelayedAsync(room, effect, userWhoTriggered, strategy, delay);
+            return;
         }
-        
+
+        await strategy.ExecuteAsync(room, effect, userWhoTriggered);
         _ = CycleInteractionStateAsync(room, effect);
     }
-    
+
+    private async Task RunEffectDelayedAsync(
+        IRoomLogic room,
+        PlayerFurnitureItemPlacementDataDto effect,
+        IRoomUser? userWhoTriggered,
+        IWiredEffectStrategy strategy,
+        int delayInPulses)
+    {
+        await Task.Delay(delayInPulses * PulseMilliseconds);
+        await strategy.ExecuteAsync(room, effect, userWhoTriggered);
+        _ = CycleInteractionStateAsync(room, effect);
+    }
+
     public int GetWiredCode(string interactionType)
     {
         return interactionType switch
@@ -117,8 +210,36 @@ public class RoomWiredService(
             FurnitureItemInteractionType.WiredTriggerUserWalksOnFurniture => (int) WiredTriggerCode.AvatarWalksOnFurniture,
             FurnitureItemInteractionType.WiredTriggerUserWalksOffFurniture => (int) WiredTriggerCode.AvatarWalksOffFurniture,
             FurnitureItemInteractionType.WiredTriggerFurnitureStateChanged => (int) WiredTriggerCode.ToggleFurniture,
+            FurnitureItemInteractionType.WiredTriggerPeriodically => (int) WiredTriggerCode.ExecutePeriodically,
+            FurnitureItemInteractionType.WiredTriggerPeriodicallyLong => (int) WiredTriggerCode.ExecutePeriodicallyLong,
+            FurnitureItemInteractionType.WiredTriggerAtGivenTime => (int) WiredTriggerCode.ExecuteOnce,
             FurnitureItemInteractionType.WiredEffectShowMessage => (int) WiredEffectCode.ShowMessage,
             FurnitureItemInteractionType.WiredEffectKickUser => (int) WiredEffectCode.KickUser,
+            FurnitureItemInteractionType.WiredEffectToggleFurnitureState => (int) WiredEffectCode.ToggleFurnitureState,
+            FurnitureItemInteractionType.WiredEffectTeleportToFurniture => (int) WiredEffectCode.TeleportToFurniture,
+            FurnitureItemInteractionType.WiredEffectResetTimers => (int) WiredEffectCode.TimerReset,
+            FurnitureItemInteractionType.WiredEffectMoveRotateFurniture => (int) WiredEffectCode.MoveRotateFurniture,
+            FurnitureItemInteractionType.WiredEffectMoveFurnitureToClosestUser => (int) WiredEffectCode.MoveFurnitureToClosestUser,
+            FurnitureItemInteractionType.WiredEffectFleeFromClosestUser => (int) WiredEffectCode.FleeFromClosestUser,
+            FurnitureItemInteractionType.WiredEffectChangeFurnitureDirection => (int) WiredEffectCode.ChangeFurnitureDirection,
+            FurnitureItemInteractionType.WiredEffectCallAnotherStack => (int) WiredEffectCode.CallAnotherStack,
+            FurnitureItemInteractionType.WiredEffectMuteTriggerer => (int) WiredEffectCode.MuteTriggerer,
+            FurnitureItemInteractionType.WiredConditionFurnitureHasUsers => (int) WiredConditionCode.FurnitureHasUsers,
+            FurnitureItemInteractionType.WiredConditionNotFurnitureHasUsers => (int) WiredConditionCode.NotFurnitureHasUsers,
+            FurnitureItemInteractionType.WiredConditionTriggererOnFurniture => (int) WiredConditionCode.TriggererOnFurniture,
+            FurnitureItemInteractionType.WiredConditionNotTriggererOnFurniture => (int) WiredConditionCode.NotTriggererOnFurniture,
+            FurnitureItemInteractionType.WiredConditionUserCountInRoom => (int) WiredConditionCode.UserCountInRoom,
+            FurnitureItemInteractionType.WiredConditionNotUserCountInRoom => (int) WiredConditionCode.NotUserCountInRoom,
+            FurnitureItemInteractionType.WiredConditionTimeElapsedMore => (int) WiredConditionCode.TimeElapsedMore,
+            FurnitureItemInteractionType.WiredConditionTimeElapsedLess => (int) WiredConditionCode.TimeElapsedLess,
+            FurnitureItemInteractionType.WiredConditionFurnitureHasFurniture => (int) WiredConditionCode.FurnitureHasFurniture,
+            FurnitureItemInteractionType.WiredConditionNotFurnitureHasFurniture => (int) WiredConditionCode.NotFurnitureHasFurniture,
+            FurnitureItemInteractionType.WiredConditionTriggererWearsBadge => (int) WiredConditionCode.TriggererWearsBadge,
+            FurnitureItemInteractionType.WiredConditionNotTriggererWearsBadge => (int) WiredConditionCode.NotTriggererWearsBadge,
+            FurnitureItemInteractionType.WiredConditionTriggererWearsEffect => (int) WiredConditionCode.TriggererWearsEffect,
+            FurnitureItemInteractionType.WiredConditionNotTriggererWearsEffect => (int) WiredConditionCode.NotTriggererWearsEffect,
+            FurnitureItemInteractionType.WiredConditionTriggererHasHandItem => (int) WiredConditionCode.TriggererHasHandItem,
+            FurnitureItemInteractionType.WiredConditionDateRangeActive => (int) WiredConditionCode.DateRangeActive,
             _ => throw new ArgumentException($"Couldn't match interaction type '{interactionType}' to a trigger layout.")
         };
     }
@@ -128,9 +249,9 @@ public class RoomWiredService(
         PlayerFurnitureItemWiredDataDto wiredData)
     {
         var existingData = placementData.WiredData;
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         if (existingData != null)
         {
             dbContext.Entry(existingData).State = EntityState.Deleted;
@@ -141,7 +262,7 @@ public class RoomWiredService(
 
         dbContext.Entry(wiredData.PlacementData).State = EntityState.Unchanged;
         dbContext.Entry(wiredData).State = EntityState.Added;
-        
+
         await dbContext.SaveChangesAsync();
     }
 

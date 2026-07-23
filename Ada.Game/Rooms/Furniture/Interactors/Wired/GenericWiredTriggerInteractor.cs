@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
+using Ada.Core.Shared.Helpers;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms.Furniture;
 
@@ -15,7 +16,12 @@ public class GenericWiredTriggerInteractor(IRoomWiredService wiredService,
     public override List<string> InteractionTypes =>
     [
         FurnitureItemInteractionType.WiredTriggerSaysSomething,
-        FurnitureItemInteractionType.WiredTriggerEnterRoom
+        FurnitureItemInteractionType.WiredTriggerEnterRoom,
+        FurnitureItemInteractionType.WiredTriggerUserWalksOffFurniture,
+        FurnitureItemInteractionType.WiredTriggerPeriodically,
+        FurnitureItemInteractionType.WiredTriggerPeriodicallyLong,
+        FurnitureItemInteractionType.WiredTriggerAtGivenTime,
+        FurnitureItemInteractionType.WiredTriggerFurnitureStateChanged
     ];
 
     public override async Task OnTriggerAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
@@ -37,7 +43,7 @@ public class GenericWiredTriggerInteractor(IRoomWiredService wiredService,
             AssetId = 0,
             Id = 0,
             Input = input,
-            IntParameters = [],
+            IntParameters = WiredParameterHelpers.Deserialize(wiredData?.IntParameters),
             StuffTypeSelectionCode = 0,
             TriggerConfig = wiredService.GetWiredCode(item.PlayerFurnitureItem.FurnitureItem.InteractionType),
             ConflictingEffectIds = []

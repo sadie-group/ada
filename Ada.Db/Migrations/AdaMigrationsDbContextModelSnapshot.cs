@@ -767,6 +767,11 @@ namespace Ada.Db.Migrations
                         .HasColumnType("int")
                         .HasColumnName("delay");
 
+                    b.Property<string>("IntParameters")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("int_parameters");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("longtext")

@@ -80,6 +80,16 @@ public class RoomFloodProtectionService : IRoomFloodProtectionService
         }
     }
 
+    public void MuteFor(long playerId, int seconds)
+    {
+        var state = _states.GetOrAdd(playerId, _ => new PlayerFloodState());
+
+        lock (state)
+        {
+            state.MutedUntil = DateTimeOffset.Now.AddSeconds(seconds);
+        }
+    }
+
     public void Clear(long playerId)
     {
         _states.TryRemove(playerId, out _);
