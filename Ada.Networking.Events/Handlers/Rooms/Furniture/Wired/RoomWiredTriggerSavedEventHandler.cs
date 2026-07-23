@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
@@ -50,7 +51,9 @@ public class RoomWiredTriggerSavedEventHandler(
                 PlayerFurnitureItemPlacementDataId = roomItem.Id,
                 PlacementData = roomItem,
                 SelectedItems = roomItems,
-                Message = Input
+                Message = Input,
+                IntParameters = WiredParameterHelpers.Serialize(Parameters),
+                Delay = Parameters.FirstOrDefault()
             });
         
         await client.WriteToStreamAsync(new WiredSavedWriter());
