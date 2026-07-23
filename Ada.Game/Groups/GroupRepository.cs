@@ -157,4 +157,55 @@ public class GroupRepository(IDbContextFactory<AdaDbContext> dbContextFactory) :
         var membership = await GetMembershipAsync(group.Id, playerId);
         return membership is { IsPending: false, Rank: GroupMemberRank.Admin };
     }
+
+    public async Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var exists = await dbContext.GroupMemberships
+            .AnyAsync(x => x.GroupId == groupId && x.PlayerId == playerId);
+
+        if (exists)
+        {
+            return;
+        }
+
+        dbContext.GroupMemberships.Add(new Db.Models.Groups.GroupMembership
+        {
+            GroupId = groupId,
+            PlayerId = playerId,
+            Rank = rank,
+            IsPending = isPending,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+
+        await dbContext.SaveChangesAsync();
+    }
+
+    public async Task RemoveMembershipAsync(int groupId, long playerId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.PlayerId == playerId)
+            .ExecuteDeleteAsync();
+    }
+
+    public async Task SetPendingAsync(int groupId, long playerId, bool isPending)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.PlayerId == playerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsPending, isPending));
+    }
+
+    public async Task SetRankAsync(int groupId, long playerId, GroupMemberRank rank)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.GroupMemberships
+            .Where(x => x.GroupId == groupId && x.PlayerId == playerId && !x.IsPending)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Rank, rank));
+    }
 }

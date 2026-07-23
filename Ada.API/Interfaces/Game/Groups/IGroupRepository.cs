@@ -1,5 +1,6 @@
 using Ada.API.DTOs;
 using Ada.API.DTOs.Groups;
+using Ada.Core.Enums.Game.Groups;
 
 namespace Ada.API.Interfaces.Game.Groups;
 
@@ -16,4 +17,9 @@ public interface IGroupRepository
 
     bool IsOwner(GroupDto group, long playerId);
     Task<bool> HasAdminRightsAsync(GroupDto group, long playerId);
+
+    Task AddMembershipAsync(int groupId, long playerId, GroupMemberRank rank, bool isPending);
+    Task RemoveMembershipAsync(int groupId, long playerId);
+    Task SetPendingAsync(int groupId, long playerId, bool isPending);
+    Task SetRankAsync(int groupId, long playerId, GroupMemberRank rank);
 }
