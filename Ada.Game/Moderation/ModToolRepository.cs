@@ -1,0 +1,72 @@
+using Microsoft.EntityFrameworkCore;
+using Ada.API.DTOs.Moderation;
+using Ada.API.Interfaces.Game.Moderation;
+using Ada.Db;
+
+namespace Ada.Game.Moderation;
+
+public class ModToolRepository(IDbContextFactory<AdaDbContext> dbContextFactory) : IModToolRepository
+{
+    public async Task<ModToolUserInfoDto?> GetUserInfoAsync(long userId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        var user = await db.Players
+            .AsNoTracking()
+            .Where(p => p.Id == userId)
+            .Select(p => new
+            {
+                p.Id,
+                p.Username,
+                Look = p.AvatarData!.FigureCode,
+                p.CreatedAt,
+                p.Email,
+                Role = p.Roles.OrderByDescending(r => r.Id).FirstOrDefault(),
+                BanCount = db.PlayerBans.Count(b => b.PlayerId == p.Id)
+            })
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+        {
+            return null;
+        }
+
+        return new ModToolUserInfoDto
+        {
+            UserId = user.Id,
+            Username = user.Username,
+            Look = user.Look ?? "",
+            CreatedAt = user.CreatedAt,
+            Email = user.Email,
+            RankId = user.Role?.Id ?? 0,
+            RankName = user.Role?.Name ?? "User",
+            BanCount = user.BanCount
+        };
+    }
+
+    public async Task<(string Username, IReadOnlyList<ModToolRoomVisitDto> Visits)> GetRoomVisitsAsync(
+        long userId, int limit)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        var username = await db.Players
+            .Where(p => p.Id == userId)
+            .Select(p => p.Username)
+            .FirstOrDefaultAsync() ?? "";
+
+        var visits = await db.PlayerRoomVisits
+            .AsNoTracking()
+            .Where(v => v.PlayerId == userId)
+            .OrderByDescending(v => v.CreatedAt)
+            .Take(limit)
+            .Join(db.Rooms, v => v.RoomId, r => r.Id, (v, r) => new ModToolRoomVisitDto
+            {
+                RoomId = v.RoomId,
+                RoomName = r.Name,
+                EnteredAt = v.CreatedAt
+            })
+            .ToListAsync();
+
+        return (username, visits);
+    }
+}

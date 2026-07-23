@@ -141,4 +141,9 @@ public static class EventHandlerId
     public const short ModToolsRoomChatLog = 2587;
     public const short UnseenResetItems = 2343;
     public const short UnseenResetCategory = 3493;
+    public const short ModToolsUserInfo = 3295;
+    public const short ModToolsUserChatLog = 1391;
+    public const short ModToolsUserRoomVisits = 3526;
+    public const short ModToolsAlertUser = 1840;
+    public const short ModToolsKickUser = 2582;
 }
