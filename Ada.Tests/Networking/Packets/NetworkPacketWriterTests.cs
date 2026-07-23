@@ -66,6 +66,32 @@ public class NetworkPacketWriterTests
     }
 
     [Test]
+    public void WriteLong_TruncatesToFourBytes()
+    {
+        var writer = new NetworkPacketWriter();
+        writer.WriteLong(int.MaxValue + 1L);
+
+        var bytes = writer.GetAllBytes();
+        var payload = bytes.Skip(4).ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(payload, Has.Length.EqualTo(4), "WriteLong writes only the low 32 bits");
+            Assert.That(payload, Is.EqualTo(new byte[] { 0x80, 0, 0, 0 }));
+        });
+    }
+
+    [Test]
+    public void WriteByte_WritesRawByte()
+    {
+        var writer = new NetworkPacketWriter();
+        writer.WriteByte(0xAB);
+
+        var bytes = writer.GetAllBytes();
+        Assert.That(bytes[4], Is.EqualTo(0xAB));
+    }
+
+    [Test]
     public void GetAllBytes_IncludesLengthPrefix()
     {
         var writer = new NetworkPacketWriter();

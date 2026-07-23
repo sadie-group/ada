@@ -9,7 +9,9 @@ using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
+using Ada.Game.Groups;
 using Ada.Game.Locale;
+using Ada.Game.Moderation;
 using Ada.Game.Mappers;
 using Ada.Game.Navigator;
 using Ada.Game.Players;
@@ -58,7 +60,9 @@ public static class ServerServiceCollection
         EncryptionServiceProvider.AddServices(services, config);
         LocaleServiceCollection.AddServices(services);
         CatalogServiceCollection.AddServices(services, config);
+        GroupServiceCollection.AddServices(services);
         WordFilterServiceCollection.AddServices(services);
+        ModToolServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)
