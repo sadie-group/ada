@@ -26,6 +26,7 @@ public static class FurnitureItemInteractionType
         WiredEffectToggleRandomFurnitureState = "wf_xtra_random",
         WiredEffectChangeFurnitureDirection = "wf_act_move_to_dir",
         ClubGate = "club_gate";
+        Trophy = "trophy";
         WiredTriggerPeriodically = "wf_trg_period",
         WiredTriggerPeriodicallyLong = "wf_trg_period_long",
         WiredConditionFurnitureHasUsers = "wf_cnd_furnis_hv_avtrs",
