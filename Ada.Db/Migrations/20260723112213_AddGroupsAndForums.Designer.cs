@@ -4,6 +4,7 @@ using Ada.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ada.Db.Migrations
 {
     [DbContext(typeof(AdaMigrationsDbContext))]
-    partial class AdaMigrationsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723112213_AddGroupsAndForums")]
+    partial class AddGroupsAndForums
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -916,11 +919,6 @@ namespace Ada.Db.Migrations
                     b.Property<int>("Delay")
                         .HasColumnType("int")
                         .HasColumnName("delay");
-
-                    b.Property<string>("IntParameters")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("int_parameters");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -2373,56 +2371,6 @@ namespace Ada.Db.Migrations
                         .HasColumnName("player_welcome_message");
 
                     b.ToTable("server_settings", (string)null);
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Server.WordFilterEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ActionId")
-                        .HasColumnType("int")
-                        .HasColumnName("action_id");
-
-                    b.Property<int>("Contexts")
-                        .HasColumnType("int")
-                        .HasColumnName("contexts");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("enabled");
-
-                    b.Property<int>("MatchTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("match_type_id");
-
-                    b.Property<bool>("NormalizeText")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("normalize_text");
-
-                    b.Property<string>("Pattern")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("pattern");
-
-                    b.Property<string>("Replacement")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("replacement");
-
-                    b.HasKey("Id")
-                        .HasName("pk_word_filter_entries");
-
-                    b.ToTable("word_filter_entries", (string)null);
                 });
 
             modelBuilder.Entity("Ada.Db.Models.ServerLocaleText", b =>

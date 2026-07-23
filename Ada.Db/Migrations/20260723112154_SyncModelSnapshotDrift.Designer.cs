@@ -4,6 +4,7 @@ using Ada.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ada.Db.Migrations
 {
     [DbContext(typeof(AdaMigrationsDbContext))]
-    partial class AdaMigrationsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723112154_SyncModelSnapshotDrift")]
+    partial class SyncModelSnapshotDrift
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -433,23 +436,6 @@ namespace Ada.Db.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("AdminOnlyDecoration")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("admin_only_decoration");
-
-                    b.Property<string>("Badge")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("badge");
-
-                    b.Property<int>("ColorA")
-                        .HasColumnType("int")
-                        .HasColumnName("color_a");
-
-                    b.Property<int>("ColorB")
-                        .HasColumnType("int")
-                        .HasColumnName("color_b");
-
                     b.Property<int>("CreatedAt")
                         .HasColumnType("int")
                         .HasColumnName("created_at");
@@ -458,26 +444,6 @@ namespace Ada.Db.Migrations
                         .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("description");
-
-                    b.Property<int>("ForumModPermission")
-                        .HasColumnType("int")
-                        .HasColumnName("forum_mod_permission");
-
-                    b.Property<int>("ForumPostMessagesPermission")
-                        .HasColumnType("int")
-                        .HasColumnName("forum_post_messages_permission");
-
-                    b.Property<int>("ForumPostThreadsPermission")
-                        .HasColumnType("int")
-                        .HasColumnName("forum_post_threads_permission");
-
-                    b.Property<int>("ForumReadPermission")
-                        .HasColumnType("int")
-                        .HasColumnName("forum_read_permission");
-
-                    b.Property<bool>("HasForum")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("has_forum");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -492,10 +458,6 @@ namespace Ada.Db.Migrations
                         .HasColumnType("int")
                         .HasColumnName("room_id");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("int")
-                        .HasColumnName("type");
-
                     b.HasKey("Id")
                         .HasName("pk_groups");
 
@@ -504,152 +466,6 @@ namespace Ada.Db.Migrations
                         .HasDatabaseName("ix_groups_room_id");
 
                     b.ToTable("groups", (string)null);
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupForumMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("AdminId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("admin_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("message");
-
-                    b.Property<long>("PlayerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("player_id");
-
-                    b.Property<int>("State")
-                        .HasColumnType("int")
-                        .HasColumnName("state");
-
-                    b.Property<int>("ThreadId")
-                        .HasColumnType("int")
-                        .HasColumnName("thread_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_group_forum_messages");
-
-                    b.HasIndex("PlayerId")
-                        .HasDatabaseName("ix_group_forum_messages_player_id");
-
-                    b.HasIndex("ThreadId")
-                        .HasDatabaseName("ix_group_forum_messages_thread_id");
-
-                    b.ToTable("group_forum_messages", (string)null);
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupForumThread", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("AdminId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("admin_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("GroupId")
-                        .HasColumnType("int")
-                        .HasColumnName("group_id");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_locked");
-
-                    b.Property<bool>("IsPinned")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_pinned");
-
-                    b.Property<long>("PlayerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("player_id");
-
-                    b.Property<int>("State")
-                        .HasColumnType("int")
-                        .HasColumnName("state");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("subject");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_group_forum_threads");
-
-                    b.HasIndex("GroupId")
-                        .HasDatabaseName("ix_group_forum_threads_group_id");
-
-                    b.HasIndex("PlayerId")
-                        .HasDatabaseName("ix_group_forum_threads_player_id");
-
-                    b.ToTable("group_forum_threads", (string)null);
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupMembership", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("GroupId")
-                        .HasColumnType("int")
-                        .HasColumnName("group_id");
-
-                    b.Property<bool>("IsPending")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_pending");
-
-                    b.Property<long>("PlayerId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("player_id");
-
-                    b.Property<int>("Rank")
-                        .HasColumnType("int")
-                        .HasColumnName("rank");
-
-                    b.HasKey("Id")
-                        .HasName("pk_group_memberships");
-
-                    b.HasIndex("PlayerId")
-                        .HasDatabaseName("ix_group_memberships_player_id");
-
-                    b.HasIndex("GroupId", "PlayerId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_group_memberships_group_id_player_id");
-
-                    b.ToTable("group_memberships", (string)null);
                 });
 
             modelBuilder.Entity("Ada.Db.Models.HandItem", b =>
@@ -916,11 +732,6 @@ namespace Ada.Db.Migrations
                     b.Property<int>("Delay")
                         .HasColumnType("int")
                         .HasColumnName("delay");
-
-                    b.Property<string>("IntParameters")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("int_parameters");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -2375,56 +2186,6 @@ namespace Ada.Db.Migrations
                     b.ToTable("server_settings", (string)null);
                 });
 
-            modelBuilder.Entity("Ada.Db.Models.Server.WordFilterEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ActionId")
-                        .HasColumnType("int")
-                        .HasColumnName("action_id");
-
-                    b.Property<int>("Contexts")
-                        .HasColumnType("int")
-                        .HasColumnName("contexts");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("enabled");
-
-                    b.Property<int>("MatchTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("match_type_id");
-
-                    b.Property<bool>("NormalizeText")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("normalize_text");
-
-                    b.Property<string>("Pattern")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("pattern");
-
-                    b.Property<string>("Replacement")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("replacement");
-
-                    b.HasKey("Id")
-                        .HasName("pk_word_filter_entries");
-
-                    b.ToTable("word_filter_entries", (string)null);
-                });
-
             modelBuilder.Entity("Ada.Db.Models.ServerLocaleText", b =>
                 {
                     b.Property<int>("Id")
@@ -2633,69 +2394,6 @@ namespace Ada.Db.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_groups_rooms_room_id");
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupForumMessage", b =>
-                {
-                    b.HasOne("Ada.Db.Models.Players.Player", "Player")
-                        .WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_forum_messages_players_player_id");
-
-                    b.HasOne("Ada.Db.Models.Groups.GroupForumThread", "Thread")
-                        .WithMany("Messages")
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_forum_messages_group_forum_threads_thread_id");
-
-                    b.Navigation("Player");
-
-                    b.Navigation("Thread");
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupForumThread", b =>
-                {
-                    b.HasOne("Ada.Db.Models.Group", "Group")
-                        .WithMany("ForumThreads")
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_forum_threads_groups_group_id");
-
-                    b.HasOne("Ada.Db.Models.Players.Player", "Player")
-                        .WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_forum_threads_players_player_id");
-
-                    b.Navigation("Group");
-
-                    b.Navigation("Player");
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupMembership", b =>
-                {
-                    b.HasOne("Ada.Db.Models.Group", "Group")
-                        .WithMany("Memberships")
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_memberships_groups_group_id");
-
-                    b.HasOne("Ada.Db.Models.Players.Player", "Player")
-                        .WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_group_memberships_players_player_id");
-
-                    b.Navigation("Group");
-
-                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("Ada.Db.Models.Navigator.NavigatorCategory", b =>
@@ -3318,18 +3016,6 @@ namespace Ada.Db.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Pages");
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Group", b =>
-                {
-                    b.Navigation("ForumThreads");
-
-                    b.Navigation("Memberships");
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Groups.GroupForumThread", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("Ada.Db.Models.Navigator.NavigatorTab", b =>
