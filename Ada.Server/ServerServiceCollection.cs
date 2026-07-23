@@ -7,6 +7,7 @@ using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
+using Ada.Game.Groups;
 using Ada.Game.Locale;
 using Ada.Game.Mappers;
 using Ada.Game.Navigator;
@@ -55,6 +56,7 @@ public static class ServerServiceCollection
         EncryptionServiceProvider.AddServices(services, config);
         LocaleServiceCollection.AddServices(services);
         CatalogServiceCollection.AddServices(services, config);
+        GroupServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)
