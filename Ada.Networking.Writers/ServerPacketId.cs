@@ -162,6 +162,9 @@ public static class ServerPacketId
     public const short PlayerIgnoreState = 207;
     public const short ModToolsRoomInfo = 1333;
     public const short ModToolsRoomChatLog = 3434;
+    public const short ModToolsUserInfo = 2866;
+    public const short ModToolsUserChatLog = 3377;
+    public const short ModToolsUserRoomVisits = 1752;
     public const short RoomUserFloodControl = 566;
     public const short WiredCondition = 1108;
 }
