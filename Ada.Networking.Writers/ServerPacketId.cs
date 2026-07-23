@@ -184,10 +184,10 @@ public static class ServerPacketId
     public const short GuildForumData = 3011;
     public const short GuildForumList = 3001;
     public const short GuildForumThreads = 1073;
-    public const short GuildForumComments = 2049;
+    public const short GuildForumComments = 509;
+    public const short GuildForumMessagePosted = 2049;
     public const short GuildForumThreadUpdated = 1862;
-    public const short GuildForumThreadMessages = 509;
-    public const short GuildForumUnreadCount = 2379;
-    public const short GuildForumMessageUpdated = 324;
     public const short GuildForumSingleThreadUpdated = 2528;
+    public const short GuildForumMessageUpdated = 324;
+    public const short GuildForumUnreadCount = 2379;
 }
