@@ -69,4 +69,52 @@ public class ModToolRepository(IDbContextFactory<AdaDbContext> dbContextFactory)
 
         return (username, visits);
     }
+
+    public async Task<(string Username, IReadOnlyList<ModToolChatRoomDto> Rooms)> GetUserChatlogAsync(
+        long userId, int limit)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        var username = await db.Players
+            .Where(p => p.Id == userId)
+            .Select(p => p.Username)
+            .FirstOrDefaultAsync() ?? "";
+
+        var lines = await db.RoomChatMessages
+            .AsNoTracking()
+            .Where(m => m.PlayerId == userId)
+            .OrderByDescending(m => m.Id)
+            .Take(limit)
+            .Join(db.Rooms, m => m.RoomId, r => r.Id, (m, r) => new
+            {
+                m.RoomId,
+                RoomName = r.Name,
+                m.PlayerId,
+                Username = m.Player!.Username,
+                m.Message,
+                m.CreatedAt
+            })
+            .ToListAsync();
+
+        var rooms = lines
+            .GroupBy(l => new { l.RoomId, l.RoomName })
+            .Select(g => new ModToolChatRoomDto
+            {
+                RoomId = g.Key.RoomId,
+                RoomName = g.Key.RoomName,
+                Lines = g
+                    .OrderBy(l => l.CreatedAt)
+                    .Select(l => new ModToolChatLineDto
+                    {
+                        CreatedAt = l.CreatedAt,
+                        PlayerId = l.PlayerId,
+                        Username = l.Username,
+                        Message = l.Message ?? ""
+                    })
+                    .ToList()
+            })
+            .ToList();
+
+        return (username, rooms);
+    }
 }
