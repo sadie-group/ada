@@ -25,6 +25,7 @@ public static class FurnitureItemInteractionType
         WiredEffectMuteTriggerer = "wf_act_mute_triggerer",
         WiredEffectToggleRandomFurnitureState = "wf_xtra_random",
         WiredEffectChangeFurnitureDirection = "wf_act_move_to_dir",
+        Trophy = "trophy";
         WiredTriggerPeriodically = "wf_trg_period",
         WiredTriggerPeriodicallyLong = "wf_trg_period_long",
         WiredConditionFurnitureHasUsers = "wf_cnd_furnis_hv_avtrs",
