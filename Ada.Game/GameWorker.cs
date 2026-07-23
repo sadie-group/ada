@@ -53,6 +53,7 @@ namespace Ada.Game
                         try
                         {
                             await room.BotRepository.RunPeriodicCheckAsync();
+                            await room.PetRepository.RunPeriodicCheckAsync();
                             await room.UserRepository.RunPeriodicCheckAsync();
                             await wiredService.RunPeriodicTriggersForRoomAsync(room);
 

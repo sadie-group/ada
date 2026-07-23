@@ -3,6 +3,7 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.Db.Models.Rooms;
@@ -15,7 +16,8 @@ public class RoomLogic(
     IRoomTileMap tileMap,
     IRoomPathFinder pathFinder,
     IRoomUserRepository userRepository,
-    IRoomBotRepository botRepository)
+    IRoomBotRepository botRepository,
+    IRoomPetRepository petRepository)
     : Room, IRoomLogic
 {
     public RoomDto Room { get; } = room;
@@ -23,6 +25,7 @@ public class RoomLogic(
     public IRoomPathFinder PathFinder { get; } = pathFinder;
     public IRoomUserRepository UserRepository { get; } = userRepository;
     public IRoomBotRepository BotRepository { get; } = botRepository;
+    public IRoomPetRepository PetRepository { get; } = petRepository;
     
     public async ValueTask DisposeAsync()
     {
