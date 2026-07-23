@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+    <DataCollectionRunSettings>
+        <DataCollectors>
+            <DataCollector friendlyName="XPlat Code Coverage">
+                <Configuration>
+                    <ExcludeByFile>**/Migrations/*.cs</ExcludeByFile>
+                    <Exclude>[Ada.API]Ada.API.DTOs.*,[Ada.Networking.Events]*,[Ada.Networking.Writers]*,[Ada.Db]Ada.Db.Models.*,[Ada.Db]Ada.Db.AdaMigrationsContextFactory</Exclude>
+                </Configuration>
+            </DataCollector>
+        </DataCollectors>
+    </DataCollectionRunSettings>
+</RunSettings>

@@ -33,6 +33,11 @@ public class PacketDispatcher
         {
             await _packetHandler.HandleAsync(client, packet);
         }
+        catch
+        {
+            // an unhandled exception would fault the ActionBlock and stop all
+            // packet processing; handlers own logging their own failures
+        }
         finally
         {
             if (packet is NetworkPacket p)
