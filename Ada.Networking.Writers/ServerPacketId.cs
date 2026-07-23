@@ -188,6 +188,9 @@ public static class ServerPacketId
     public const short GuildForumSingleThreadUpdated = 2528;
     public const short GuildForumMessageUpdated = 324;
     public const short GuildForumUnreadCount = 2379;
+    public const short ModToolsUserInfo = 2866;
+    public const short ModToolsUserChatLog = 3377;
+    public const short ModToolsUserRoomVisits = 1752;
     public const short RoomUserFloodControl = 566;
     public const short WiredCondition = 1108;
 }
