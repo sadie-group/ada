@@ -164,4 +164,24 @@ public static class ServerPacketId
     public const short ModToolsRoomChatLog = 3434;
     public const short RoomUserFloodControl = 566;
     public const short WiredCondition = 1108;
+    public const short PetInformation = 2901;
+    public const short PetError = 2913;
+    public const short PetRespect = 2788;
+    public const short PetScratchFailed = 1130;
+    public const short PetExperience = 2156;
+    public const short PetLevelUp = 859;
+    public const short PetLevelUpdated = 2824;
+    public const short PetStatusUpdate = 1907;
+    public const short PetHorseFigure = 1924;
+    public const short PetTrainingPanel = 1164;
+    public const short PetNameError = 1503;
+    public const short PetPackageNameValidation = 546;
+    public const short PlayerInventoryPets = 3522;
+    public const short PlayerInventoryAddPet = 2101;
+    public const short PlayerInventoryRemovePet = 3253;
+    public const short PetBreedingStart = 1746;
+    public const short PetBreedingStartFailed = 2621;
+    public const short PetBreedingResult = 634;
+    public const short PetBreedingCompleted = 2527;
+    public const short PetBreedingFailed = 1625;
 }

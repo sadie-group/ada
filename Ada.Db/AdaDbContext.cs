@@ -51,6 +51,7 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<Subscription> Subscriptions { get; init; }
     public DbSet<PlayerSubscription> PlayerSubscriptions { get; init; }
     public DbSet<PlayerBot> PlayerBots { get; init; }
+    public DbSet<PlayerPet> PlayerPets { get; init; }
     public DbSet<RoomDimmerSettings> RoomDimmerSettings { get; init; }
     public DbSet<RoomDimmerPreset> RoomDimmerPresets { get; init; }
     public DbSet<PlayerRoomVisit> PlayerRoomVisits { get; init; }

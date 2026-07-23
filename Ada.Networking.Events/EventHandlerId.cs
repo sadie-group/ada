@@ -141,4 +141,21 @@ public static class EventHandlerId
     public const short ModToolsRoomChatLog = 2587;
     public const short UnseenResetItems = 2343;
     public const short UnseenResetCategory = 3493;
+    public const short PetPlace = 2647;
+    public const short PetPickup = 1581;
+    public const short PetMove = 3449;
+    public const short PetScratch = 3202;
+    public const short PetInformation = 2934;
+    public const short PetTrainingPanel = 2161;
+    public const short PetUseItem = 1328;
+    public const short PetRide = 1036;
+    public const short PetRideSettings = 1472;
+    public const short PetRemoveSaddle = 186;
+    public const short PetPackageName = 3698;
+    public const short PetInventory = 3095;
+    public const short PetToggleBreeding = 3379;
+    public const short PetCompostMonsterPlant = 3835;
+    public const short PetBreedMonsterPlants = 1638;
+    public const short PetStopBreeding = 2713;
+    public const short PetConfirmBreeding = 3382;
 }
