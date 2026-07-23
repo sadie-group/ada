@@ -6,6 +6,7 @@ using Ada.Db.Models.Catalog.Items;
 using Ada.Db.Models.Catalog.Pages;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Furniture;
+using Ada.Db.Models.Groups;
 using Ada.Db.Models.Navigator;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Players.Furniture;
@@ -63,6 +64,10 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<ServerLocaleText> ServerLocaleTexts { get; init; }
     public DbSet<PlayerWardrobeItem> PlayerWardrobeItems { get; set; }
     public DbSet<PlayerRespect> PlayerRespects { get; set; }
+    public DbSet<Group> Groups { get; init; }
+    public DbSet<GroupMembership> GroupMemberships { get; init; }
+    public DbSet<GroupForumThread> GroupForumThreads { get; init; }
+    public DbSet<GroupForumMessage> GroupForumMessages { get; init; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
