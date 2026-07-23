@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
@@ -51,6 +52,7 @@ public class RoomWiredEffectSavedEventHandler(
                 PlacementData = roomItem,
                 SelectedItems = selectedItems,
                 Message = Input,
+                IntParameters = WiredParameterHelpers.Serialize(Parameters),
                 Delay = Delay
             });
 

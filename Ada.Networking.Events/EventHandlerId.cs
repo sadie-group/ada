@@ -127,6 +127,7 @@ public static class EventHandlerId
     public const short ClientLatency = 295;
     public const short RoomWiredEffectSaved = 2281;
     public const short RoomWiredTriggerSaved = 1520;
+    public const short RoomWiredConditionSaved = 3203;
     public const short RoomPollAnswer = 3505;
     public const short RoomPollReject = 1773;
     public const short RoomPollStart = 109;
@@ -138,7 +139,6 @@ public static class EventHandlerId
     public const short ModToolsUpdateRoomSettings = 3260;
     public const short ModToolsRoomInfo = 707;
     public const short ModToolsRoomChatLog = 2587;
-
     public const short RequestGuildInfo = 2991;
     public const short RequestGuildMembers = 312;
     public const short RequestOwnGuilds = 367;
@@ -160,7 +160,6 @@ public static class EventHandlerId
     public const short GuildSetFavorite = 3549;
     public const short GuildRemoveFavorite = 1820;
     public const short RequestGuildFurniWidget = 2651;
-
     public const short GetForumStats = 3149;
     public const short GetForumsList = 436;
     public const short GetForumThreads = 873;
@@ -172,4 +171,6 @@ public static class EventHandlerId
     public const short UpdateForumReadMarker = 1855;
     public const short UpdateForumSettings = 2214;
     public const short ForumUpdateThread = 3045;
+    public const short UnseenResetItems = 2343;
+    public const short UnseenResetCategory = 3493;
 }

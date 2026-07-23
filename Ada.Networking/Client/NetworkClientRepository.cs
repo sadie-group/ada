@@ -3,7 +3,9 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Game.Players;
+using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Plugins;
 using Ada.Db;
 
 namespace Ada.Networking.Client;
@@ -13,7 +15,8 @@ public class NetworkClientRepository(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IPlayerHelperService playerHelperService,
-    IMapper mapper) : INetworkClientRepository
+    IMapper mapper,
+    IEnumerable<IPlayerSessionListener> sessionListeners) : INetworkClientRepository
 {
     private readonly ConcurrentDictionary<Guid, INetworkClient> _clients = new();
     private readonly ConcurrentDictionary<Guid, byte> _removalGuard = new();
@@ -39,6 +42,11 @@ public class NetworkClientRepository(
 
         var player = client.Player;
         var roomUser = client.RoomUser;
+
+        if (player != null)
+        {
+            await NotifySessionListenersAsync(player, roomUser);
+        }
 
         if (roomUser != null)
         {
@@ -119,6 +127,21 @@ public class NetworkClientRepository(
         });
 
         await Task.WhenAll(tasks);
+    }
+
+    private async Task NotifySessionListenersAsync(IPlayerLogic player, IRoomUser? roomUser)
+    {
+        foreach (var listener in sessionListeners)
+        {
+            try
+            {
+                await listener.OnDisconnectedAsync(player, roomUser);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Session listener {Listener} failed on disconnect", listener.GetType().Name);
+            }
+        }
     }
 
     public INetworkClient? TryGetClientByGuid(Guid guid)

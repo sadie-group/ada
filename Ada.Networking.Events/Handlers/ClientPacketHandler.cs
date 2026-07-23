@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Events.Attributes;
@@ -16,7 +18,8 @@ public class ClientPacketHandler(
     ILogger<ClientPacketHandler> logger,
     Dictionary<short, Type> packetHandlerTypeMap,
     PacketHandlerFactory handlerFactory,
-    IOptions<NetworkPacketOptions> packetOptions)
+    IOptions<NetworkPacketOptions> packetOptions,
+    IEnumerable<INetworkPacketEventFilter> packetFilters)
     : INetworkPacketHandler
 {
     public async Task HandleAsync(INetworkClient client, INetworkPacket packet)
@@ -38,6 +41,7 @@ public class ClientPacketHandler(
 
             if (!ValidateAttributes(eventHandler, client))
             {
+                _ = RejectAsync(eventHandler, client);
                 return;
             }
             
@@ -55,6 +59,17 @@ public class ClientPacketHandler(
                  packetEventType == typeof(RoomUserLookAtEventHandler)))
             {
                 client.RoomUser.LastAction = DateTime.Now;
+            }
+
+            foreach (var filter in packetFilters)
+            {
+                if (await filter.AllowAsync(client, eventHandler))
+                {
+                    continue;
+                }
+                
+                logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
+                return;
             }
 
             await ExecuteAsync(client, eventHandler);
@@ -84,21 +99,47 @@ public class ClientPacketHandler(
         }
     }
 
-    private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler, 
+    private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler,
         INetworkClient client)
     {
-        var method = eventHandler.GetType().GetMethods()
+        var type = eventHandler.GetType();
+
+        var method = type.GetMethods()
             .SingleOrDefault(x => x.Name == "HandleAsync");
 
-        var requiresRoomRights = method?.GetCustomAttributes(typeof(RequiresRoomRightsAttribute), true)
-            .FirstOrDefault() != null;
+        var allowsUnauthenticated = HasAttribute<AllowUnauthenticatedAttribute>(type, method);
 
-        if (requiresRoomRights)
+        if (!allowsUnauthenticated && client.Player == null)
+        {
+            return false;
+        }
+
+        if (HasAttribute<RequiresRoomRightsAttribute>(type, method))
         {
             return client.RoomUser != null && client.RoomUser.HasRights();
         }
 
         return true;
+    }
+
+    private static bool HasAttribute<T>(Type type, MemberInfo? method) where T : Attribute
+    {
+        return method?.GetCustomAttributes(typeof(T), true).FirstOrDefault() != null ||
+               type.GetCustomAttributes(typeof(T), true).FirstOrDefault() != null;
+    }
+
+    private async Task RejectAsync(INetworkPacketEventHandler eventHandler, INetworkClient client)
+    {
+        logger.LogWarning($"Rejected packet '{eventHandler.GetType().Name}' (authenticated: {client.Player != null})");
+
+        try
+        {
+            await client.WriteToStreamAsync(new GenericErrorWriter { ErrorCode = 1 });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e.ToString());
+        }
     }
 
     private async Task ExecuteAsync(INetworkClient client, INetworkPacketEventHandler eventHandler)

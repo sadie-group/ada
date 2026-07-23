@@ -33,9 +33,13 @@ public class PlayerHelperServiceTests
         _net = new Mock<INetworkObject>();
 
         _player.Setup(x => x.NetworkObject).Returns(_net.Object);
+
+        var state = new Mock<IPlayerState>();
+        state.Setup(x => x.UnseenItems).Returns(new PlayerUnseenItems());
+        _player.Setup(x => x.State).Returns(state.Object);
     }
 
-    private PlayerDto MakePlayerDto(long id)
+    private static PlayerDto MakePlayerDto(long id)
     {
         return new PlayerDto(
             id,

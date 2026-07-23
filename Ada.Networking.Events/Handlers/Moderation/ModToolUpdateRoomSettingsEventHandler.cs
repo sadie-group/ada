@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.Players;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
@@ -20,8 +21,14 @@ public class ModToolUpdateRoomSettingsEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null ||
+            !client.Player.HasPermission(PlayerPermissionName.Moderator))
+        {
+            return;
+        }
+
         var room = roomRepository.TryGetRoomById(RoomId);
-        
+
         if (room == null)
         {
             return;

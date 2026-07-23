@@ -16,6 +16,8 @@ public static class NetworkServiceCollection
     {
         serviceCollection.AddSingleton<INetworkClientFactory, NetworkClientFactory>();
         serviceCollection.AddSingleton<INetworkClientRepository, NetworkClientRepository>();
+        serviceCollection.AddSingleton<IClientDisposalService, ClientDisposalService>();
+        serviceCollection.AddSingleton<IPlayerSessionResumeService, PlayerSessionResumeService>();
 
         serviceCollection.AddTransient<INetworkClient, NetworkClient>();
 

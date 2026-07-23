@@ -27,11 +27,6 @@ public class PlayerCreateRoomEventHandler(
 
     public async Task HandleAsync(INetworkClient client)
     {
-        if (client.Player == null)
-        {
-            return;
-        }
-        
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         var layout = await dbContext.RoomLayouts

@@ -162,7 +162,6 @@ public static class ServerPacketId
     public const short PlayerIgnoreState = 207;
     public const short ModToolsRoomInfo = 1333;
     public const short ModToolsRoomChatLog = 3434;
-
     public const short GuildInfo = 1702;
     public const short GuildMembers = 1200;
     public const short GuildManage = 3965;
@@ -180,7 +179,6 @@ public static class ServerPacketId
     public const short GroupDeactivate = 3129;
     public const short FavoriteGroupUpdate = 3403;
     public const short GuildFurniWidget = 3293;
-
     public const short GuildForumData = 3011;
     public const short GuildForumList = 3001;
     public const short GuildForumThreads = 1073;
@@ -190,4 +188,6 @@ public static class ServerPacketId
     public const short GuildForumSingleThreadUpdated = 2528;
     public const short GuildForumMessageUpdated = 324;
     public const short GuildForumUnreadCount = 2379;
+    public const short RoomUserFloodControl = 566;
+    public const short WiredCondition = 1108;
 }
