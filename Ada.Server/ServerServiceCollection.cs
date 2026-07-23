@@ -9,6 +9,7 @@ using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
+using Ada.Game.Jukebox;
 using Ada.Game.Groups;
 using Ada.Game.Locale;
 using Ada.Game.Moderation;
@@ -60,6 +61,7 @@ public static class ServerServiceCollection
         EncryptionServiceProvider.AddServices(services, config);
         LocaleServiceCollection.AddServices(services);
         CatalogServiceCollection.AddServices(services, config);
+        JukeboxServiceCollection.AddServices(services);
         GroupServiceCollection.AddServices(services);
         WordFilterServiceCollection.AddServices(services);
         ModToolServiceCollection.AddServices(services);

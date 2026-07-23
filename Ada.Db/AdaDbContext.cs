@@ -69,6 +69,7 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<GroupMembership> GroupMemberships { get; init; }
     public DbSet<GroupForumThread> GroupForumThreads { get; init; }
     public DbSet<GroupForumMessage> GroupForumMessages { get; init; }
+    public DbSet<SoundTrack> SoundTracks { get; init; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
