@@ -17,7 +17,9 @@ public interface IRoomWiredService
 
     Task RunTriggerForRoomAsync(IRoomLogic room,
         PlayerFurnitureItemPlacementDataDto trigger,
-        IRoomUser userWhoTriggered);
+        IRoomUser? userWhoTriggered);
+
+    Task RunPeriodicTriggersForRoomAsync(IRoomLogic room);
 
     int GetWiredCode(string interactionType);
 

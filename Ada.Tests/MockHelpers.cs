@@ -58,9 +58,10 @@ public class MockHelpers
         };
     }
 
-    protected static PlayerFurnitureItemPlacementDataDto MockFurnitureItemPlacementData(string interactionType, int x = 0, int y = 0, int z = 0, bool walkable = false) =>
+    protected static PlayerFurnitureItemPlacementDataDto MockFurnitureItemPlacementData(string interactionType, int x = 0, int y = 0, int z = 0, bool walkable = false, int id = 0) =>
         new()
         {
+            Id = id,
             PlayerFurnitureItem = new PlayerFurnitureItemDto
             {
                 FurnitureItemId = 0,
