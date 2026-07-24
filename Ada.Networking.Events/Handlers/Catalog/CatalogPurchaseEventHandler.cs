@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Pages;
 using Ada.API.Interfaces.Game.Catalog;
 using Ada.API.Interfaces.Networking.Client;
@@ -10,6 +8,8 @@ using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Constants;
 using Ada.Db;
 using Ada.Db.Models.Catalog.Pages;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Catalog;
 

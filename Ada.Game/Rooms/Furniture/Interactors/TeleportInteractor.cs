@@ -1,6 +1,4 @@
 using System.Drawing;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -10,6 +8,8 @@ using Ada.Core.Enums.Game.Furniture;
 using Ada.Db;
 using Ada.Networking.Events;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 

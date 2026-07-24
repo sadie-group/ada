@@ -1,5 +1,5 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Jukebox;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Jukebox;
 

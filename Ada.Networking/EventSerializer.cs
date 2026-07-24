@@ -1,29 +1,31 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using Ada.Networking.Packets;
+using Ada.Networking.Packets.Serialization;
 
 namespace Ada.Networking;
 
 public static class EventSerializer
 {
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritableProperties = new();
+
     public static void SetPropertiesForEventHandler(object handler, NetworkPacketReader packetReader)
     {
         FillProperties(handler, ref packetReader);
     }
 
+    private static PropertyInfo[] GetWritableProperties(Type type)
+        => WritableProperties.GetOrAdd(type, t => t
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanWrite)
+            .OrderBy(p => p.MetadataToken)
+            .ToArray());
+
     private static void FillProperties(object target, ref NetworkPacketReader packetReader)
     {
-        var properties = target.GetType()
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .OrderBy(p => p.MetadataToken);
-
-        foreach (var property in properties)
+        foreach (var property in GetWritableProperties(target.GetType()))
         {
-            if (!property.CanWrite)
-            {
-                continue;
-            }
-
-            property.SetValue(target, ReadValue(property.PropertyType, ref packetReader), null);
+            PropertyAccessorCache.SetValue(property, target, ReadValue(property.PropertyType, ref packetReader));
         }
     }
 

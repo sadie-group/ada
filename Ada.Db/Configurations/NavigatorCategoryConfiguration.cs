@@ -1,6 +1,6 @@
+using Ada.Db.Models.Navigator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Navigator;
 
 namespace Ada.Db.Configurations;
 

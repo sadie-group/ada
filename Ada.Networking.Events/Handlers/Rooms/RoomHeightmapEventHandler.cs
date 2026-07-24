@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Ada.API;
+﻿using Ada.API;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Players;
@@ -14,6 +13,7 @@ using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Furniture;
 using Ada.Networking.Writers.Rooms.Pets;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Rooms.Pets;

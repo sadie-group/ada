@@ -1,10 +1,10 @@
-using AutoMapper;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Db.Models.Rooms;
 using Ada.Game.Mappers;
+using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 

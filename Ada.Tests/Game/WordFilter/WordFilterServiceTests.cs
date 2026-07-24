@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 using Ada.Core.Enums.Game.WordFilter;
 using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game.WordFilter;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ada.Tests.Game.WordFilter;
 

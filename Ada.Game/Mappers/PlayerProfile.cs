@@ -1,12 +1,12 @@
-using AutoMapper;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Game.Players;
+using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Mappers;
 

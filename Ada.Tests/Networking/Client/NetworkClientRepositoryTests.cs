@@ -1,8 +1,8 @@
-using AutoMapper;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Client;
 using Ada.Tests.Common;
+using AutoMapper;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -17,7 +17,8 @@ public class NetworkClientRepositoryTests
             Mock.Of<IPlayerRepository>(),
             TestDbFactory.CreateDbFactory(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>());
+            Mock.Of<IMapper>(),
+            []);
 
     private static Mock<INetworkClient> CreateClient(Guid guid)
     {

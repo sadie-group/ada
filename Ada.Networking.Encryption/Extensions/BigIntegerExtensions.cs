@@ -1,11 +1,10 @@
 ﻿using System.Numerics;
+using System.Security.Cryptography;
 
 namespace Ada.Networking.Encryption.Extensions;
 
 public static class BigIntegerExtensions
 {
-    private static readonly Random Random = new();
-
     public static byte[] PerformCalculation(this byte[] src, RsaCalculateDelegate method)
     {
         Array.Reverse(src);
@@ -26,11 +25,14 @@ public static class BigIntegerExtensions
         BigInteger result;
         do
         {
-            Random.NextBytes(bytes);
+            // Cryptographically secure randomness (was System.Random — predictable key material).
+            RandomNumberGenerator.Fill(bytes);
             bytes[^1] &= 127;
             result = new BigInteger(bytes);
         }
-        while (result.IsProbablePrime(certainty));
+        // Loop until we find a probable prime. The previous condition was inverted
+        // (`while (IsProbablePrime)`), so it returned the first COMPOSITE it generated.
+        while (!result.IsProbablePrime(certainty));
 
         return result;
     }
@@ -104,7 +106,7 @@ public static class BigIntegerExtensions
         BigInteger result;
         do
         {
-            Random.NextBytes(buffer);
+            RandomNumberGenerator.Fill(buffer);
             buffer[^1] &= 127;
             result = new BigInteger(buffer);
         } while (result < minValue || result >= maxValue);

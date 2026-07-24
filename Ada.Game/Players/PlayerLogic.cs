@@ -1,9 +1,9 @@
-using Microsoft.Extensions.Logging;
 using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.Core.Enums.Game.Players;
 using Ada.Networking.Writers.Players;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Players;
 

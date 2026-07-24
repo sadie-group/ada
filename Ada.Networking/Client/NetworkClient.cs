@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.WebSockets;
-using Microsoft.Extensions.Logging;
 using Ada.API;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Packets.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Client;
 
@@ -33,23 +33,69 @@ public class NetworkClient(
     public DateTime LastPing { get; set; } = DateTime.Now;
     public DateTime LastPong { get; set; } = DateTime.Now;
 
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    private readonly object _outboxLock = new();
+    private readonly List<INetworkPacketWriter> _outbox = [];
+
     public async Task WriteToStreamAsync(AbstractPacketWriter writer)
     {
         var serializedObject = NetworkPacketWriterSerializer.Serialize(writer);
         await WriteToStreamAsync(serializedObject);
     }
 
-    public List<INetworkPacketWriter> Outbox { get; set; } = [];
-
     public async Task WriteToStreamAsync(INetworkPacketWriter writer)
     {
         try
         {
-            _ = WebSocket.SendAsync(writer.GetAllBytes(), WebSocketMessageType.Binary, true, CancellationToken.None);
+            await SendBytesAsync(writer.GetAllBytes());
         }
         catch (Exception e)
         {
             logger.LogError(e.ToString());
+        }
+    }
+
+    public void QueueOutbound(INetworkPacketWriter writer)
+    {
+        lock (_outboxLock)
+        {
+            _outbox.Add(writer);
+        }
+    }
+
+    public async Task FlushAsync()
+    {
+        INetworkPacketWriter[] batch;
+
+        lock (_outboxLock)
+        {
+            if (_outbox.Count == 0)
+            {
+                return;
+            }
+
+            batch = _outbox.ToArray();
+            _outbox.Clear();
+        }
+
+        var payload = batch.SelectMany(x => x.GetAllBytes()).ToArray();
+        await SendBytesAsync(payload);
+    }
+
+    private async Task SendBytesAsync(ReadOnlyMemory<byte> bytes)
+    {
+        await _sendLock.WaitAsync();
+        try
+        {
+            if (WebSocket.State is WebSocketState.Open)
+            {
+                await WebSocket.SendAsync(bytes, WebSocketMessageType.Binary, true, CancellationToken.None);
+            }
+        }
+        finally
+        {
+            _sendLock.Release();
         }
     }
 
@@ -76,5 +122,9 @@ public class NetworkClient(
             }
         }
         catch (WebSocketException) {}
+        finally
+        {
+            _sendLock.Dispose();
+        }
     }
 }

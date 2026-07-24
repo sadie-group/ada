@@ -1,6 +1,6 @@
+using Ada.Db.Models.Groups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Groups;
 
 namespace Ada.Db.Configurations.Groups;
 

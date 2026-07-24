@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -7,6 +6,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Writers.Players.Inventory;
 using Ada.Networking.Writers.Rooms;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 

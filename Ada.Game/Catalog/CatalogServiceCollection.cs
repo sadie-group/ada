@@ -1,7 +1,7 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Catalog;
 using Ada.Game.Catalog.Purchase;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Catalog;
 

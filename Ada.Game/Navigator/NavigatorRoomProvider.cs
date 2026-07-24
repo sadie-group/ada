@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Navigator;
 using Ada.API.Interfaces.Game.Players;
@@ -7,6 +5,8 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.Db;
 using Ada.Db.Models.Rooms;
 using Ada.Game.Navigator.Filterers;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Navigator;
 

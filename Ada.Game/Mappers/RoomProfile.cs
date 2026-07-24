@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.DTOs.Rooms;
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.DTOs.Rooms.Rights;
@@ -15,6 +13,8 @@ using Ada.Game.Rooms.Mapping;
 using Ada.Game.Rooms.PathFinding;
 using Ada.Game.Rooms.PathFinding.ToGo;
 using Ada.Game.Rooms.PathFinding.ToGo.Options;
+using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Mappers;
 

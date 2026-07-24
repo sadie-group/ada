@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API;
 using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Plugins;
@@ -9,11 +7,11 @@ using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
-using Ada.Game.Jukebox;
 using Ada.Game.Groups;
+using Ada.Game.Jukebox;
 using Ada.Game.Locale;
-using Ada.Game.Moderation;
 using Ada.Game.Mappers;
+using Ada.Game.Moderation;
 using Ada.Game.Navigator;
 using Ada.Game.Players;
 using Ada.Game.Rooms;
@@ -23,6 +21,8 @@ using Ada.Networking.Encryption;
 using Ada.Networking.Events;
 using Ada.Server.Infrastructure;
 using Ada.Server.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Server;
 

@@ -1,9 +1,4 @@
 using System.Diagnostics;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -11,12 +6,17 @@ using Ada.API.Interfaces.Plugins;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared;
 using Ada.Core.Shared.Attributes;
-using Ada.Networking.Events.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Server;
+using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Handshake;
 using Ada.Options.Options;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Events.Handlers.Handshake;
 
@@ -94,12 +94,8 @@ public class SecureLoginEventHandler(
             return;
         }
 
-        var ipAddress = client
-            .IpAddress
-            .ToString()?
-            .Split(":")
-            .First() ?? "";
-        
+        var ipAddress = client.IpAddress.ToString();
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
         if (dbContext.BannedIpAddresses.Any(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))

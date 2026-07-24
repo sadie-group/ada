@@ -1,12 +1,12 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db;
 using Ada.Db.Models.Players;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Players;
 
@@ -33,6 +33,7 @@ public class PlayerRepository(
         
         var player = await dbContext
             .Set<Player>()
+            .AsNoTracking()
             .Include(x => x.Data)
             .Include(x => x.AvatarData)
             .Include(x => x.OriginRelationships).ThenInclude(x => x.TargetPlayer)
@@ -71,6 +72,7 @@ public class PlayerRepository(
         
         var player = await dbContext
             .Set<Player>()
+            .AsNoTracking()
             .Include(x => x.Data)
             .FirstOrDefaultAsync(x => x.Username == username);
         
@@ -106,8 +108,9 @@ public class PlayerRepository(
         
         var players = await dbContext
             .Set<Player>()
+            .AsNoTracking()
             .Include(x => x.AvatarData)
-            .Where(x => 
+            .Where(x =>
                 x.Username.Contains(searchQuery) && 
                 !excludeIds.Contains(x.Id))
             .ToListAsync();
@@ -121,6 +124,7 @@ public class PlayerRepository(
         
         var playerRelationships = await dbContext
             .Set<PlayerRelationship>()
+            .AsNoTracking()
             .Where(x => x.OriginPlayerId == playerId || x.TargetPlayerId == playerId)
             .ToListAsync();
         

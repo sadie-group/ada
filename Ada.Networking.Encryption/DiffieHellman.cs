@@ -1,5 +1,5 @@
-﻿using Ada.Networking.Encryption.Extensions;
-using System.Numerics;
+﻿using System.Numerics;
+using Ada.Networking.Encryption.Extensions;
 
 namespace Ada.Networking.Encryption;
 

@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Moderation;
 using Ada.API.Interfaces.Game.Moderation;
 using Ada.Db;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Moderation;
 

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.WordFilter;
@@ -11,6 +10,7 @@ using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 

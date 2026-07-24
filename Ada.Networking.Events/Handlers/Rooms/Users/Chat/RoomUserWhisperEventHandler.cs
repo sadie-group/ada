@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
@@ -13,6 +12,7 @@ using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms.Users;
 using Ada.Networking.Writers.Rooms.Users.Chat;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 

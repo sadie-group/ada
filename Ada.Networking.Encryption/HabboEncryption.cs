@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Numerics;
+using System.Text;
 using Ada.Networking.Encryption.Extensions;
 using Ada.Options.Options;
-using System.Numerics;
-using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Encryption;
 

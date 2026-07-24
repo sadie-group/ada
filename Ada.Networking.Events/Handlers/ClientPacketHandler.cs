@@ -1,6 +1,4 @@
 ﻿using System.Reflection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -11,6 +9,8 @@ using Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 using Ada.Networking.Options;
 using Ada.Networking.Packets;
 using Ada.Networking.Writers.Generic;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Events.Handlers;
 

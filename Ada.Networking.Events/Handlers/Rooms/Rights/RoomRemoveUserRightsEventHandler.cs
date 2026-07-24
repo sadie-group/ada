@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms.Rights;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
@@ -10,6 +8,8 @@ using Ada.Db;
 using Ada.Db.Models.Rooms.Rights;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Rights;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Rights;
 

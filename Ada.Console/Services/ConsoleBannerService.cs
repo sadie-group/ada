@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Hosting;
 using Ada.Core.Shared;
+using Microsoft.Extensions.Hosting;
 using Spectre.Console;
 
 namespace Ada.Console.Services;

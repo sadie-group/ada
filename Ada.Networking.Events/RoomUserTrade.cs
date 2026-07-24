@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
@@ -6,6 +5,7 @@ using Ada.API.Interfaces.Networking;
 using Ada.Db;
 using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Rooms.Users.Trading;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events;
 

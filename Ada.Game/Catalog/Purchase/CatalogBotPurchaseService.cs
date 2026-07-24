@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Items;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Catalog;
@@ -6,6 +5,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.Core.Enums.Game.Players;
 using Ada.Db;
 using Ada.Networking.Writers.Players.Inventory;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Catalog.Purchase;
 

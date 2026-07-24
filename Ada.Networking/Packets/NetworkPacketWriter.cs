@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Text;
 using Ada.API;
 
@@ -10,45 +11,52 @@ public class NetworkPacketWriter : INetworkPacketWriter
 
     public void WriteString(string data)
     {
-        WriteShort((short) Encoding.Default.GetBytes(data).Length);
-        WriteBytes(Encoding.Default.GetBytes(data));
-    }
+        var count = Encoding.UTF8.GetByteCount(data);
+        WriteShort((short) count);
 
-    private void WriteBytes(byte[] data, bool reverse = false)
-    {
-        _packet.Write(reverse ? data.Reverse().ToArray() : data);
+        var span = _packet.GetSpan(count);
+        Encoding.UTF8.GetBytes(data, span);
+        _packet.Advance(count);
     }
 
     public void WriteShort(short data)
     {
-        WriteBytes(BitConverter.GetBytes(data), true);
+        var span = _packet.GetSpan(sizeof(short));
+        BinaryPrimitives.WriteInt16BigEndian(span, data);
+        _packet.Advance(sizeof(short));
     }
 
     public void WriteInteger(int data)
     {
-        WriteBytes(BitConverter.GetBytes(data), true);
+        var span = _packet.GetSpan(sizeof(int));
+        BinaryPrimitives.WriteInt32BigEndian(span, data);
+        _packet.Advance(sizeof(int));
     }
 
-    public void WriteLong(long data)
-    {
-        WriteBytes(BitConverter.GetBytes((int)data), true);
-    }
+    public void WriteLong(long data) => WriteInteger((int) data);
 
     public void WriteBool(bool boolean)
     {
-        WriteBytes([(byte) (boolean ? 1 : 0)]);
+        var span = _packet.GetSpan(1);
+        span[0] = (byte) (boolean ? 1 : 0);
+        _packet.Advance(1);
     }
-    
-    public void WriteByte(byte b) => _packet.Write([b]);
+
+    public void WriteByte(byte b)
+    {
+        var span = _packet.GetSpan(1);
+        span[0] = b;
+        _packet.Advance(1);
+    }
 
     public byte[] GetAllBytes()
     {
-        var bytes = new List<byte>();
-            
-        bytes.AddRange(BitConverter.GetBytes(_packet.WrittenCount));
-        bytes.Reverse();
-        bytes.AddRange(_packet.WrittenSpan.ToArray());
+        var payloadLength = _packet.WrittenCount;
+        var result = new byte[sizeof(int) + payloadLength];
 
-        return bytes.ToArray();
+        BinaryPrimitives.WriteInt32BigEndian(result, payloadLength);
+        _packet.WrittenSpan.CopyTo(result.AsSpan(sizeof(int)));
+
+        return result;
     }
 }

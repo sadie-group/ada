@@ -1,6 +1,4 @@
 using System.Drawing;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Players;
@@ -12,6 +10,8 @@ using Ada.Core.Enums.Miscellaneous;
 using Ada.Db;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Rooms;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events;
 

@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using System.Net;
+using Ada.API.Interfaces.Networking.Client;
+using Ada.Networking.Options;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Net;
-using Ada.API.Interfaces.Networking.Client;
-using Ada.Networking.Options;
 
 namespace Ada.Networking;
 

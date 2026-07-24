@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Navigator;
 using Ada.Game.Navigator.Filterers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Navigator;
 

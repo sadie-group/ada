@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.Db;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms;
 
@@ -46,10 +46,15 @@ public class RoomRepository(
         foreach (var room in _rooms.Values)
         {
             dbContext.Entry(room).State = EntityState.Modified;
-            await dbContext.SaveChangesAsync();
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        foreach (var room in _rooms.Values)
+        {
             await room.DisposeAsync();
         }
-        
+
         _rooms.Clear();
     }
 }

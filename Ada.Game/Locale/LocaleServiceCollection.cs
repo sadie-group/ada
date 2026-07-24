@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Ada.API.Interfaces.Game.Locale;
+﻿using Ada.API.Interfaces.Game.Locale;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Locale;
 

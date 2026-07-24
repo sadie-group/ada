@@ -1,5 +1,4 @@
 using System.Drawing;
-using Moq;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -9,6 +8,7 @@ using Ada.Core.Enums.Game.Rooms.Mapping;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Game.Rooms.Mapping;
+using Moq;
 
 namespace Ada.Tests.Game.Rooms.Mapping;
 

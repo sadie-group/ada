@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Server;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
@@ -9,6 +7,8 @@ using Ada.Core.Players;
 using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Networking.Writers.Players.Purse;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Server.Tasks.Game.Players;
 

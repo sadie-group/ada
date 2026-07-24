@@ -1,10 +1,10 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Rooms.Wired.Effects;
 
