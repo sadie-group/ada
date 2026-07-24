@@ -81,6 +81,46 @@ namespace Ada.Db.Migrations
                     b.ToTable("banned_ip_addresses", (string)null);
                 });
 
+            modelBuilder.Entity("Ada.Db.Models.BannedMachine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CreatorId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("creator_id");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("MachineId")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("machine_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("reason");
+
+                    b.HasKey("Id")
+                        .HasName("pk_banned_machines");
+
+                    b.HasIndex("CreatorId")
+                        .HasDatabaseName("ix_banned_machines_creator_id");
+
+                    b.ToTable("banned_machines", (string)null);
+                });
+
             modelBuilder.Entity("Ada.Db.Models.Catalog.CatalogClubOffer", b =>
                 {
                     b.Property<int>("Id")
@@ -2635,6 +2675,18 @@ namespace Ada.Db.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_banned_ip_addresses_players_creator_id");
+
+                    b.Navigation("Creator");
+                });
+
+            modelBuilder.Entity("Ada.Db.Models.BannedMachine", b =>
+                {
+                    b.HasOne("Ada.Db.Models.Players.Player", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_banned_machines_players_creator_id");
 
                     b.Navigation("Creator");
                 });

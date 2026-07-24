@@ -35,8 +35,8 @@ public class RoomForwardDataWriter : AbstractPacketWriter
         writer.WriteString(Room.Description);
         writer.WriteInteger((int) settings.TradeOption);
         writer.WriteInteger(Room.PlayerLikes.Count);
-        writer.WriteInteger(1); // ranking
-        writer.WriteInteger(0); // category
+        writer.WriteInteger(1);
+        writer.WriteInteger(0);
         writer.WriteInteger(Room.Tags.Count);
 
         foreach (var tag in Room.Tags)

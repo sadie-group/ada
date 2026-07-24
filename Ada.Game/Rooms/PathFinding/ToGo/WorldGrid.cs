@@ -3,17 +3,8 @@ using Ada.Game.Rooms.PathFinding.ToGo.Collections.MultiDimensional;
 
 namespace Ada.Game.Rooms.PathFinding.ToGo;
 
-/// <summary>
-/// A world grid consisting of integers where a closed cell is represented by 0
-/// </summary>
 public class WorldGrid : Grid<short>, IWorldGrid
 {
-    /// <summary>
-    /// Creates a new world with values set from the provided 2d array.
-    /// Height will be first dimension, and Width will be the second,
-    /// e.g [4,2] will have a height of 4 and a width of 2.
-    /// </summary>
-    /// <param name="worldArray">A 2 dimensional array of short where 0 indicates a closed node</param>
     public WorldGrid(short[,] worldArray) : base(worldArray.GetLength(0), worldArray.GetLength(1))
     {
         for (var row = 0; row < worldArray.GetLength(0); row++)
