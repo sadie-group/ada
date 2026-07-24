@@ -32,8 +32,7 @@ public class NetworkClientConnectionHandler(
                 }
 
                 var packet = packetDecoder.Decode(client.Guid, buffer, length);
-
-                packetDispatcher.Enqueue(client, packet);
+                await packetDispatcher.ProcessAsync(client, packet);
             }
         }
         finally

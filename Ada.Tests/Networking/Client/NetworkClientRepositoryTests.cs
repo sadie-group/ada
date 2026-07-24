@@ -17,7 +17,8 @@ public class NetworkClientRepositoryTests
             Mock.Of<IPlayerRepository>(),
             TestDbFactory.CreateDbFactory(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>());
+            Mock.Of<IMapper>(),
+            []);
 
     private static Mock<INetworkClient> CreateClient(Guid guid)
     {

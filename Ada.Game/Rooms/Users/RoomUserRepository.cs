@@ -137,8 +137,8 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
                 foreach (var u in users)
                 {
-                    u.NetworkObject.Outbox.Add(dataWriter);
-                    u.NetworkObject.Outbox.Add(statusWriter);
+                    u.NetworkObject.QueueOutbound(dataWriter);
+                    u.NetworkObject.QueueOutbound(statusWriter);
                 }
 
                 foreach (var u in usersNeedsUpdate)

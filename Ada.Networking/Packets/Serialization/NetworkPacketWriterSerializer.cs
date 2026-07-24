@@ -90,7 +90,7 @@ namespace Ada.Networking.Packets.Serialization
         {
             if (primitiveWriters.TryGetValue(property.PropertyType, out var action))
             {
-                var value = property.GetValue(packet);
+                var value = PropertyAccessorCache.GetValue(property, packet);
                 action(value, writer);
                 return true;
             }
@@ -132,7 +132,7 @@ namespace Ada.Networking.Packets.Serialization
             {
                 if (conversionRules != null && conversionRules.TryGetValue(property, out var conv))
                 {
-                    var raw = property.GetValue(packet);
+                    var raw = PropertyAccessorCache.GetValue(property, packet);
                     var converted = conv.Value(raw);
                     WriteType(conv.Key, converted, writer);
                     continue;
@@ -187,7 +187,7 @@ namespace Ada.Networking.Packets.Serialization
 
         private static void WriteArbitraryListPropertyToWriter(PropertyInfo property, NetworkPacketWriter writer, object packet)
         {
-            var collection = (ICollection)property.GetValue(packet);
+            var collection = (ICollection)PropertyAccessorCache.GetValue(property, packet)!;
 
             writer.WriteInteger(collection.Count);
 
@@ -209,7 +209,7 @@ namespace Ada.Networking.Packets.Serialization
             }
 
             var type = property.PropertyType;
-            var value = property.GetValue(packet);
+            var value = PropertyAccessorCache.GetValue(property, packet);
 
             if (type == typeof(List<string>))
             {
