@@ -1,3 +1,4 @@
+using Ada.Core.Shared.Security;
 using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
@@ -166,7 +167,11 @@ public class RoomSettingsSaveEventHandler(
     private void UpdateSettings(RoomSettingsDto settings)
     {
         settings.AccessType = (RoomAccessType) AccessType;
-        settings.Password = Password;
+        // Store room passwords hashed, never plaintext. Empty password (non-password rooms)
+        // is left as-is so it can be cleared.
+        settings.Password = string.IsNullOrEmpty(Password)
+            ? Password
+            : RoomPasswordHasher.Hash(Password);
         settings.TradeOption = (RoomTradeOption) TradeOption;
         settings.AllowPets = AllowPets;
         settings.CanPetsEat = CanPetsEat;

@@ -46,10 +46,15 @@ public class RoomRepository(
         foreach (var room in _rooms.Values)
         {
             dbContext.Entry(room).State = EntityState.Modified;
-            await dbContext.SaveChangesAsync();
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        foreach (var room in _rooms.Values)
+        {
             await room.DisposeAsync();
         }
-        
+
         _rooms.Clear();
     }
 }

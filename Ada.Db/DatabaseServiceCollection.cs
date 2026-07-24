@@ -11,12 +11,21 @@ public static class DatabaseServiceCollection
 {
     public static void AddServices(IServiceCollection serviceCollection, IConfiguration config)
     {
+        var connectionString = config.GetConnectionString("Default");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "No database connection string configured. Set ConnectionStrings:Default in " +
+                "appsettings.json or the ConnectionStrings__Default environment variable.");
+        }
+
         serviceCollection.AddDbContextFactory<AdaMigrationsDbContext>();
-        serviceCollection.AddDbContextFactory<AdaDbContext>(); 
-        
+        serviceCollection.AddDbContextFactory<AdaDbContext>();
+
         serviceCollection.AddDbContext<AdaDbContext>(options =>
         {
-            options.UseMySql(config.GetConnectionString("Default"), MySqlServerVersion.LatestSupportedServerVersion,
+            options.UseMySql(connectionString, MySqlServerVersion.LatestSupportedServerVersion,
                     mySqlOptions =>
                     {
                         mySqlOptions.EnableRetryOnFailure(
