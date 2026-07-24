@@ -37,11 +37,53 @@ public class GroupForumRepository(IDbContextFactory<AdaDbContext> dbContextFacto
             .Select(g => new { g.Id, g.Name, g.Description, g.Badge })
             .ToListAsync();
 
-        var stats = new List<ForumStatsDto>();
+        var guildIds = rows.Select(r => r.Id).ToArray();
+
+        var threadCounts = await db.GroupForumThreads
+            .Where(t => guildIds.Contains(t.GroupId) && t.State == ForumThreadState.Open)
+            .GroupBy(t => t.GroupId)
+            .Select(x => new { GuildId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.GuildId, x => x.Count);
+
+        var commentCounts = await db.GroupForumMessages
+            .Where(m => guildIds.Contains(m.Thread!.GroupId) && m.State == ForumMessageState.Visible)
+            .GroupBy(m => m.Thread!.GroupId)
+            .Select(x => new { GuildId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.GuildId, x => x.Count);
+
+        var lastIds = await db.GroupForumMessages
+            .Where(m => guildIds.Contains(m.Thread!.GroupId) && m.State == ForumMessageState.Visible)
+            .GroupBy(m => m.Thread!.GroupId)
+            .Select(x => x.Max(m => m.Id))
+            .ToListAsync();
+
+        var lastComments = (await db.GroupForumMessages
+                .AsNoTracking()
+                .Where(m => lastIds.Contains(m.Id))
+                .Select(m => new { GuildId = m.Thread!.GroupId, m.ThreadId, m.PlayerId, Username = m.Player!.Username, m.CreatedAt })
+                .ToListAsync())
+            .ToDictionary(x => x.GuildId);
+
+        var stats = new List<ForumStatsDto>(rows.Count);
 
         foreach (var g in rows)
         {
-            stats.Add(await BuildStatsAsync(db, g.Id, g.Name, g.Description, g.Badge));
+            lastComments.TryGetValue(g.Id, out var last);
+
+            stats.Add(new ForumStatsDto
+            {
+                GuildId = g.Id,
+                GuildName = g.Name,
+                GuildDescription = g.Description,
+                Badge = g.Badge,
+                TotalThreads = threadCounts.GetValueOrDefault(g.Id),
+                TotalComments = commentCounts.GetValueOrDefault(g.Id),
+                UnreadComments = 0,
+                LastCommentThreadId = last?.ThreadId ?? -1,
+                LastCommentUserId = last?.PlayerId ?? -1,
+                LastCommentUsername = last?.Username ?? "",
+                LastCommentAt = last?.CreatedAt
+            });
         }
 
         return (stats, total);
