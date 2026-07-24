@@ -59,6 +59,7 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<PlayerMessage> PlayerMessages { get; init; }
     public DbSet<PlayerBan> PlayerBans { get; init; }
     public DbSet<BannedIpAddress> BannedIpAddresses { get; init; }
+    public DbSet<BannedMachine> BannedMachines { get; init; }
     public DbSet<OauthClient> OauthClients { get; init; }
     public DbSet<PlayerWebsiteData> PlayerWebsiteData { get; init; }
     public DbSet<ServerLocaleText> ServerLocaleTexts { get; init; }

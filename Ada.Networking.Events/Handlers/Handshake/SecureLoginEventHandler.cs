@@ -104,6 +104,16 @@ public class SecureLoginEventHandler(
             await client.DisposeAsync();
             return;
         }
+
+        var machineId = client.MachineId;
+
+        if (!string.IsNullOrEmpty(machineId) &&
+            dbContext.BannedMachines.Any(x => x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        {
+            logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
+            await client.DisposeAsync();
+            return;
+        }
         
         var playerLogic = mapper.Map<IPlayerLogic>(player);
 
