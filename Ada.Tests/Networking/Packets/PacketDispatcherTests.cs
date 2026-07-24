@@ -9,43 +9,31 @@ namespace Ada.Tests.Networking.Packets;
 public class PacketDispatcherTests
 {
     [Test]
-    public async Task Enqueue_DispatchesPacketToHandler()
+    public async Task ProcessAsync_DispatchesPacketToHandler()
     {
-        var handled = new TaskCompletionSource();
         var client = Mock.Of<INetworkClient>();
         var packet = Mock.Of<INetworkPacket>();
 
         var handler = new Mock<INetworkPacketHandler>();
-        handler
-            .Setup(h => h.HandleAsync(client, packet))
-            .Returns(Task.CompletedTask)
-            .Callback(() => handled.TrySetResult());
+        handler.Setup(h => h.HandleAsync(client, packet)).Returns(Task.CompletedTask);
 
-        new PacketDispatcher(handler.Object).Enqueue(client, packet);
+        await new PacketDispatcher(handler.Object).ProcessAsync(client, packet);
 
-        await handled.Task.WaitAsync(TimeSpan.FromSeconds(5));
         handler.Verify(h => h.HandleAsync(client, packet), Times.Once);
     }
 
     [Test]
-    public async Task Enqueue_HandlerThrows_DispatcherKeepsProcessing()
+    public async Task ProcessAsync_HandlerThrows_DoesNotPropagate()
     {
-        var second = new TaskCompletionSource();
         var client = Mock.Of<INetworkClient>();
-        var first = Mock.Of<INetworkPacket>();
-        var next = Mock.Of<INetworkPacket>();
+        var packet = Mock.Of<INetworkPacket>();
 
         var handler = new Mock<INetworkPacketHandler>();
-        handler.Setup(h => h.HandleAsync(client, first)).ThrowsAsync(new InvalidOperationException());
-        handler.Setup(h => h.HandleAsync(client, next))
-            .Returns(Task.CompletedTask)
-            .Callback(() => second.TrySetResult());
+        handler.Setup(h => h.HandleAsync(client, packet)).ThrowsAsync(new InvalidOperationException());
 
-        var dispatcher = new PacketDispatcher(handler.Object, workers: 1);
-        dispatcher.Enqueue(client, first);
-        dispatcher.Enqueue(client, next);
+        var dispatcher = new PacketDispatcher(handler.Object);
 
-        await second.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        handler.Verify(h => h.HandleAsync(client, next), Times.Once);
+        Assert.DoesNotThrowAsync(() => dispatcher.ProcessAsync(client, packet));
+        await Task.CompletedTask;
     }
 }
