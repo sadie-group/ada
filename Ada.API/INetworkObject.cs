@@ -8,7 +8,8 @@ public interface INetworkObject
 {
     Task WriteToStreamAsync(AbstractPacketWriter writer);
     Task WriteToStreamAsync(INetworkPacketWriter writer);
-    List<INetworkPacketWriter> Outbox { get; set; }
+    void QueueOutbound(INetworkPacketWriter writer);
+    Task FlushAsync();
     IPAddress IpAddress { get; set; } 
     Guid Guid { get; set; } 
     WebSocket WebSocket { get; set; } 
