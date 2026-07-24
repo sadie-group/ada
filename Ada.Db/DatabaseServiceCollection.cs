@@ -1,4 +1,5 @@
-﻿using Ada.Db.Models.Catalog.FrontPage;
+﻿using Ada.Db.Configuration;
+using Ada.Db.Models.Catalog.FrontPage;
 using Ada.Db.Models.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -36,8 +37,11 @@ public static class DatabaseServiceCollection
                         mySqlOptions.MigrationsAssembly("Ada.Db");
                     })
                 .LogTo(Console.WriteLine, LogLevel.Error);
-        
-            options.UseSnakeCaseNamingConvention();
+
+            if (ModelConfigurationProvider.Active.UseSnakeCaseNamingConvention)
+            {
+                options.UseSnakeCaseNamingConvention();
+            }
         }, ServiceLifetime.Transient);
         
         serviceCollection.AddDbContextFactory<AdaMigrationsDbContext>();
