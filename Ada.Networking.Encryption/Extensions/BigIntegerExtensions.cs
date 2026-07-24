@@ -25,13 +25,10 @@ public static class BigIntegerExtensions
         BigInteger result;
         do
         {
-            // Cryptographically secure randomness (was System.Random — predictable key material).
             RandomNumberGenerator.Fill(bytes);
             bytes[^1] &= 127;
             result = new BigInteger(bytes);
         }
-        // Loop until we find a probable prime. The previous condition was inverted
-        // (`while (IsProbablePrime)`), so it returned the first COMPOSITE it generated.
         while (!result.IsProbablePrime(certainty));
 
         return result;

@@ -29,7 +29,7 @@ namespace Ada.Game
             {
                 IsBackground = true
             };
-            
+
             _thread.Start();
             return Task.CompletedTask;
         }
@@ -62,63 +62,6 @@ namespace Ada.Game
                 catch (OperationCanceledException)
                 {
                     break;
-                            await room.BotRepository.RunPeriodicCheckAsync();
-                            await room.PetRepository.RunPeriodicCheckAsync();
-                            await room.UserRepository.RunPeriodicCheckAsync();
-                            await wiredService.RunPeriodicTriggersForRoomAsync(room);
-
-                            foreach (var user in room.UserRepository.GetAll())
-                            {
-                                var obj = user.NetworkObject;
-
-                                if (obj.Outbox.Count <= 0)
-                                {
-                                    continue;
-                                }
-                                
-                                var socket = obj.WebSocket;
-
-                                if (socket is { State: WebSocketState.Open })
-                                {
-                                    var payload = obj.Outbox
-                                        .SelectMany(x => x.GetAllBytes())
-                                        .ToArray();
-
-                                    try
-                                    {
-                                        await socket.SendAsync(
-                                            payload,
-                                            WebSocketMessageType.Binary,
-                                            true,
-                                            CancellationToken.None
-                                        );
-                                    }
-                                    catch
-                                    {
-                                        await room.UserRepository.TryRemoveAsync(
-                                            user.Player.Player.Id,
-                                            true
-                                        );
-                                    }
-                                }
-                                else
-                                {
-                                    await room.UserRepository.TryRemoveAsync(
-                                        user.Player.Player.Id,
-                                        true
-                                    );
-                                }
-
-                                obj.Outbox.Clear();
-                            }
-                        }
-                        finally
-                        {
-                            _semaphore.Release();
-                        }
-                    }, token);
-
-                    roomTasks.Add(roomTask);
                 }
 
                 sw.Stop();
@@ -146,6 +89,7 @@ namespace Ada.Game
         private async Task TickRoomAsync(IRoomLogic room)
         {
             await room.BotRepository.RunPeriodicCheckAsync();
+            await room.PetRepository.RunPeriodicCheckAsync();
             await room.UserRepository.RunPeriodicCheckAsync();
             await wiredService.RunPeriodicTriggersForRoomAsync(room);
 

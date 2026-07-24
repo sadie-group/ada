@@ -1,6 +1,7 @@
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Db.Models.Rooms;
 using Ada.Game.Mappers;
@@ -18,6 +19,7 @@ public class RoomProfileTests
         var provider = new ServiceCollection()
             .AddSingleton(Mock.Of<IRoomUserRepository>())
             .AddSingleton(Mock.Of<IRoomBotRepository>())
+            .AddSingleton(Mock.Of<IRoomPetRepository>())
             .BuildServiceProvider();
 
         var configuration = new MapperConfiguration(
