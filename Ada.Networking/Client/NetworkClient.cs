@@ -23,6 +23,7 @@ public class NetworkClient(
 
     public IPlayerLogic? Player { get; set; }
     public IRoomUser? RoomUser { get; set; }
+    public string? MachineId { get; set; }
     public bool EncryptionEnabled { get; private set; }
 
     public void EnableEncryption(byte[] sharedKey)

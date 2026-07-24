@@ -7,6 +7,7 @@ public interface INetworkClient : IAsyncDisposable, INetworkObject
 {
     IPlayerLogic? Player { get; set; }
     IRoomUser? RoomUser { get; set; }
+    string? MachineId { get; set; }
     bool EncryptionEnabled { get; }
     void EnableEncryption(byte[] sharedKey);
     DateTime LastPing { get; set; }

@@ -14,6 +14,8 @@ public class UniqueIdEventHandler : INetworkPacketEventHandler
     
     public async Task HandleAsync(INetworkClient client)
     {
+        client.MachineId = Fingerprint;
+
         await client.WriteToStreamAsync(new UniqueIdWriter
         {
             MachineId = Fingerprint

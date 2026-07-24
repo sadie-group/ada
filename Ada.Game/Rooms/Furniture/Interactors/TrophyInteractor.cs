@@ -14,9 +14,6 @@ public class TrophyInteractor : AbstractRoomFurnitureItemInteractor
 
     public override Task OnTriggerAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
     {
-        // The engraving lives in the item's metadata and is rendered by the
-        // client; using a trophy must not cycle its state or the engraving
-        // would be overwritten.
         return Task.CompletedTask;
     }
 }
