@@ -1,6 +1,6 @@
-using AutoMapper;
 using Ada.API.DTOs.Navigator;
 using Ada.Db.Models.Navigator;
+using AutoMapper;
 
 namespace Ada.Game.Mappers;
 

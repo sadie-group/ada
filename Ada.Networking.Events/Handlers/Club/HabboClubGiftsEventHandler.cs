@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Pages;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Networking.Client;
@@ -8,6 +6,8 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Catalog.Pages;
 using Ada.Networking.Writers.Players.Other;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Club;
 

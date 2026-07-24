@@ -1,6 +1,6 @@
+using Ada.Db.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models;
 
 namespace Ada.Db.Configurations;
 

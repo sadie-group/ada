@@ -1,12 +1,12 @@
 using System.Net;
 using System.Net.WebSockets;
-using Microsoft.Extensions.Logging;
 using Ada.API;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Packets.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Client;
 

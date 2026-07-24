@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Ada.Db.Models.Catalog.FrontPage;
+using Ada.Db.Models.Constants;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Ada.Db.Models.Catalog.FrontPage;
-using Ada.Db.Models.Constants;
 
 namespace Ada.Db;
 

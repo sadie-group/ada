@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
@@ -7,6 +6,7 @@ using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Writers.Players;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players;
 

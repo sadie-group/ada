@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
@@ -7,6 +5,8 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Players;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 

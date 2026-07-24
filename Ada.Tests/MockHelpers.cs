@@ -1,4 +1,3 @@
-using Moq;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
@@ -9,6 +8,7 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Rooms;
 using Ada.Game.Rooms.Mapping;
+using Moq;
 
 namespace Ada.Tests;
 

@@ -1,4 +1,3 @@
-using AutoMapper;
 using Ada.API.DTOs.Catalog.Items;
 using Ada.API.DTOs.Furniture;
 using Ada.API.Interfaces.Game.Catalog;
@@ -6,6 +5,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.Core.Enums.Game.Catalog;
 using Ada.Networking.Writers.Catalog;
 using Ada.Networking.Writers.Players.Inventory;
+using AutoMapper;
 
 namespace Ada.Game.Catalog.Purchase;
 

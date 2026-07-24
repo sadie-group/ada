@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Net.WebSockets;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game
 {
@@ -104,7 +104,6 @@ namespace Ada.Game
 
                 try
                 {
-                    // Serialized, batched flush of this client's queued writers.
                     await obj.FlushAsync();
                 }
                 catch

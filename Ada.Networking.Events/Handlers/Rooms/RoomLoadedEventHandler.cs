@@ -1,7 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Ada.API.Interfaces.Game.Players;
+﻿using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -17,6 +14,9 @@ using Ada.Networking.Writers.Generic;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Doorbell;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 

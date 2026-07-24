@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.Db.Models;
 using Ada.Db.Models.Catalog;
 using Ada.Db.Models.Catalog.FrontPage;
@@ -14,6 +13,7 @@ using Ada.Db.Models.Rooms;
 using Ada.Db.Models.Rooms.Chat;
 using Ada.Db.Models.Rooms.Rights;
 using Ada.Db.Models.Server;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Db;
 

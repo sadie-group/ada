@@ -1,5 +1,4 @@
 using System.Drawing;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -12,6 +11,7 @@ using Ada.Db;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Inventory;
 using Ada.Networking.Writers.Rooms.Furniture;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 

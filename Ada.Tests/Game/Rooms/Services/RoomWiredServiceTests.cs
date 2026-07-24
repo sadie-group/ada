@@ -1,11 +1,11 @@
-using AutoMapper;
-using Moq;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Game.Rooms.Furniture;
 using Ada.Game.Rooms.Services;
 using Ada.Game.Rooms.Wired;
 using Ada.Tests.Common;
+using AutoMapper;
+using Moq;
 
 namespace Ada.Tests.Game.Rooms.Services;
 

@@ -1,6 +1,6 @@
+using Ada.Db.Models.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Constants;
 
 namespace Ada.Db.Configurations;
 

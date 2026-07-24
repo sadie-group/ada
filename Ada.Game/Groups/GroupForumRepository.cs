@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Groups;
 using Ada.API.Interfaces.Game.Groups;
 using Ada.Core.Enums.Game.Groups;
 using Ada.Db;
 using Ada.Db.Models.Groups;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Groups;
 

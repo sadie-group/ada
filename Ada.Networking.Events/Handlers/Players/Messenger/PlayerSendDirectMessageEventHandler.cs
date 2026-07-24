@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
@@ -11,6 +9,8 @@ using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Db.Models.Players;
 using Ada.Networking.Writers.Players.Messenger;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players.Messenger;
 

@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Filters;
 

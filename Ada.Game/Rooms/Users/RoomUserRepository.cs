@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Users;
@@ -7,6 +6,7 @@ using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Users;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Users;
 

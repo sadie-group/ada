@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Options;
-using Ada.Networking.Options;
+﻿using Ada.Networking.Options;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Validators;
 

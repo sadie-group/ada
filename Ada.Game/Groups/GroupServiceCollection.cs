@@ -1,5 +1,5 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Groups;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Groups;
 

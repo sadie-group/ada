@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Items;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
@@ -8,6 +6,8 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.Db;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Players;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Catalog.Purchase;
 

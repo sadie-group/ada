@@ -1,10 +1,10 @@
-using Moq;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Game.Rooms.Wired;
 using Ada.Game.Rooms.Wired.Conditions;
+using Moq;
 
 namespace Ada.Tests.Game.Rooms.Wired;
 

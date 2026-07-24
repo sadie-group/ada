@@ -1,5 +1,4 @@
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -9,6 +8,7 @@ using Ada.Networking.Client;
 using Ada.Networking.Events.Handlers;
 using Ada.Networking.Events.Handlers.Rooms;
 using Ada.Networking.Packets;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Networking.Events;
 

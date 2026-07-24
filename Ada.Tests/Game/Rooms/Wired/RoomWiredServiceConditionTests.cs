@@ -1,5 +1,3 @@
-using AutoMapper;
-using Moq;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
@@ -9,6 +7,8 @@ using Ada.Game.Rooms.Furniture;
 using Ada.Game.Rooms.Services;
 using Ada.Game.Rooms.Wired;
 using Ada.Tests.Common;
+using AutoMapper;
+using Moq;
 
 namespace Ada.Tests.Game.Rooms.Wired;
 

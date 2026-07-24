@@ -1,7 +1,7 @@
+using Ada.Db;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Ada.Db;
 
 namespace Ada.Tests.Common;
 

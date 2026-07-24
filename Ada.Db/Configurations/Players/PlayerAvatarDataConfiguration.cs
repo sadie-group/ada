@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Helpers;
 using Ada.Db.Models.Players;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Ada.Db.Configurations.Players;
 

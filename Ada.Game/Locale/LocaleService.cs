@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Locale;
 using Ada.Db;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Locale;
 

@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Navigator;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Navigator;
@@ -11,6 +9,8 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Navigator;
 using Ada.Networking.Writers.Navigator;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Navigator;
 

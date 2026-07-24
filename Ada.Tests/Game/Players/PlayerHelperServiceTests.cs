@@ -1,4 +1,3 @@
-using Moq;
 using Ada.API;
 using Ada.API.DTOs;
 using Ada.API.DTOs.Players;
@@ -13,6 +12,7 @@ using Ada.Game.Players.Packets.Writers;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Friendships;
 using Ada.Networking.Writers.Players.Inventory;
+using Moq;
 
 namespace Ada.Tests.Game.Players;
 
