@@ -4,10 +4,12 @@ using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Game.Rooms.Bots;
+using Ada.Game.Rooms.Pets;
 using Ada.Game.Rooms.Chat.Commands;
 using Ada.Game.Rooms.Furniture;
 using Ada.Game.Rooms.Mapping;
@@ -27,8 +29,10 @@ public static class RoomServiceCollection
     {
         serviceCollection.AddTransient<IRoomUserRepository, RoomUserRepository>();
         serviceCollection.AddTransient<IRoomBotRepository, RoomBotRepository>();
+        serviceCollection.AddTransient<IRoomPetRepository, RoomPetRepository>();
         serviceCollection.AddSingleton<IRoomUserFactory, RoomUserFactory>();
         serviceCollection.AddSingleton<IRoomBotFactory, RoomBotFactory>();
+        serviceCollection.AddSingleton<IRoomPetFactory, RoomPetFactory>();
         serviceCollection.AddSingleton<IRoomRepository, RoomRepository>();
 
         serviceCollection.AddSingleton<IRoomChatCommandRepository, RoomChatCommandRepository>();

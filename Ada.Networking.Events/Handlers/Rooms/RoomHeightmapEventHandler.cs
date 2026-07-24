@@ -11,8 +11,13 @@ using Ada.Core.Shared.Attributes;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Furniture;
+using Ada.Networking.Writers.Rooms.Pets;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Ada.API.DTOs.Players;
+using Ada.API.Interfaces.Game.Rooms.Pets;
+using Ada.Db;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 
@@ -20,7 +25,9 @@ namespace Ada.Networking.Events.Handlers.Rooms;
 public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
     IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
     IMapper mapper,
-    IPlayerRepository playerRepository) : INetworkPacketEventHandler
+    IPlayerRepository playerRepository,
+    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IRoomPetFactory roomPetFactory) : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
@@ -64,6 +71,21 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
             await client.WriteToStreamAsync(new RoomBotStatusWriter
             {
                 Bots = room.BotRepository.GetAll()
+            });
+        }
+
+        await LoadPetsIfNeededAsync(room);
+
+        if (room.PetRepository.Count > 0)
+        {
+            await client.WriteToStreamAsync(new RoomPetsWriter
+            {
+                Pets = room.PetRepository.GetAll()
+            });
+
+            await client.WriteToStreamAsync(new RoomPetStatusWriter
+            {
+                Pets = room.PetRepository.GetAll()
             });
         }
 
@@ -140,5 +162,36 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
             FurnitureOwners = wallFurnitureOwners,
             WallItems = mapper.Map<List<PlayerFurnitureItemPlacementDataDto>>(wallItems)
         });
+    }
+    private async Task LoadPetsIfNeededAsync(IRoomLogic room)
+    {
+        if (room.PetRepository.Loaded)
+        {
+            return;
+        }
+
+        room.PetRepository.Loaded = true;
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var pets = await dbContext.PlayerPets
+            .AsNoTracking()
+            .Where(x => x.RoomId == room.Room.Id)
+            .Join(dbContext.Players, p => p.PlayerId, o => o.Id, (p, o) => new { Pet = p, OwnerName = o.Username })
+            .ToListAsync();
+
+        foreach (var row in pets)
+        {
+            var petDto = mapper.Map<PlayerPetDto>(row.Pet);
+            petDto.OwnerName = row.OwnerName;
+
+            var point = new System.Drawing.Point(row.Pet.X, row.Pet.Y);
+            var roomPet = roomPetFactory.Create(room, petDto, point, row.Pet.Z);
+
+            if (room.PetRepository.TryAdd(roomPet))
+            {
+                room.TileMap.AddUnitToMap(point, roomPet);
+            }
+        }
     }
 }
