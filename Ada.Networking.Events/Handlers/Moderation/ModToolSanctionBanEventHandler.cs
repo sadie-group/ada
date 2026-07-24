@@ -37,9 +37,9 @@ public class ModToolSanctionBanEventHandler(
 
         var target = playerRepository.GetPlayerLogicById(UserId);
 
-        if (target != null)
+        if (target?.NetworkObject is { } networkObject)
         {
-            await target.DisposeAsync();
+            networkObject.WebSocket.Abort();
         }
     }
 
