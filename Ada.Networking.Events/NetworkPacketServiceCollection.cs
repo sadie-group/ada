@@ -44,7 +44,6 @@ public static class NetworkPacketServiceCollection
         serviceCollection.AddSingleton<IWebSocketMessageReader, WebSocketMessageReader>();
         serviceCollection.AddSingleton<INetworkClientConnectionHandler, NetworkClientConnectionHandler>();
         serviceCollection.AddSingleton<PacketDispatcher>(p => new PacketDispatcher(
-            p.GetRequiredService<INetworkPacketHandler>(),
-            Environment.ProcessorCount * 2));
+            p.GetRequiredService<INetworkPacketHandler>()));
     }
 }
