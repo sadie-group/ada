@@ -35,8 +35,18 @@ public class PlayerLoaderService(IDbContextFactory<AdaDbContext> dbContextFactor
             return mapper.Map<PlayerSsoTokenDto>(entity);
         }
 
-        entity.UsedAt = DateTime.Now;
-        await dbContext.SaveChangesAsync();
+        var usedAt = DateTime.Now;
+
+        var claimed = await dbContext.PlayerSsoToken
+            .Where(x => x.Id == entity.Id && x.UsedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UsedAt, usedAt));
+
+        if (claimed == 0)
+        {
+            return null;
+        }
+
+        entity.UsedAt = usedAt;
 
         return mapper.Map<PlayerSsoTokenDto>(entity);
     }
