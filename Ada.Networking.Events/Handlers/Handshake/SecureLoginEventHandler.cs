@@ -94,12 +94,8 @@ public class SecureLoginEventHandler(
             return;
         }
 
-        var ipAddress = client
-            .IpAddress
-            .ToString()?
-            .Split(":")
-            .First() ?? "";
-        
+        var ipAddress = client.IpAddress.ToString();
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
         if (dbContext.BannedIpAddresses.Any(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
