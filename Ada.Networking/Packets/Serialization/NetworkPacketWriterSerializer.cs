@@ -20,6 +20,17 @@ namespace Ada.Networking.Packets.Serialization
             };
 
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> propertyCache = new();
+        private static readonly ConcurrentDictionary<Type, PropertyInfo[]> attributedPropertyCache = new();
+        private static readonly ConcurrentDictionary<Type, short> packetIdCache = new();
+        private static readonly ConcurrentDictionary<Type, Action<object>?> onConfigureRulesCache = new();
+        private static readonly ConcurrentDictionary<Type, Action<object, NetworkPacketWriter>?> onSerializeCache = new();
+        private static readonly ConcurrentDictionary<Type, RuleMapAccessors> ruleMapAccessorCache = new();
+
+        private sealed record RuleMapAccessors(
+            PropertyInfo? Before,
+            PropertyInfo? Instead,
+            PropertyInfo? After,
+            PropertyInfo? Conversion);
 
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
@@ -28,63 +39,81 @@ namespace Ada.Networking.Packets.Serialization
 
         private static void InvokeOnConfigureRules(object packet)
         {
-            var method = packet.GetType().GetMethod("OnConfigureRules");
-            method?.Invoke(packet, []);
+            var invoker = onConfigureRulesCache.GetOrAdd(packet.GetType(), static t =>
+            {
+                var method = t.GetMethod("OnConfigureRules");
+
+                if (method == null)
+                {
+                    return null;
+                }
+
+                return (Action<object>) (obj => method.Invoke(obj, []));
+            });
+
+            invoker?.Invoke(packet);
         }
 
         private static bool InvokeOnSerializeIfExists(object packet, NetworkPacketWriter writer)
         {
-            var method = packet.GetType().GetMethod("OnSerialize");
+            var invoker = onSerializeCache.GetOrAdd(packet.GetType(), static t =>
+            {
+                var method = t.GetMethod("OnSerialize");
 
-            if (method == null || method.GetBaseDefinition().DeclaringType == method.DeclaringType)
+                if (method == null || method.GetBaseDefinition().DeclaringType == method.DeclaringType)
+                {
+                    return null;
+                }
+
+                return (Action<object, NetworkPacketWriter>) ((obj, w) => method.Invoke(obj, [w]));
+            });
+
+            if (invoker == null)
             {
                 return false;
             }
 
-            method.Invoke(packet, [writer]);
+            invoker(packet, writer);
             return true;
         }
 
         private static short GetPacketIdentifierFromAttribute(object packetObject)
         {
-            var attr = packetObject.GetType().GetCustomAttribute<PacketIdAttribute>();
-
-            if (attr == null)
+            return packetIdCache.GetOrAdd(packetObject.GetType(), static t =>
             {
-                throw new InvalidOperationException(
-                    $"Missing packet identifier attribute for packet type {packetObject.GetType()}"
-                );
-            }
+                var attr = t.GetCustomAttribute<PacketIdAttribute>();
 
-            return attr.Id;
+                if (attr == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Missing packet identifier attribute for packet type {t}"
+                    );
+                }
+
+                return attr.Id;
+            });
         }
 
-        private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetRuleMap(object classObject, string name)
+        private static RuleMapAccessors GetRuleMapAccessors(Type type)
         {
-            return (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>)classObject
-                .GetType()
-                .BaseType?
-                .GetProperty(name)?
-                .GetValue(classObject);
+            return ruleMapAccessorCache.GetOrAdd(type, static t => new RuleMapAccessors(
+                t.BaseType?.GetProperty("BeforeRulesSerialize"),
+                t.BaseType?.GetProperty("InsteadRulesSerialize"),
+                t.BaseType?.GetProperty("AfterRulesSerialize"),
+                t.BaseType?.GetProperty("ConversionRules")));
         }
 
         private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetBeforeRuleMap(object obj)
-            => GetRuleMap(obj, "BeforeRulesSerialize");
+            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).Before?.GetValue(obj);
 
         private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetInsteadRuleMap(object obj)
-            => GetRuleMap(obj, "InsteadRulesSerialize");
+            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).Instead?.GetValue(obj);
 
         private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetAfterRuleMap(object obj)
-            => GetRuleMap(obj, "AfterRulesSerialize");
+            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).After?.GetValue(obj);
 
         private static Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>> GetConversionRules(object obj)
-        {
-            return (Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>>)obj
-                .GetType()
-                .BaseType?
-                .GetProperty("ConversionRules")?
-                .GetValue(obj);
-        }
+            => (Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>>) GetRuleMapAccessors(obj.GetType()).Conversion?.GetValue(obj);
 
         private static bool TryWritePrimitive(PropertyInfo property, object packet, NetworkPacketWriter writer)
         {
@@ -116,12 +145,10 @@ namespace Ada.Networking.Packets.Serialization
 
         private static void AddObjectToWriter(object packet, NetworkPacketWriter writer, bool needsAttribute = false)
         {
-            var props =
-                GetCachedProperties(packet.GetType())
-                .Where(p =>
-                    needsAttribute == false ||
-                    Attribute.IsDefined(p, typeof(PacketDataAttribute))
-                );
+            var props = needsAttribute
+                ? attributedPropertyCache.GetOrAdd(packet.GetType(), static t =>
+                    GetCachedProperties(t).Where(p => Attribute.IsDefined(p, typeof(PacketDataAttribute))).ToArray())
+                : GetCachedProperties(packet.GetType());
 
             var conversionRules = GetConversionRules(packet);
             var beforeRules     = GetBeforeRuleMap(packet);

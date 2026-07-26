@@ -34,14 +34,23 @@ public class RoomLogic(
     public async Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
     {
         var packet = NetworkPacketWriterSerializer.Serialize(writer);
-        
-        var usersToBroadcastTo = excludedIds == null || excludedIds.Count == 0
-            ? UserRepository.GetAll()
-            : UserRepository.GetAll().Where(x => !excludedIds.Contains(x.Player.Player.Id));
-        
-        foreach (var user in usersToBroadcastTo)
+
+        var excluded = excludedIds is { Count: > 0 }
+            ? excludedIds as IReadOnlySet<long> ?? new HashSet<long>(excludedIds)
+            : null;
+
+        var sendTasks = new List<Task>();
+
+        foreach (var user in UserRepository.GetAll())
         {
-            await user.NetworkObject.WriteToStreamAsync(packet);
+            if (excluded != null && excluded.Contains(user.Player.Player.Id))
+            {
+                continue;
+            }
+
+            sendTasks.Add(user.NetworkObject.WriteToStreamAsync(packet));
         }
+
+        await Task.WhenAll(sendTasks);
     }
 }

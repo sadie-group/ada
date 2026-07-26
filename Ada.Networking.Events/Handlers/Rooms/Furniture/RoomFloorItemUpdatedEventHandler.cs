@@ -108,7 +108,9 @@ public class RoomFloorItemUpdatedEventHandler(
         roomFurnitureItem.PositionY = Y;
         roomFurnitureItem.PositionZ = z;
         roomFurnitureItem.Direction = (HDirection) Direction;
-        
+
+        tileMapHelperService.InvalidateItemIndex(room.Room.FurnitureItems);
+
         room.TileMap.Map[roomFurnitureItem.PositionY, roomFurnitureItem.PositionX] =
             (short) tileMapHelperService.GetTileState(
                 roomFurnitureItem.PositionX, 
@@ -137,8 +139,13 @@ public class RoomFloorItemUpdatedEventHandler(
         tileMapHelperService.UpdateTileMapsForPoints(newPoints, room.TileMap, room.Room.FurnitureItems);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(roomFurnitureItem).State = EntityState.Modified;
-        await dbContext.SaveChangesAsync();
+        await dbContext.RoomFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.PositionX, roomFurnitureItem.PositionX)
+                .SetProperty(x => x.PositionY, roomFurnitureItem.PositionY)
+                .SetProperty(x => x.PositionZ, roomFurnitureItem.PositionZ)
+                .SetProperty(x => x.Direction, roomFurnitureItem.Direction));
         
         await roomFurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, roomFurnitureItem);
     }

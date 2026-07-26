@@ -49,14 +49,21 @@ public class NetworkPacketWriter : INetworkPacketWriter
         _packet.Advance(1);
     }
 
+    private byte[]? _framedBytes;
+
     public byte[] GetAllBytes()
     {
+        if (_framedBytes != null)
+        {
+            return _framedBytes;
+        }
+
         var payloadLength = _packet.WrittenCount;
         var result = new byte[sizeof(int) + payloadLength];
 
         BinaryPrimitives.WriteInt32BigEndian(result, payloadLength);
         _packet.WrittenSpan.CopyTo(result.AsSpan(sizeof(int)));
 
-        return result;
+        return _framedBytes = result;
     }
 }

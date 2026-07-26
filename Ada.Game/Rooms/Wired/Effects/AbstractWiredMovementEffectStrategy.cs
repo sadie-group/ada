@@ -63,6 +63,8 @@ public abstract class AbstractWiredMovementEffectStrategy(
         item.PositionX = nextPoint.X;
         item.PositionY = nextPoint.Y;
 
+        tileMapHelperService.InvalidateItemIndex(room.Room.FurnitureItems);
+
         await furnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
         return true;
     }

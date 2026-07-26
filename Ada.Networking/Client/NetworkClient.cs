@@ -80,7 +80,27 @@ public class NetworkClient(
             _outbox.Clear();
         }
 
-        var payload = batch.SelectMany(x => x.GetAllBytes()).ToArray();
+        if (batch.Length == 1)
+        {
+            await SendBytesAsync(batch[0].GetAllBytes());
+            return;
+        }
+
+        var totalLength = 0;
+        foreach (var writer in batch)
+        {
+            totalLength += writer.GetAllBytes().Length;
+        }
+
+        var payload = new byte[totalLength];
+        var offset = 0;
+        foreach (var writer in batch)
+        {
+            var bytes = writer.GetAllBytes();
+            bytes.CopyTo(payload, offset);
+            offset += bytes.Length;
+        }
+
         await SendBytesAsync(payload);
     }
 

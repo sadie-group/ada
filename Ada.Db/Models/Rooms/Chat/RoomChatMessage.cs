@@ -7,7 +7,7 @@ namespace Ada.Db.Models.Rooms.Chat;
 
 public class RoomChatMessage
 {
-    public int Id { get; init; }
+    public int Id { get; set; }
     public int RoomId { get; init; }
     public long PlayerId { get; init; }
     public Player? Player { get; init; }

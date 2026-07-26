@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db;
 using Ada.Db.Models.Players;
+using Ada.Networking.Packets.Serialization;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
@@ -133,10 +134,8 @@ public class PlayerRepository(
 
     public async Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        foreach (var player in _players.Values)
-        {
-            await player.NetworkObject!.WriteToStreamAsync(writer);
-        }
+        var packet = NetworkPacketWriterSerializer.Serialize(writer);
+        await Task.WhenAll(_players.Values.Select(player => player.NetworkObject!.WriteToStreamAsync(packet)));
     }
 
     public async Task<string?> GetPlayerUsernameByIdAsync(long playerId)

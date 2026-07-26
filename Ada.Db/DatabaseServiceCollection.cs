@@ -21,10 +21,7 @@ public static class DatabaseServiceCollection
                 "appsettings.json or the ConnectionStrings__Default environment variable.");
         }
 
-        serviceCollection.AddDbContextFactory<AdaMigrationsDbContext>();
-        serviceCollection.AddDbContextFactory<AdaDbContext>();
-
-        serviceCollection.AddDbContext<AdaDbContext>(options =>
+        void ConfigureAdaDb(DbContextOptionsBuilder options)
         {
             options.UseMySql(connectionString, MySqlServerVersion.LatestSupportedServerVersion,
                     mySqlOptions =>
@@ -42,27 +39,41 @@ public static class DatabaseServiceCollection
             {
                 options.UseSnakeCaseNamingConvention();
             }
-        }, ServiceLifetime.Transient);
-        
+        }
+
+        // Contexts are created per packet, so pool them instead of building a fresh
+        // context (with model binding) each time.
+        serviceCollection.AddPooledDbContextFactory<AdaDbContext>(ConfigureAdaDb);
+        serviceCollection.AddTransient<AdaDbContext>(provider =>
+            provider.GetRequiredService<IDbContextFactory<AdaDbContext>>().CreateDbContext());
+
+        // The migrations context resolves the configured DbContextOptions<AdaDbContext>
+        // through its constructor; a single factory registration is enough.
         serviceCollection.AddDbContextFactory<AdaMigrationsDbContext>();
 
         serviceCollection.AddSingleton<ServerPlayerConstants>(provider =>
-            provider.GetRequiredService<AdaDbContext>()
-                .ServerPlayerConstants
-                .First()
-        );
+        {
+            using var dbContext = provider.GetRequiredService<IDbContextFactory<AdaDbContext>>().CreateDbContext();
+            return dbContext.ServerPlayerConstants.AsNoTracking().First();
+        });
 
         serviceCollection.AddSingleton<ServerRoomConstants>(provider =>
-            provider.GetRequiredService<AdaDbContext>()
-                .ServerRoomConstants
+        {
+            using var dbContext = provider.GetRequiredService<IDbContextFactory<AdaDbContext>>().CreateDbContext();
+            return dbContext.ServerRoomConstants
+                .AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
-                .First()
-        );
+                .First();
+        });
 
         serviceCollection.AddSingleton(provider =>
-            provider.GetRequiredService<AdaDbContext>()
+        {
+            using var dbContext = provider.GetRequiredService<IDbContextFactory<AdaDbContext>>().CreateDbContext();
+            return dbContext
                 .Set<CatalogFrontPageItem>()
+                .AsNoTracking()
                 .Include(x => x.CatalogPage)
-                .ToList());
+                .ToList();
+        });
     }
 }

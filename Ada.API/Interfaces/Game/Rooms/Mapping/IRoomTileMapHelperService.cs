@@ -27,6 +27,8 @@ public interface IRoomTileMapHelperService
         int y,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> items);
 
+    void InvalidateItemIndex(IEnumerable<PlayerFurnitureItemPlacementDataDto> items);
+
     short[,] GetWorldArrayFromTileMap(IRoomTileMap map,
         Point goalPoint,
         List<Point> overridePoints);

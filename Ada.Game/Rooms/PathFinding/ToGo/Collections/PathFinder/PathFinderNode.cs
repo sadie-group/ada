@@ -1,12 +1,12 @@
-﻿using Ada.API.Interfaces.Game.Rooms.Pathfinding.ToGo;
+﻿using Ada.Game.Rooms.PathFinding.ToGo;
 
 namespace Ada.Game.Rooms.PathFinding.ToGo.Collections.PathFinder;
 
-public readonly struct PathFinderNode(IPosition p, int g, int h, IPosition parent)
+public readonly struct PathFinderNode(Position p, int g, int h, Position parent)
 {
-    public IPosition Position { get; } = p;
+    public Position Position { get; } = p;
     public int G { get; } = g;
     public int H { get; } = h;
     public int F { get; } = g + h;
-    public IPosition ParentNodePosition { get; } = parent;
+    public Position ParentNodePosition { get; } = parent;
 }

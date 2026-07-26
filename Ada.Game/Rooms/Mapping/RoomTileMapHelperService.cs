@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Users;
@@ -100,46 +101,109 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         return furnitureItem.CanLay ? RoomTileState.Lay : RoomTileState.Blocked;
     }
 
-    public List<PlayerFurnitureItemPlacementDataDto> GetItemsForPosition(int x,
-        int y,
-        IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
+    private sealed class TileItemIndex
     {
-        var tileItems = new List<PlayerFurnitureItemPlacementDataDto>();
-        
+        public int SourceCount;
+        public readonly Dictionary<Point, List<PlayerFurnitureItemPlacementDataDto>> ItemsByTile = new();
+    }
+
+    private static readonly ConditionalWeakTable<object, TileItemIndex> ItemIndexCache = new();
+
+    public void InvalidateItemIndex(IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
+    {
+        ItemIndexCache.Remove(items);
+    }
+
+    private static (int Width, int Length) GetItemFootprint(PlayerFurnitureItemPlacementDataDto item)
+    {
+        var furnitureItem = item.PlayerFurnitureItem.FurnitureItem;
+
+        return item.Direction switch
+        {
+            HDirection.East or HDirection.West => (
+                furnitureItem.TileSpanY > 0 ? furnitureItem.TileSpanY : 1,
+                furnitureItem.TileSpanX > 0 ? furnitureItem.TileSpanX : 1),
+            HDirection.North or HDirection.South => (
+                furnitureItem.TileSpanX > 0 ? furnitureItem.TileSpanX : 1,
+                furnitureItem.TileSpanY > 0 ? furnitureItem.TileSpanY : 1),
+            _ => (0, 0)
+        };
+    }
+
+    private static TileItemIndex BuildItemIndex(ICollection<PlayerFurnitureItemPlacementDataDto> items)
+    {
+        var index = new TileItemIndex { SourceCount = items.Count };
+
         foreach (var item in items)
         {
-            var width = 0;
-            var length = 0;
-
-            var furnitureItem = item.PlayerFurnitureItem.FurnitureItem;
-            
-            if (furnitureItem.Type != FurnitureItemType.Floor)
+            if (item.PlayerFurnitureItem.FurnitureItem.Type != FurnitureItemType.Floor)
             {
                 continue;
             }
 
-            switch (item.Direction)
+            var (width, length) = GetItemFootprint(item);
+
+            for (var x = item.PositionX; x <= item.PositionX + width - 1; x++)
             {
-                case HDirection.East or HDirection.West:
-                    width = furnitureItem.TileSpanY > 0 ? furnitureItem.TileSpanY : 1;
-                    length = furnitureItem.TileSpanX > 0 ? furnitureItem.TileSpanX : 1;
-                    break;
-                case HDirection.North or HDirection.South:
-                    width = furnitureItem.TileSpanX > 0 ? furnitureItem.TileSpanX : 1;
-                    length = furnitureItem.TileSpanY > 0 ? furnitureItem.TileSpanY : 1;
-                    break;
+                for (var y = item.PositionY; y <= item.PositionY + length - 1; y++)
+                {
+                    var point = new Point(x, y);
+
+                    if (!index.ItemsByTile.TryGetValue(point, out var tileItems))
+                    {
+                        index.ItemsByTile[point] = tileItems = [];
+                    }
+
+                    tileItems.Add(item);
+                }
             }
-            
+        }
+
+        return index;
+    }
+
+    public List<PlayerFurnitureItemPlacementDataDto> GetItemsForPosition(int x,
+        int y,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
+    {
+        if (items is ICollection<PlayerFurnitureItemPlacementDataDto> collection)
+        {
+            var index = ItemIndexCache.GetValue(collection,
+                static c => BuildItemIndex((ICollection<PlayerFurnitureItemPlacementDataDto>) c));
+
+            if (index.SourceCount != collection.Count)
+            {
+                ItemIndexCache.Remove(collection);
+                index = ItemIndexCache.GetValue(collection,
+                    static c => BuildItemIndex((ICollection<PlayerFurnitureItemPlacementDataDto>) c));
+            }
+
+            return index.ItemsByTile.TryGetValue(new Point(x, y), out var tileItems)
+                ? [..tileItems]
+                : [];
+        }
+
+        var result = new List<PlayerFurnitureItemPlacementDataDto>();
+
+        foreach (var item in items)
+        {
+            if (item.PlayerFurnitureItem.FurnitureItem.Type != FurnitureItemType.Floor)
+            {
+                continue;
+            }
+
+            var (width, length) = GetItemFootprint(item);
+
             if (!(x >= item.PositionX && x <= item.PositionX + width - 1 &&
                   y >= item.PositionY && y <= item.PositionY + length - 1))
             {
                 continue;
             }
 
-            tileItems.Add(item);
+            result.Add(item);
         }
 
-        return tileItems;
+        return result;
     }
     
     public short[,] GetWorldArrayFromTileMap(IRoomTileMap map,
@@ -147,12 +211,13 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         List<Point> overridePoints)
     {
         var tmp = new short[map.SizeY, map.SizeX];
-        
+        var overridePointSet = overridePoints.Count > 0 ? new HashSet<Point>(overridePoints) : null;
+
         for (var y = 0; y < map.SizeY; y++)
         {
             for (var x = 0; x < map.SizeX; x++)
             {
-                if (overridePoints.Count > 0 && overridePoints.Contains(new Point(x, y)))
+                if (overridePointSet != null && overridePointSet.Contains(new Point(x, y)))
                 {
                     tmp[y, x] = 1;
                     continue;
@@ -186,6 +251,8 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         IRoomTileMap tileMap, 
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
     {
+        InvalidateItemIndex(furnitureItems);
+
         foreach (var point in points)
         {
             tileMap.Map[point.Y, point.X] = (short) GetTileState(point.X, point.Y, furnitureItems);

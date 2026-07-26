@@ -35,16 +35,16 @@ public class PlayerDeclineFriendRequestEventHandler(
         }
         else
         {
-            foreach (var originId in Ids) 
-            {
-                var targetId = playerId;
-                
-                await dbContext.Set<PlayerFriendship>()
-                    .Where(x => x.OriginPlayerId == originId && x.TargetPlayerId == targetId)
-                    .ExecuteDeleteAsync();
+            var originIds = Ids.Select(id => (long) id).ToList();
 
+            await dbContext.Set<PlayerFriendship>()
+                .Where(x => originIds.Contains(x.OriginPlayerId) && x.TargetPlayerId == playerId)
+                .ExecuteDeleteAsync();
+
+            foreach (var originId in Ids)
+            {
                 var origin = await playerRepository.GetPlayerByIdAsync(originId);
-                var request = origin?.OutgoingFriendships.FirstOrDefault(x => x.TargetPlayerId == targetId);
+                var request = origin?.OutgoingFriendships.FirstOrDefault(x => x.TargetPlayerId == playerId);
 
                 if (request != null)
                 {

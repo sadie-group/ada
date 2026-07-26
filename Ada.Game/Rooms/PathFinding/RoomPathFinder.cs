@@ -16,7 +16,7 @@ public class RoomPathFinder : IRoomPathFinder
     private readonly PathFinderOptions _opts;
     private readonly ICalculateHeuristic _heuristic;
     private readonly PathFinderGraph _graph;
-    private readonly IPosition[] _backtrackBuf;
+    private readonly Position[] _backtrackBuf;
     private readonly Point[] _pointBuf;
 
     public RoomPathFinder(int height, int width, PathFinderOptions? opts = null)
@@ -24,7 +24,7 @@ public class RoomPathFinder : IRoomPathFinder
         _opts = opts ?? new PathFinderOptions();
         _heuristic = HeuristicFactory.Create(_opts.HeuristicFormula);
         _graph = new PathFinderGraph(height, width, _opts.UseDiagonals);
-        _backtrackBuf = new IPosition[height * width];
+        _backtrackBuf = new Position[height * width];
         _pointBuf = new Point[height * width];
     }
 
@@ -72,7 +72,7 @@ public class RoomPathFinder : IRoomPathFinder
             
             foreach (var s in _graph.GetSuccessors(q))
             {
-                if (world[s.Position] == Closed)
+                if (world[s.Position.Row, s.Position.Column] == Closed)
                 {
                     continue;
                 }
@@ -125,15 +125,10 @@ public class RoomPathFinder : IRoomPathFinder
             right--;
         }
         
-        for (var i = count; i < _backtrackBuf.Length; i++)
-        {
-            _backtrackBuf[i] = null;
-        }
-        
         return count;
     }
 
-    private static int CalculateModifier(PathFinderNode q, PathFinderNode s, IPosition end)
+    private static int CalculateModifier(PathFinderNode q, PathFinderNode s, Position end)
     {
         if (q.Position == q.ParentNodePosition)
         {
