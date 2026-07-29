@@ -147,9 +147,10 @@ public class PlayerRepository(
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        username = dbContext.Players
+        username = await dbContext.Players
             .Where(x => x.Id == playerId)
-            .Select(x => x.Username).FirstOrDefault();
+            .Select(x => x.Username)
+            .FirstOrDefaultAsync();
 
         if (!string.IsNullOrEmpty(username))
         {

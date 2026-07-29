@@ -11,6 +11,8 @@ public class PlayerConfiguration : IEntityTypeConfiguration<Player>
     {
         entity.ToTable("players");
 
+        entity.HasIndex(x => x.Username);
+
         entity
             .HasMany(r => r.Roles)
             .WithMany(p => p.Players)

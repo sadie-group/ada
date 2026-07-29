@@ -43,7 +43,9 @@ public class PlayerDeclineFriendRequestEventHandler(
 
             foreach (var originId in Ids)
             {
-                var origin = await playerRepository.GetPlayerByIdAsync(originId);
+                // Only online origins have in-memory state to update; the rows are
+                // already deleted above.
+                var origin = playerRepository.GetPlayerLogicById(originId)?.Player;
                 var request = origin?.OutgoingFriendships.FirstOrDefault(x => x.TargetPlayerId == playerId);
 
                 if (request != null)

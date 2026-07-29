@@ -18,6 +18,8 @@ public class PlayerSsoTokenConfiguration : IEntityTypeConfiguration<PlayerSsoTok
         entity.Property(x => x.Token)
             .HasMaxLength(200);
 
+        entity.HasIndex(x => x.Token);
+
         entity.Property(x => x.CreatedAt)
             .IsRequired();
 
