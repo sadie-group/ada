@@ -9,4 +9,8 @@ public class WorldGrid : Grid<short>, IWorldGrid
     {
         Buffer.BlockCopy(worldArray, 0, BackingArray, 0, worldArray.Length * sizeof(short));
     }
+
+    public WorldGrid(int height, int width) : base(height, width)
+    {
+    }
 }

@@ -7,9 +7,10 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
 {
     private readonly bool _allowDiag;
     private readonly Grid<PathFinderNode> _grid;
-    private readonly bool[,] _visited;
+    private readonly int[,] _visitedGeneration;
     private readonly PathFinderNode[] _heap;
     private int _count;
+    private int _generation;
 
     public bool HasOpenNodes => _count > 0;
 
@@ -17,28 +18,37 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
     {
         _allowDiag = allowDiag;
         _grid = new Grid<PathFinderNode>(height, width);
-        _visited = new bool[height, width];
+        _visitedGeneration = new int[height, width];
         _heap = new PathFinderNode[height * width];
-        Reset();
+        _generation = 1;
+
+        // Node positions stay correct across searches because OpenNode always
+        // writes a node at its own position; stale G/H values are guarded by
+        // the visited-generation check, so Reset never needs to rewrite the grid.
+        for (var r = 0; r < height; r++)
+        {
+            for (var c = 0; c < width; c++)
+            {
+                var pos = new Position(r, c);
+                _grid[r, c] = new PathFinderNode(pos, 0, 0, pos);
+            }
+        }
     }
 
     public void Reset()
     {
-        for (var r = 0; r < _grid.Height; r++)
-        {
-            for (var c = 0; c < _grid.Width; c++)
-            {
-                var pos = new Position(r, c);
-                _grid[r, c] = new PathFinderNode(pos, 0, 0, pos);
-                _visited[r, c] = false;
-            }
-        }
+        _generation++;
         _count = 0;
     }
 
-    private readonly struct SuccessorEnumerable(Grid<PathFinderNode> g, Position p, bool diag)
+    internal readonly struct SuccessorEnumerable(Grid<PathFinderNode> g, Position p, bool diag)
         : IEnumerable<PathFinderNode>
     {
+        public SuccessorEnumerator GetEnumerator()
+        {
+            return new SuccessorEnumerator(g, p, diag);
+        }
+
         IEnumerator<PathFinderNode> IEnumerable<PathFinderNode>.GetEnumerator()
         {
             return new SuccessorEnumerator(g, p, diag);
@@ -50,7 +60,7 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
         }
     }
 
-    private struct SuccessorEnumerator(Grid<PathFinderNode> g, Position p, bool diag) : IEnumerator<PathFinderNode>
+    internal struct SuccessorEnumerator(Grid<PathFinderNode> g, Position p, bool diag) : IEnumerator<PathFinderNode>
     {
         private int _i = -1;
         private PathFinderNode _current = default;
@@ -95,9 +105,14 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
         public void Dispose() { }
     }
 
-    public IEnumerable<PathFinderNode> GetSuccessors(PathFinderNode n)
+    public SuccessorEnumerable GetSuccessors(PathFinderNode n)
     {
         return new SuccessorEnumerable(_grid, n.Position, _allowDiag);
+    }
+
+    IEnumerable<PathFinderNode> IModelAGraph<PathFinderNode>.GetSuccessors(PathFinderNode n)
+    {
+        return GetSuccessors(n);
     }
 
     public PathFinderNode GetParent(PathFinderNode n)
@@ -107,12 +122,12 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
 
     public bool WasVisited(Position pos)
     {
-        return _visited[pos.Row, pos.Column];
+        return _visitedGeneration[pos.Row, pos.Column] == _generation;
     }
 
     public void OpenNode(PathFinderNode n)
     {
-        _visited[n.Position.Row, n.Position.Column] = true;
+        _visitedGeneration[n.Position.Row, n.Position.Column] = _generation;
         _grid[n.Position.Row, n.Position.Column] = n;
 
         var i = _count++;

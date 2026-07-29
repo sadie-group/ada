@@ -93,9 +93,9 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
     {
         try
         {
-            return point.X <= SizeX &&
+            return point.X < SizeX &&
                    point.X >= 0 &&
-                   point.Y <= SizeY &&
+                   point.Y < SizeY &&
                    point.Y >= 0 &&
                    TileExistenceMap[point.Y, point.X] == 1;
         }
