@@ -148,13 +148,43 @@ public class RoomSettingsSaveEventHandler(
         
         UpdateSettings(room.Room.Settings);
         UpdateChatSettings(room.Room.ChatSettings);
-        
+
+        var settings = room.Room.Settings;
+        var chatSettings = room.Room.ChatSettings;
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(room).State = EntityState.Modified;
-        dbContext.Entry(room.Room.Settings).State = EntityState.Modified;
-        dbContext.Entry(room.Room.ChatSettings).State = EntityState.Modified;
-        
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.Rooms
+            .Where(x => x.Id == room.Room.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Name, room.Room.Name)
+                .SetProperty(x => x.Description, room.Room.Description)
+                .SetProperty(x => x.MaxUsersAllowed, room.Room.MaxUsersAllowed));
+
+        await dbContext.RoomSettings
+            .Where(x => x.Id == settings.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.AccessType, settings.AccessType)
+                .SetProperty(x => x.Password, settings.Password)
+                .SetProperty(x => x.TradeOption, settings.TradeOption)
+                .SetProperty(x => x.AllowPets, settings.AllowPets)
+                .SetProperty(x => x.CanPetsEat, settings.CanPetsEat)
+                .SetProperty(x => x.CanUsersOverlap, settings.CanUsersOverlap)
+                .SetProperty(x => x.HideWalls, settings.HideWalls)
+                .SetProperty(x => x.WallThickness, settings.WallThickness)
+                .SetProperty(x => x.FloorThickness, settings.FloorThickness)
+                .SetProperty(x => x.WhoCanMute, settings.WhoCanMute)
+                .SetProperty(x => x.WhoCanKick, settings.WhoCanKick)
+                .SetProperty(x => x.WhoCanBan, settings.WhoCanBan));
+
+        await dbContext.RoomChatSettings
+            .Where(x => x.Id == chatSettings.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.ChatType, chatSettings.ChatType)
+                .SetProperty(x => x.ChatWeight, chatSettings.ChatWeight)
+                .SetProperty(x => x.ChatSpeed, chatSettings.ChatSpeed)
+                .SetProperty(x => x.ChatDistance, chatSettings.ChatDistance)
+                .SetProperty(x => x.ChatProtection, chatSettings.ChatProtection));
         await BroadcastUpdatesAsync(room);
         
         await client.WriteToStreamAsync(new RoomSettingsSavedWriter

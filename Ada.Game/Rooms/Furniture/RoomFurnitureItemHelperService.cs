@@ -41,16 +41,12 @@ public class RoomFurnitureItemHelperService(
         }
 
         await UpdateMetaDataForItemAsync(room, roomFurnitureItem, (state + 1).ToString());
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        var playerFurnitureItemEntity = mapper.Map<PlayerFurnitureItem>(roomFurnitureItem.PlayerFurnitureItem);
-        
-        dbContext
-            .Entry(playerFurnitureItemEntity)
-            .Property(x => x.MetaData).IsModified = true;
-        
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
     }
 
     public async Task UpdateMetaDataForItemAsync(

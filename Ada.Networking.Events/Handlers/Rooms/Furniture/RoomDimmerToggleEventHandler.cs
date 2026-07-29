@@ -54,7 +54,8 @@ public class RoomDimmerToggleEventHandler(
             dimmer, 
             $"{enabled},{preset.PresetId},{bgOnly},{preset.Color},{preset.Intensity}");
         
-        dbContext.Entry(room.Room.DimmerSettings).Property(x => x.Enabled).IsModified = true;
-        await dbContext.SaveChangesAsync();
+        await dbContext.RoomDimmerSettings
+            .Where(x => x.RoomId == room.Room.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, room.Room.DimmerSettings.Enabled));
     }
 }

@@ -65,13 +65,13 @@ public class RoomWallItemUpdatedEventHandler(
         dbContext.Entry(roomFurnitureItemEntity).Property(x => x.WallPosition).IsModified = true;
         await dbContext.SaveChangesAsync();
         
-        var owner = await playerRepository.GetPlayerByIdAsync(
+        var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(
             roomFurnitureItem.PlayerFurnitureItem.PlayerId);
-        
+
         await room.BroadcastDataAsync(new RoomWallFurnitureItemUpdatedWriter
         {
             Item = roomFurnitureItem,
-            OwnerUsername = owner?.Username ?? "Unknown User"
+            OwnerUsername = ownerUsername ?? "Unknown User"
         });
     }
 }

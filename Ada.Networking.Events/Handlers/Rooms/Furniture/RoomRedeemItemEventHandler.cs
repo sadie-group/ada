@@ -63,9 +63,16 @@ public class RoomRedeemItemEventHandler(
         });
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(roomFurnitureItem).State = EntityState.Deleted;
-        dbContext.Entry(roomFurnitureItem.PlayerFurnitureItem).State = EntityState.Deleted;
-        await dbContext.SaveChangesAsync();
+
+        room.Room.FurnitureItems.Remove(roomFurnitureItem);
+
+        await dbContext.RoomFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.Id)
+            .ExecuteDeleteAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+            .ExecuteDeleteAsync();
 
         if (assetName.StartsWith("CF_") ||
             assetName.StartsWith("CFC_") ||
@@ -78,8 +85,7 @@ public class RoomRedeemItemEventHandler(
             if (assetName.StartsWith("PF_"))
             {
                 player.Player.Data.PixelBalance += value;
-                dbContext.Entry(player.Player.Data).Property(x => x.PixelBalance).IsModified = true;
-                
+
                 await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
@@ -91,8 +97,7 @@ public class RoomRedeemItemEventHandler(
             else
             {
                 player.Player.Data.CreditBalance += value;
-                dbContext.Entry(player.Player.Data).Property(x => x.CreditBalance).IsModified = true;
-                
+
                 await client.WriteToStreamAsync(new PlayerCreditsBalanceWriter
                 {
                     Credits = player.Player.Data.CreditBalance
@@ -110,12 +115,10 @@ public class RoomRedeemItemEventHandler(
             if (pointsType == 5 || assetName.StartsWith("CF_diamond_"))
             {
                 player.Player.Data.SeasonalBalance += points;
-                dbContext.Entry(player.Player.Data).Property(x => x.SeasonalBalance).IsModified = true;
             }
             else if (pointsType == 103)
             {
                 player.Player.Data.GotwPoints += points;
-                dbContext.Entry(player.Player.Data).Property(x => x.SeasonalBalance).IsModified = true;
             }
                 
             await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
@@ -127,6 +130,12 @@ public class RoomRedeemItemEventHandler(
             });
         }
 
-        await dbContext.SaveChangesAsync();
+        await dbContext.PlayerData
+            .Where(x => x.PlayerId == player.Player.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.PixelBalance, player.Player.Data.PixelBalance)
+                .SetProperty(x => x.CreditBalance, player.Player.Data.CreditBalance)
+                .SetProperty(x => x.SeasonalBalance, player.Player.Data.SeasonalBalance)
+                .SetProperty(x => x.GotwPoints, player.Player.Data.GotwPoints));
     }
 }

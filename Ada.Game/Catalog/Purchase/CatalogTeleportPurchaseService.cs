@@ -21,26 +21,30 @@ public class CatalogTeleportPurchaseService(
         var created = DateTime.Now;
         var furniture = mapper.Map<FurnitureItemDto>(item.FurnitureItems.First());
 
-        var parent = CreateItem(client, furniture, metaData, created);
-        var child = CreateItem(client, furniture, metaData, created);
-
-        client.Player.Player.FurnitureItems.Add(parent);
-        client.Player.Player.FurnitureItems.Add(child);
+        var parentEntity = mapper.Map<PlayerFurnitureItem>(CreateItem(client, furniture, metaData, created));
+        var childEntity = mapper.Map<PlayerFurnitureItem>(CreateItem(client, furniture, metaData, created));
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        dbContext.Entry(parent).State = EntityState.Added;
-        dbContext.Entry(child).State = EntityState.Added;
+        // Attach the roots only; the mapped FurnitureItem navigations already exist in the database.
+        dbContext.Entry(parentEntity).State = EntityState.Added;
+        dbContext.Entry(childEntity).State = EntityState.Added;
 
         await dbContext.SaveChangesAsync();
 
         dbContext.PlayerFurnitureItemLinks.Add(new PlayerFurnitureItemLink
         {
-            ParentId = parent.Id,
-            ChildId = child.Id
+            ParentId = parentEntity.Id,
+            ChildId = childEntity.Id
         });
 
         await dbContext.SaveChangesAsync();
+
+        var parent = mapper.Map<PlayerFurnitureItemDto>(parentEntity);
+        var child = mapper.Map<PlayerFurnitureItemDto>(childEntity);
+
+        client.Player.Player.FurnitureItems.Add(parent);
+        client.Player.Player.FurnitureItems.Add(child);
 
         await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
         {

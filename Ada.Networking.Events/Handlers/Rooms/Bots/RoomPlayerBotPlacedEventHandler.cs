@@ -73,8 +73,10 @@ public class RoomPlayerBotPlacedEventHandler(
         bot.RoomId = room.Room.Id;
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(bot).Property(x => x.RoomId).IsModified = true;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerBots
+            .Where(x => x.Id == bot.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.RoomId, room.Room.Id));
 
         room.TileMap.AddUnitToMap(new Point(X, Y), roomBot);
         

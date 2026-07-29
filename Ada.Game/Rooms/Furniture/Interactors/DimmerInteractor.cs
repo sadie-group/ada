@@ -80,10 +80,11 @@ public class DimmerInteractor(
      
         if (room.Room.DimmerSettings != null)
         {
+            await dbContext.RoomDimmerSettings
+                .Where(x => x.RoomId == room.Room.Id)
+                .ExecuteDeleteAsync();
+
             room.Room.DimmerSettings = null;
-            
-            dbContext.Entry(room.Room.DimmerSettings).State = EntityState.Deleted;
-            await dbContext.SaveChangesAsync();
         }
     }
 }

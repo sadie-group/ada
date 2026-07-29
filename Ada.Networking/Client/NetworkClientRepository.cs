@@ -79,7 +79,7 @@ public class NetworkClientRepository(
                 
                 await dbContext.Database
                     .ExecuteSqlRawAsync(
-                        "UPDATE player_data SET is_online = 0 WHERE id = @p0 LIMIT 1", 
+                        "UPDATE player_data SET is_online = 0 WHERE player_id = @p0 LIMIT 1",
                         player.Player.Id);
             }
         }

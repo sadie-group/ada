@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Db.Models.Players;
 using Ada.Networking.Writers.Players;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,8 +49,9 @@ public class PlayerRemoveUserIgnoreEventHandler(IPlayerRepository playerReposito
             });
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        dbContext.Entry(ignore).State = EntityState.Deleted;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.Set<PlayerIgnore>()
+            .Where(x => x.PlayerId == player.Player.Id && x.TargetPlayerId == ignore.TargetPlayerId)
+            .ExecuteDeleteAsync();
     }
 }

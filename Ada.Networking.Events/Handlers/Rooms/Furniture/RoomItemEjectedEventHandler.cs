@@ -136,10 +136,12 @@ public class RoomItemEjectedEventHandler(
         }
         
         itemRecord.PlacementData = null;
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(roomFurnitureItem).State = EntityState.Deleted;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.RoomFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.Id)
+            .ExecuteDeleteAsync();
     }
 }
     
