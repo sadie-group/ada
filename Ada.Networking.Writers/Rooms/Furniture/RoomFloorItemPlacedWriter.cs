@@ -24,10 +24,10 @@ public class RoomFloorItemPlacedWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Convert<string>(GetType().GetProperty(nameof(PositionZ))!, o => ((double)o).ToString("0.00"));
-        Convert<int>(GetType().GetProperty(nameof(InteractionModes))!, o => (int)o > 1 ? 1 : 0);
+        Convert<string>(nameof(PositionZ), o => ((double)o).ToString("0.00"));
+        Convert<int>(nameof(InteractionModes), o => (int)o > 1 ? 1 : 0);
         
-        Override(GetType().GetProperty(nameof(ObjectData))!, writer =>
+        Override(nameof(ObjectData), writer =>
         {
             if (ObjectDataKey == (int)Core.Enums.Miscellaneous.ObjectDataKey.LegacyKey)
             {
@@ -44,6 +44,6 @@ public class RoomFloorItemPlacedWriter : AbstractPacketWriter
             }
         });
         
-        Override(GetType().GetProperty(nameof(MetaData))!, _ => {});
+        Override(nameof(MetaData), _ => {});
     }
 }

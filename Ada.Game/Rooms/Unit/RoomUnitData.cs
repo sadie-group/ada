@@ -134,7 +134,13 @@ public class RoomUnitData(
         }
         else
         {
-            NeedsPathCalculated = true;
+            // No route to the goal; stop instead of re-running the search every tick.
+            NeedsPathCalculated = false;
+
+            if (IsWalking)
+            {
+                ClearWalking(reachedGoal: false);
+            }
         }
     }
     
@@ -145,10 +151,30 @@ public class RoomUnitData(
         {
             return;
         }
-        
+
         PathGoal = point;
         NeedsPathCalculated = true;
         OnReachedGoal = onReachedGoal;
+    }
+
+    // Lets the fast game-loop passes start a freshly requested walk between full
+    // ticks; mid-walk recalculations stay on the tick so the step rhythm holds.
+    public async Task<bool> TryStartPendingWalkAsync()
+    {
+        if (!NeedsPathCalculated || IsWalking)
+        {
+            return false;
+        }
+
+        CalculatePath();
+
+        if (!IsWalking)
+        {
+            return false;
+        }
+
+        await ProcessMovementAsync();
+        return NeedsUpdate;
     }
 
     protected async Task ProcessGenericChecksAsync()

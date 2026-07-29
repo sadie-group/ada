@@ -1,3 +1,4 @@
+using Ada.Db.Configuration;
 using Ada.Db.Models;
 using Ada.Db.Models.Catalog;
 using Ada.Db.Models.Catalog.FrontPage;
@@ -75,6 +76,6 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AdaDbContext).Assembly);
+        ModelConfigurationProvider.Active.Apply(modelBuilder);
     }
 }

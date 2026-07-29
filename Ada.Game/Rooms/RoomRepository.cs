@@ -1,15 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
-using Ada.Db;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms;
 
-public class RoomRepository(
-    IDbContextFactory<AdaDbContext> dbContextFactory, 
-    IMapper mapper) : IRoomRepository
+public class RoomRepository : IRoomRepository
 {
     private readonly ConcurrentDictionary<long, IRoomLogic> _rooms = new();
 
@@ -41,15 +36,6 @@ public class RoomRepository(
     
     public async ValueTask DisposeAsync()
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        foreach (var room in _rooms.Values)
-        {
-            dbContext.Entry(room).State = EntityState.Modified;
-        }
-
-        await dbContext.SaveChangesAsync();
-
         foreach (var room in _rooms.Values)
         {
             await room.DisposeAsync();

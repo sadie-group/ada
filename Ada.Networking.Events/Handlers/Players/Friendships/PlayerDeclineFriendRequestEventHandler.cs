@@ -35,16 +35,18 @@ public class PlayerDeclineFriendRequestEventHandler(
         }
         else
         {
-            foreach (var originId in Ids) 
-            {
-                var targetId = playerId;
-                
-                await dbContext.Set<PlayerFriendship>()
-                    .Where(x => x.OriginPlayerId == originId && x.TargetPlayerId == targetId)
-                    .ExecuteDeleteAsync();
+            var originIds = Ids.Select(id => (long) id).ToList();
 
-                var origin = await playerRepository.GetPlayerByIdAsync(originId);
-                var request = origin?.OutgoingFriendships.FirstOrDefault(x => x.TargetPlayerId == targetId);
+            await dbContext.Set<PlayerFriendship>()
+                .Where(x => originIds.Contains(x.OriginPlayerId) && x.TargetPlayerId == playerId)
+                .ExecuteDeleteAsync();
+
+            foreach (var originId in Ids)
+            {
+                // Only online origins have in-memory state to update; the rows are
+                // already deleted above.
+                var origin = playerRepository.GetPlayerLogicById(originId)?.Player;
+                var request = origin?.OutgoingFriendships.FirstOrDefault(x => x.TargetPlayerId == playerId);
 
                 if (request != null)
                 {

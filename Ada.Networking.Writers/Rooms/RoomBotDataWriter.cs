@@ -12,7 +12,7 @@ public class RoomBotDataWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Bots))!, writer =>
+        Override(nameof(Bots), writer =>
         {
             writer.WriteInteger(Bots.Count);
 

@@ -85,8 +85,6 @@ public class RoomUserTrade(
             }
 
             updateMap[userTwo].Add(userOneItem);
-            
-            dbContext.Entry(userOneItem).State = EntityState.Modified;
         }
         
         foreach (var userTwoItem in userTwoItems)
@@ -102,8 +100,6 @@ public class RoomUserTrade(
             }
 
             updateMap[userOne].Add(userTwoItem);
-            
-            dbContext.Entry(userTwoItem).State = EntityState.Modified;
         }
 
         foreach (var (updatePlayer, updatedItems) in updateMap)
@@ -112,7 +108,23 @@ public class RoomUserTrade(
             await playerHelperService.RefreshInventoryAsync(updatePlayer);
         }
 
-        await dbContext.SaveChangesAsync();
+        if (userOneItems.Count > 0)
+        {
+            var itemIds = userOneItems.Select(x => x.Id).ToList();
+
+            await dbContext.PlayerFurnitureItems
+                .Where(x => itemIds.Contains(x.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlayerId, userTwo.Player.Id));
+        }
+
+        if (userTwoItems.Count > 0)
+        {
+            var itemIds = userTwoItems.Select(x => x.Id).ToList();
+
+            await dbContext.PlayerFurnitureItems
+                .Where(x => itemIds.Contains(x.Id))
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlayerId, userOne.Player.Id));
+        }
     }
 
     public void RemoveOfferedItem(PlayerFurnitureItemDto item)

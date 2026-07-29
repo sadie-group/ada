@@ -26,9 +26,7 @@ public class RoomProfile : Profile
             .ConstructUsing((x, _) =>
             {
                 var tileMap = new RoomTileMap(x.Layout!.Heightmap ?? "", x.FurnitureItems);
-                var worldArray = tileMap.GetWorldArrayFromTileMap(tileMap, default, []);
-                var worldGrid = new WorldGrid(worldArray);
-                var pathFinder = new RoomPathFinder(worldGrid.Height, worldGrid.Width, new PathFinderOptions
+                var pathFinder = new RoomPathFinder(tileMap.SizeY, tileMap.SizeX, new PathFinderOptions
                 {
                     UseDiagonals = x.Settings?.WalkDiagonal ?? true
                 });

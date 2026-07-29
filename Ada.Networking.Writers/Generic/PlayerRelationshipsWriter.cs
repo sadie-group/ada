@@ -12,7 +12,7 @@ public class PlayerRelationshipsWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Relationships))!, writer =>
+        Override(nameof(Relationships), writer =>
         {
             writer.WriteInteger(Relationships.Count);
 

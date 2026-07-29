@@ -33,16 +33,16 @@ public class PlayerChangedAppearanceEventHandler(
 
         var figureCode = FigureCode;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        if (player.Player.AvatarData.Gender != gender)
-        {
-            player.Player.AvatarData.Gender = gender;
-            dbContext.Entry(player.Player.AvatarData).Property(x => x.Gender).IsModified = true;
-        }
-
+        player.Player.AvatarData.Gender = gender;
         player.Player.AvatarData.FigureCode = figureCode;
-        dbContext.Entry(player.Player.AvatarData).Property(x => x.FigureCode).IsModified = true;
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        await dbContext.PlayerAvatarData
+            .Where(x => x.PlayerId == player.Player.Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Gender, gender)
+                .SetProperty(x => x.FigureCode, figureCode));
         
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
         {
@@ -59,7 +59,5 @@ public class PlayerChangedAppearanceEventHandler(
         {
             Users = [roomUser]
         });
-
-        await dbContext.SaveChangesAsync();
     }
 }

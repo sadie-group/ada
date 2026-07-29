@@ -32,7 +32,7 @@ public class RoomLoadedEventHandler(
     IPlayerHelperService playerHelperService,
     IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
     IRoomWiredService wiredService)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IManagesOwnRoomLock
 {
     public int RoomId { get; init; }
     public required string Password { get; init; }
@@ -63,7 +63,8 @@ public class RoomLoadedEventHandler(
 
             if (lastRoom != null && lastRoom.UserRepository.TryGetById(player.Player.Id, out var existingUser) && existingUser != null)
             {
-                await lastRoom.UserRepository.TryRemoveAsync(existingUser.Player.Player.Id);
+                await lastRoom.RunLockedAsync(async () =>
+                    await lastRoom.UserRepository.TryRemoveAsync(existingUser.Player.Player.Id));
             }
         }
 

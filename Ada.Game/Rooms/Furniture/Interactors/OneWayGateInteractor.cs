@@ -59,9 +59,11 @@ public class OneWayGateInteractor(
     public override async Task OnPlaceAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
     {
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(item.PlayerFurnitureItem).Property(x => x.MetaData).IsModified = true;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == item.PlayerFurnitureItem.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, item.PlayerFurnitureItem.MetaData));
     }
 }

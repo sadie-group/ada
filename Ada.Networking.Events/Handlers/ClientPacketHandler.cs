@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.Concurrent;
+using System.Reflection;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -68,7 +69,10 @@ public class ClientPacketHandler(
                     continue;
                 }
                 
-                logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
+                if (logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
+                }
                 return;
             }
 
@@ -99,22 +103,29 @@ public class ClientPacketHandler(
         }
     }
 
+    private static readonly ConcurrentDictionary<Type, HandlerAttributeFlags> AttributeFlagsCache = new();
+
+    private readonly record struct HandlerAttributeFlags(bool AllowsUnauthenticated, bool RequiresRoomRights);
+
     private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler,
         INetworkClient client)
     {
-        var type = eventHandler.GetType();
+        var flags = AttributeFlagsCache.GetOrAdd(eventHandler.GetType(), static type =>
+        {
+            var method = type.GetMethods()
+                .SingleOrDefault(x => x.Name == "HandleAsync");
 
-        var method = type.GetMethods()
-            .SingleOrDefault(x => x.Name == "HandleAsync");
+            return new HandlerAttributeFlags(
+                HasAttribute<AllowUnauthenticatedAttribute>(type, method),
+                HasAttribute<RequiresRoomRightsAttribute>(type, method));
+        });
 
-        var allowsUnauthenticated = HasAttribute<AllowUnauthenticatedAttribute>(type, method);
-
-        if (!allowsUnauthenticated && client.Player == null)
+        if (!flags.AllowsUnauthenticated && client.Player == null)
         {
             return false;
         }
 
-        if (HasAttribute<RequiresRoomRightsAttribute>(type, method))
+        if (flags.RequiresRoomRights)
         {
             return client.RoomUser != null && client.RoomUser.HasRights();
         }
@@ -144,11 +155,23 @@ public class ClientPacketHandler(
 
     private async Task ExecuteAsync(INetworkClient client, INetworkPacketEventHandler eventHandler)
     {
-        logger.LogDebug($"Executing packet '{eventHandler.GetType().Name}'");
-        
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug($"Executing packet '{eventHandler.GetType().Name}'");
+        }
+
         try
         {
-            await eventHandler.HandleAsync(client);
+            var room = eventHandler is IManagesOwnRoomLock ? null : client.RoomUser?.Room;
+
+            if (room != null)
+            {
+                await room.RunLockedAsync(() => eventHandler.HandleAsync(client));
+            }
+            else
+            {
+                await eventHandler.HandleAsync(client);
+            }
         }
         catch (Exception e)
         {

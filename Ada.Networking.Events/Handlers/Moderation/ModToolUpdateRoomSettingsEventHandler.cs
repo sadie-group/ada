@@ -59,8 +59,10 @@ public class ModToolUpdateRoomSettingsEventHandler(
         if (needsSaving)
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            dbContext.Entry(room).State = EntityState.Modified;
-            await dbContext.SaveChangesAsync();
+
+            await dbContext.Rooms
+                .Where(x => x.Id == room.Room.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, room.Room.Name));
         }
     }
 }

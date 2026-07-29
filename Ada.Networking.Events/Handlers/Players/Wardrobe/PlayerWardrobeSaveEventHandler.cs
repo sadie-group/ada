@@ -37,7 +37,7 @@ public class PlayerWardrobeSaveEventHandler(
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         dbContext.PlayerWardrobeItems.Add(wardrobeItem);
-        dbContext.Entry(wardrobeItem).State = EntityState.Added;
+        dbContext.Entry(wardrobeItem).Property("PlayerId").CurrentValue = player.Player.Id;
         await dbContext.SaveChangesAsync();
             
         player.Player.WardrobeItems.Add(

@@ -12,7 +12,7 @@ public class PlayerInventoryPetsWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Pets))!, writer =>
+        Override(nameof(Pets), writer =>
         {
             writer.WriteInteger(1);
             writer.WriteInteger(1);

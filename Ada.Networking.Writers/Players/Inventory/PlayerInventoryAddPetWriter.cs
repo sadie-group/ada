@@ -12,7 +12,7 @@ public class PlayerInventoryAddPetWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Pet))!, writer =>
+        Override(nameof(Pet), writer =>
         {
             PetSerializer.Serialize(writer, Pet);
             writer.WriteBool(false);

@@ -54,20 +54,29 @@ public class RoomPaintItemPlacedEventHandler(
         {
             case "floor":
                 room.Room.PaintSettings.FloorPaint = playerItem.MetaData;
-                dbContext.Entry(room.Room.PaintSettings).Property(x => x.FloorPaint).IsModified = true;
+                await dbContext.RoomPaintSettings
+                    .Where(x => x.RoomId == room.Room.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.FloorPaint, playerItem.MetaData));
                 break;
             case "wallpaper":
                 room.Room.PaintSettings.WallPaint = playerItem.MetaData;
-                dbContext.Entry(room.Room.PaintSettings).Property(x => x.WallPaint).IsModified = true;
+                await dbContext.RoomPaintSettings
+                    .Where(x => x.RoomId == room.Room.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.WallPaint, playerItem.MetaData));
                 break;
             case "landscape":
                 room.Room.PaintSettings.LandscapePaint = playerItem.MetaData;
-                dbContext.Entry(room.Room.PaintSettings).Property(x => x.LandscapePaint).IsModified = true;
+                await dbContext.RoomPaintSettings
+                    .Where(x => x.RoomId == room.Room.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.LandscapePaint, playerItem.MetaData));
                 break;
         }
 
         player.Player.FurnitureItems.Remove(playerItem);
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == playerItem.Id)
+            .ExecuteDeleteAsync();
         
         await client.WriteToStreamAsync(new PlayerInventoryRemoveItemWriter
         {

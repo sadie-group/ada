@@ -66,13 +66,24 @@ public class NavigatorSearchEventHandler(
             }
         }
         
+        var ownerUsernames = new Dictionary<long, string>();
+
+        foreach (var room in categoryRoomMap.Values.SelectMany(x => x))
+        {
+            if (!ownerUsernames.ContainsKey(room.OwnerId))
+            {
+                ownerUsernames[room.OwnerId] =
+                    await playerRepository.GetPlayerUsernameByIdAsync(room.OwnerId) ?? "Unknown User";
+            }
+        }
+
         var searchResultPagesWriter = new NavigatorSearchResultPagesWriter
         {
             TabName = TabName,
             SearchQuery = SearchQuery,
             CategoryRoomMap = categoryRoomMap,
             RoomRepository = roomRepository,
-            PlayerRepository = playerRepository
+            OwnerUsernames = ownerUsernames
         };
 
         await client.WriteToStreamAsync(searchResultPagesWriter);

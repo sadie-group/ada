@@ -16,7 +16,7 @@ public class PlayerInventoryFurnitureItemsWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Items))!, writer =>
+        Override(nameof(Items), writer =>
         {
             writer.WriteInteger(Items.Count);
 

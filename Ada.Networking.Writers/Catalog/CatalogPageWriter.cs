@@ -29,7 +29,7 @@ public class CatalogPageWriter : AbstractPacketWriter
 
     private void OverrideItems()
     {
-        Override(GetType().GetProperty(nameof(Items))!, writer =>
+        Override(nameof(Items), writer =>
         {
             writer.WriteInteger(Items.Count);
 
@@ -91,7 +91,7 @@ public class CatalogPageWriter : AbstractPacketWriter
 
     private void OverrideFrontPageItems()
     {
-        Override(GetType().GetProperty(nameof(FrontPageItems))!, writer =>
+        Override(nameof(FrontPageItems), writer =>
         {
             if (PageLayout is not "frontpage4")
             {

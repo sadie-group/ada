@@ -18,6 +18,7 @@ public interface IRoomUnitData
     void AddStatus(string key, string value);
     void RemoveStatuses(params string[] statuses);
     void WalkToPoint(Point point, Action? onReachedGoal = null);
+    Task<bool> TryStartPendingWalkAsync();
     public double NextZ { get; set; }
     public int HandItemId { get; set; }
     public DateTime HandItemSet { get; set; }

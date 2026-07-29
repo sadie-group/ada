@@ -11,7 +11,7 @@ public class PlayerEffectListWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Effects))!, writer =>
+        Override(nameof(Effects), writer =>
         {
             writer.WriteInteger(Effects.Count);
 

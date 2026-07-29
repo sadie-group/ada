@@ -13,7 +13,7 @@ public class PlayerWardrobeWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Outfits))!, writer =>
+        Override(nameof(Outfits), writer =>
         {
             writer.WriteInteger(Outfits.Count);
 

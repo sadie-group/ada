@@ -11,7 +11,7 @@ public class PetLevelUpWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Pet))!, writer =>
+        Override(nameof(Pet), writer =>
         {
             writer.WriteInteger(Pet.Id);
             writer.WriteString(Pet.Name ?? "");

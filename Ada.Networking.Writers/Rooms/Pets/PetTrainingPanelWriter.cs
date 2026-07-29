@@ -12,7 +12,7 @@ public class PetTrainingPanelWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(CommandIds))!, writer =>
+        Override(nameof(CommandIds), writer =>
         {
             writer.WriteInteger(CommandIds.Count);
 
@@ -21,7 +21,7 @@ public class PetTrainingPanelWriter : AbstractPacketWriter
                 writer.WriteInteger(id);
             }
         });
-        Override(GetType().GetProperty(nameof(EnabledCommandIds))!, writer =>
+        Override(nameof(EnabledCommandIds), writer =>
         {
             writer.WriteInteger(EnabledCommandIds.Count);
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -8,6 +9,7 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Game.Rooms.Furniture;
 using Ada.Db;
+using Ada.Db.Models.Players.Furniture;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms.Services;
@@ -28,6 +30,36 @@ public class RoomWiredService(
         conditionStrategies.ToDictionary(x => x.InteractionType);
 
     private static readonly ConcurrentDictionary<int, DateTimeOffset> PeriodicLastRuns = new();
+
+    private sealed class PeriodicTriggerCache
+    {
+        public int SourceCount = -1;
+        public List<PlayerFurnitureItemPlacementDataDto> Triggers = [];
+    }
+
+    private static readonly ConditionalWeakTable<ICollection<PlayerFurnitureItemPlacementDataDto>, PeriodicTriggerCache>
+        PeriodicTriggerCaches = new();
+
+    // Interaction types never change after placement, so the cache only needs to
+    // refresh when items are added to or removed from the room.
+    private static List<PlayerFurnitureItemPlacementDataDto> GetPeriodicTriggers(
+        ICollection<PlayerFurnitureItemPlacementDataDto> roomItems)
+    {
+        var cache = PeriodicTriggerCaches.GetValue(roomItems, static _ => new PeriodicTriggerCache());
+
+        if (cache.SourceCount != roomItems.Count)
+        {
+            cache.Triggers = roomItems
+                .Where(x => GetInteractionType(x) is
+                    FurnitureItemInteractionType.WiredTriggerAtGivenTime or
+                    FurnitureItemInteractionType.WiredTriggerPeriodically or
+                    FurnitureItemInteractionType.WiredTriggerPeriodicallyLong)
+                .ToList();
+            cache.SourceCount = roomItems.Count;
+        }
+
+        return cache.Triggers;
+    }
 
     public IEnumerable<PlayerFurnitureItemPlacementDataDto> GetTriggers(
         string interactionType,
@@ -77,14 +109,21 @@ public class RoomWiredService(
 
     public async Task RunPeriodicTriggersForRoomAsync(IRoomLogic room)
     {
-        foreach (var trigger in room.Room.FurnitureItems)
-        {
-            var interactionType = GetInteractionType(trigger);
+        var periodicTriggers = GetPeriodicTriggers(room.Room.FurnitureItems);
 
+        if (periodicTriggers.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var trigger in periodicTriggers)
+        {
             if (trigger.WiredData == null)
             {
                 continue;
             }
+
+            var interactionType = GetInteractionType(trigger);
 
             if (interactionType == FurnitureItemInteractionType.WiredTriggerAtGivenTime)
             {
@@ -99,19 +138,12 @@ public class RoomWiredService(
                 continue;
             }
 
-            if (interactionType is not
-                    (FurnitureItemInteractionType.WiredTriggerPeriodically or
-                    FurnitureItemInteractionType.WiredTriggerPeriodicallyLong))
-            {
-                continue;
-            }
-
             var pulseLength = interactionType == FurnitureItemInteractionType.WiredTriggerPeriodicallyLong
                 ? PulseMilliseconds * 10
                 : PulseMilliseconds;
 
             var interval = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * pulseLength);
-            var now = DateTimeOffset.Now;
+            var now = DateTimeOffset.UtcNow;
             var lastRun = PeriodicLastRuns.GetOrAdd(trigger.Id, now);
 
             if (now - lastRun < interval)
@@ -248,22 +280,33 @@ public class RoomWiredService(
         PlayerFurnitureItemPlacementDataDto placementData,
         PlayerFurnitureItemWiredDataDto wiredData)
     {
-        var existingData = placementData.WiredData;
-
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        if (existingData != null)
+        await dbContext.Set<PlayerFurnitureItemWiredData>()
+            .Where(x => x.PlayerFurnitureItemPlacementDataId == placementData.Id)
+            .ExecuteDeleteAsync();
+
+        var placementEntity = await dbContext.RoomFurnitureItems
+            .FirstAsync(x => x.Id == placementData.Id);
+
+        var selectedIds = wiredData.SelectedItems.Select(x => x.Id).ToList();
+        var selectedEntities = selectedIds.Count > 0
+            ? await dbContext.RoomFurnitureItems.Where(x => selectedIds.Contains(x.Id)).ToListAsync()
+            : [];
+
+        dbContext.Add(new PlayerFurnitureItemWiredData
         {
-            dbContext.Entry(existingData).State = EntityState.Deleted;
-            await dbContext.SaveChangesAsync();
-        }
-
-        placementData.WiredData = wiredData;
-
-        dbContext.Entry(wiredData.PlacementData).State = EntityState.Unchanged;
-        dbContext.Entry(wiredData).State = EntityState.Added;
+            PlayerFurnitureItemPlacementDataId = placementEntity.Id,
+            PlacementData = placementEntity,
+            SelectedItems = selectedEntities,
+            Message = wiredData.Message,
+            IntParameters = wiredData.IntParameters,
+            Delay = wiredData.Delay
+        });
 
         await dbContext.SaveChangesAsync();
+
+        placementData.WiredData = wiredData;
     }
 
     private async Task CycleInteractionStateAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item)

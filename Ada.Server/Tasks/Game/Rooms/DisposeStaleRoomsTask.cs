@@ -36,7 +36,7 @@ namespace Ada.Server.Tasks.Game.Rooms
                     try
                     {
                         roomRepository.TryRemove(room.Room.Id, out _);
-                        await room.DisposeAsync();
+                        await room.RunLockedAsync(async () => await room.DisposeAsync());
                     }
                     finally
                     {

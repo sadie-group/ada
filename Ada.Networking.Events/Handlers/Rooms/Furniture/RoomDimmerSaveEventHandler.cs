@@ -76,9 +76,10 @@ public class RoomDimmerSaveEventHandler(
             dimmer,
             meta);
 
-        dbContext.Entry(room.Room.DimmerSettings).Property(x => x.Enabled).IsModified = true;
-        dbContext.Entry(preset).State = EntityState.Modified;
-        
+        await dbContext.RoomDimmerSettings
+            .Where(x => x.RoomId == room.Room.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, room.Room.DimmerSettings.Enabled));
+
         await dbContext.SaveChangesAsync();
         
         await room.BroadcastDataAsync(new RoomDimmerSettingsWriter

@@ -7,6 +7,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Events.Dtos;
 using Microsoft.EntityFrameworkCore;
+using PlayerFriendship = Ada.Db.Models.Players.PlayerFriendship;
 
 namespace Ada.Networking.Events.Handlers.Players.Friendships;
 
@@ -46,8 +47,10 @@ public class PlayerAcceptFriendRequestEventHandler(
         request.Status = PlayerFriendshipStatus.Accepted;
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(request).State = EntityState.Modified;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.Set<PlayerFriendship>()
+            .Where(x => x.OriginPlayerId == originId && x.TargetPlayerId == playerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, PlayerFriendshipStatus.Accepted));
         
         var targetPlayer = playerRepository.GetPlayerLogicById(originId);
         var targetOnline = targetPlayer != null;

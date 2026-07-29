@@ -11,6 +11,6 @@ public class RoomUserTypingWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Convert<int>(GetType().GetProperty(nameof(IsTyping))!, o => (bool)o ? 1 : 0);
+        Convert<int>(nameof(IsTyping), o => (bool)o ? 1 : 0);
     }
 }

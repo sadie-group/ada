@@ -12,7 +12,7 @@ public class RoomWallItemsWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(WallItems))!, writer =>
+        Override(nameof(WallItems), writer =>
         {
             writer.WriteInteger(WallItems.Count);
 

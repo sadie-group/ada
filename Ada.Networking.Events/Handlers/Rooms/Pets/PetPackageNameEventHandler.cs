@@ -87,9 +87,15 @@ public partial class PetPackageNameEventHandler(
         };
 
         dbContext.PlayerPets.Add(pet);
-        dbContext.Entry(item).State = EntityState.Deleted;
-        dbContext.Entry(item.PlayerFurnitureItem).State = EntityState.Deleted;
         await dbContext.SaveChangesAsync();
+
+        await dbContext.RoomFurnitureItems
+            .Where(x => x.Id == item.Id)
+            .ExecuteDeleteAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == item.PlayerFurnitureItem.Id)
+            .ExecuteDeleteAsync();
 
         room.Room.FurnitureItems.Remove(item);
 

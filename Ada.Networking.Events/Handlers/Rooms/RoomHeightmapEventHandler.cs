@@ -100,7 +100,7 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
                 EnterRoom = true,
                 IsOwner = isOwner,
                 UsersNow = room.UserRepository.Count,
-                PlayerRepository = playerRepository
+                OwnerUsername = await playerRepository.GetPlayerUsernameByIdAsync(room.Room.OwnerId) ?? string.Empty
             });
         }
         catch (NullReferenceException)
@@ -122,45 +122,31 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
             .Where(x => x.PlayerFurnitureItem.FurnitureItem.Type == FurnitureItemType.Wall)
             .ToList();
 
-        var tasks = floorItems
-            .Select(async item => new
-            {
-                Key = item.PlayerFurnitureItem.PlayerId,
-                Value = await playerRepository
-                    .GetPlayerUsernameByIdAsync(item.PlayerFurnitureItem.PlayerId) ?? "Unknown User"
-            });
+        var ownerIds = new HashSet<long>();
 
-        var results = await Task.WhenAll(tasks);
+        foreach (var item in room.FurnitureItems)
+        {
+            ownerIds.Add(item.PlayerFurnitureItem.PlayerId);
+        }
 
-        var floorFurnitureOwners = results
-            .Distinct()
-            .ToDictionary(x => x.Key, x => x.Value);
+        var furnitureOwners = new Dictionary<long, string?>(ownerIds.Count);
 
-        var wallTasks = wallItems
-            .Select(async item => new
-            {
-                Key = item.PlayerFurnitureItem.PlayerId,
-                Value = await playerRepository
-                    .GetPlayerUsernameByIdAsync(item.PlayerFurnitureItem.PlayerId) ?? "Unknown User"
-            });
-
-        var wallResults = await Task.WhenAll(wallTasks);
-
-        var wallFurnitureOwners = wallResults
-            .Distinct()
-            .ToDictionary(x => x.Key, x => x.Value);
+        foreach (var ownerId in ownerIds)
+        {
+            furnitureOwners[ownerId] = await playerRepository.GetPlayerUsernameByIdAsync(ownerId) ?? "Unknown User";
+        }
 
         await client.WriteToStreamAsync(new RoomFloorItemsWriter
         {
-            FloorItems = mapper.Map<List<PlayerFurnitureItemPlacementDataDto>>(floorItems),
-            FurnitureOwners = floorFurnitureOwners,
+            FloorItems = floorItems,
+            FurnitureOwners = furnitureOwners,
             RoomFurnitureItemHelperService = roomFurnitureItemHelperService
         });
 
         await client.WriteToStreamAsync(new RoomWallItemsWriter
         {
-            FurnitureOwners = wallFurnitureOwners,
-            WallItems = mapper.Map<List<PlayerFurnitureItemPlacementDataDto>>(wallItems)
+            FurnitureOwners = furnitureOwners,
+            WallItems = wallItems
         });
     }
     private async Task LoadPetsIfNeededAsync(IRoomLogic room)

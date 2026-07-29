@@ -30,12 +30,9 @@ public class PlayerSetHomeRoomEventHandler(
         client.Player.Player.Data.HomeRoomId = RoomId;
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        dbContext
-            .Entry(client.Player.Player.Data)
-            .Property(x => x.HomeRoomId)
-            .IsModified = true;
-        
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerData
+            .Where(x => x.PlayerId == client.Player.Player.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, RoomId));
     }
 }

@@ -16,11 +16,11 @@ public class PetBreedingResultWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(NestId))!, writer => writer.WriteInteger(NestId));
-        Override(GetType().GetProperty(nameof(PetType))!, _ => { });
-        Override(GetType().GetProperty(nameof(PetOne))!, writer => WriteBreedingPet(writer, PetOne));
-        Override(GetType().GetProperty(nameof(PetTwo))!, writer => WriteBreedingPet(writer, PetTwo));
-        Override(GetType().GetProperty(nameof(RarityLevels))!, writer =>
+        Override(nameof(NestId), writer => writer.WriteInteger(NestId));
+        Override(nameof(PetType), _ => { });
+        Override(nameof(PetOne), writer => WriteBreedingPet(writer, PetOne));
+        Override(nameof(PetTwo), writer => WriteBreedingPet(writer, PetTwo));
+        Override(nameof(RarityLevels), writer =>
         {
             writer.WriteInteger(RarityLevels.Count);
 

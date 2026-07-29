@@ -19,12 +19,20 @@ public class ProcessRoomFurnitureItemsTask(
 
     private async ValueTask BroadcastItemUpdates(IRoomLogic room, CancellationToken ctx)
     {
-        var writersToBroadcast = await GetItemUpdatesAsync(room);
-        
-        foreach (var writer in writersToBroadcast)
+        if (room.UserRepository.Count == 0)
         {
-            await room.BroadcastDataAsync(writer);
+            return;
         }
+
+        await room.RunLockedAsync(async () =>
+        {
+            var writersToBroadcast = await GetItemUpdatesAsync(room);
+
+            foreach (var writer in writersToBroadcast)
+            {
+                await room.BroadcastDataAsync(writer);
+            }
+        });
     }
 
     private async Task<IEnumerable<AbstractPacketWriter>> GetItemUpdatesAsync(IRoomLogic room)

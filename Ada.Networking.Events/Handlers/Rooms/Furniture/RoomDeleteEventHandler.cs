@@ -42,8 +42,7 @@ public class RoomDeleteEventHandler(
         {
             var playerItem = item.PlayerFurnitureItem;
             playerItem.PlacementData = null;
-            dbContext.Entry(item).State = EntityState.Deleted;
-            
+
             var onlineOwner = playerRepository.GetPlayerLogicById(item.PlayerFurnitureItem.PlayerId);
 
             if (onlineOwner == null)
@@ -64,10 +63,13 @@ public class RoomDeleteEventHandler(
             return;
         }
 
-        var roomEntity = mapper.Map<Room>(room);
+        await dbContext.RoomFurnitureItems
+            .Where(x => x.RoomId == room.Room.Id)
+            .ExecuteDeleteAsync();
 
-        dbContext.Entry(roomEntity).State = EntityState.Deleted;
-        await dbContext.SaveChangesAsync();
+        await dbContext.Rooms
+            .Where(x => x.Id == room.Room.Id)
+            .ExecuteDeleteAsync();
 
         foreach (var roomUser in room.UserRepository.GetAll())
         {

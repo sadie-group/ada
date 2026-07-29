@@ -32,6 +32,8 @@ public class NavigatorRoomProvider(
 
         var rooms = await dbContext
             .Set<Room>()
+            .AsNoTracking()
+            .AsSplitQuery()
             .Where(x => x.OwnerId == playerId)
             .Include(x => x.Settings)
             .Include(x => x.Layout)
@@ -68,9 +70,10 @@ public class NavigatorRoomProvider(
         }
 
         var rooms = await query
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Settings)
             .Include(x => x.Layout)
-            .Include(x => x.FurnitureItems)
             .Include(x => x.Owner)
             .Include(x => x.PaintSettings)
             .Include(x => x.ChatSettings)
@@ -78,6 +81,7 @@ public class NavigatorRoomProvider(
             .Include(x => x.Tags)
             .Include(x => x.Group)
             .Include(x => x.DimmerSettings)
+            .Take(100)
             .ToListAsync();
         
         return mapper.Map<List<RoomDto>>(rooms);

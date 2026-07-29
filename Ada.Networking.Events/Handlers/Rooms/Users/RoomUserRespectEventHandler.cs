@@ -56,8 +56,11 @@ public class RoomUserRespectEventHandler(
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         dbContext.PlayerRespects.Add(respectEntity);
-        dbContext.Entry(playerData).Property(x => x.RespectPoints).IsModified = true;
         await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerData
+            .Where(x => x.PlayerId == playerData.PlayerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.RespectPoints, playerData.RespectPoints));
 
         await room.BroadcastDataAsync(new RoomUserRespectWriter
         {

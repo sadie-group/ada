@@ -181,6 +181,7 @@ public class RoomItemPlacedEventHandler(
             var roomFurnitureItem = new PlayerFurnitureItemPlacementDataDto
             {
                 RoomId = room.Room.Id,
+                PlayerFurnitureItemId = playerItem.Id,
                 PlayerFurnitureItem = playerItem,
                 PositionX = 0,
                 PositionY = 0,
@@ -207,17 +208,22 @@ public class RoomItemPlacedEventHandler(
                 await interactor.OnPlaceAsync(client.RoomUser.Room, roomFurnitureItem, client.RoomUser);
             }
         
-            var owner = await playerRepository.GetPlayerByIdAsync(
+            var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(
                 roomFurnitureItem.PlayerFurnitureItem.PlayerId);
-        
+
             await room.BroadcastDataAsync(new RoomWallFurnitureItemPlacedWriter
             {
                 RoomFurnitureItem = roomFurnitureItem,
-                OwnerUsername = owner?.Username ?? "Unknown User"
+                OwnerUsername = ownerUsername ?? "Unknown User"
             });
 
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            dbContext.Entry(roomFurnitureItem).State = EntityState.Added;
+
+            var playerItemEntity = await dbContext.PlayerFurnitureItems
+                .FirstAsync(x => x.Id == playerItem.Id);
+
+            playerItemEntity.PlacementData = mapper.Map<PlayerFurnitureItemPlacementData>(roomFurnitureItem);
+
             await dbContext.SaveChangesAsync();
         }
     }

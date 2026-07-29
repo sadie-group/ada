@@ -48,13 +48,13 @@ public class PlayerRemoveFriendsEventHandler(
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        foreach (var currentId in Ids)
+        if (Ids.Count > 0)
         {
             await dbContext
                 .Set<PlayerFriendship>()
-                .Where(x => 
-                    x.OriginPlayerId == currentId && x.TargetPlayerId == playerId ||
-                    x.TargetPlayerId == currentId && x.OriginPlayerId == playerId)
+                .Where(x =>
+                    Ids.Contains(x.OriginPlayerId) && x.TargetPlayerId == playerId ||
+                    Ids.Contains(x.TargetPlayerId) && x.OriginPlayerId == playerId)
                 .ExecuteDeleteAsync();
         }
         

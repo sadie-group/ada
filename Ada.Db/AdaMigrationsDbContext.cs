@@ -1,10 +1,15 @@
+using Ada.Db.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 
 namespace Ada.Db;
 
-public class AdaMigrationsDbContext(DbContextOptions<AdaDbContext> options) : AdaDbContext(options);
+public class AdaMigrationsDbContext(DbContextOptions<AdaDbContext> options) : AdaDbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        => new DefaultModelConfiguration().Apply(modelBuilder);
+}
 
 public class AdaMigrationsContextFactory : IDesignTimeDbContextFactory<AdaMigrationsDbContext>
 {
