@@ -17,5 +17,6 @@ public interface IRoomLogic : IAsyncDisposable
     IRoomBotRepository BotRepository { get; }
     IRoomPetRepository PetRepository { get; }
     Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null);
+    Task RunLockedAsync(Func<Task> action);
     ValueTask DisposeAsync();
 }

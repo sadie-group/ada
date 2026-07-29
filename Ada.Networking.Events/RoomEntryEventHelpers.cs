@@ -60,39 +60,51 @@ public static class RoomEntryEventHelpers
             player.State.RoomEntryOverride = null;
         }
 
-        var roomUser = RoomHelpers.CreateUserForEntry(roomUserFactory, room, player, entryPoint, (HDirection) entryDirection);
-        roomUser.ApplyFlatCtrlStatus();
-        
-        if (teleport != null)
-        {
-            var squareInFront = tileMapHelperService
-                .GetPointInFront(teleport.PositionX, teleport.PositionY, teleport.Direction);
+        IRoomUser roomUser = null!;
+        var added = false;
 
-            if (!room.TileMap.UsersAtPoint(squareInFront))
-            {
-                roomUser.WalkToPoint(squareInFront);
-            }
-            
-            await Task.Factory.StartNew(async () =>
-            {
-                await Task.Delay(800);
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, teleport, "0");
-            });
-        }
-        
-        if (!room.UserRepository.TryAdd(roomUser))
+        await room.RunLockedAsync(async () =>
         {
-            Log.Error($"Failed to add user {player.Player.Id} to room {room.Room.Id}");
+            roomUser = RoomHelpers.CreateUserForEntry(roomUserFactory, room, player, entryPoint, (HDirection) entryDirection);
+            roomUser.ApplyFlatCtrlStatus();
+
+            if (teleport != null)
+            {
+                var squareInFront = tileMapHelperService
+                    .GetPointInFront(teleport.PositionX, teleport.PositionY, teleport.Direction);
+
+                if (!room.TileMap.UsersAtPoint(squareInFront))
+                {
+                    roomUser.WalkToPoint(squareInFront);
+                }
+
+                await Task.Factory.StartNew(async () =>
+                {
+                    await Task.Delay(800);
+                    await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, teleport, "0");
+                });
+            }
+
+            if (!room.UserRepository.TryAdd(roomUser))
+            {
+                Log.Error($"Failed to add user {player.Player.Id} to room {room.Room.Id}");
+                return;
+            }
+
+            added = true;
+            player.State.CurrentRoomId = room.Room.Id;
+
+            room.TileMap.AddUnitToMap(entryPoint, roomUser);
+
+            client.RoomUser = roomUser;
+
+            await SendRoomEntryPacketsToUserAsync(client, room);
+        });
+
+        if (!added)
+        {
             return;
         }
-        
-        player.State.CurrentRoomId = room.Room.Id;
-
-        room.TileMap.AddUnitToMap(entryPoint, roomUser);
-        
-        client.RoomUser = roomUser;
-        
-        await SendRoomEntryPacketsToUserAsync(client, room);
         
         var friends = player
             .GetMergedFriendships();
@@ -108,40 +120,43 @@ public static class RoomEntryEventHelpers
         
         await Task.Delay(100);
         
-        foreach (var user in room.UserRepository.GetAll())
+        await room.RunLockedAsync(async () =>
         {
-            if (user.Player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == player.Player.Id))
+            foreach (var user in room.UserRepository.GetAll())
             {
-                await user.Player.NetworkObject!.WriteToStreamAsync(
-                    new PlayerIgnoreStateWriter
-                    {
-                        State = (int) PlayerIgnoreState.Ignored,
-                        Username = player.Player.Username
-                    });
-            }
-            
-            if (player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == user.Player.Player.Id))
-            {
-                await player.NetworkObject!.WriteToStreamAsync(
-                    new PlayerIgnoreStateWriter
-                    {
-                        State = (int) PlayerIgnoreState.Ignored,
-                        Username = user.Player.Player.Username
-                    });
-            }
-        }
-            
-        var matchingWiredTriggers = room.Room.FurnitureItems
-            .Where(x =>
-                x
-                    .PlayerFurnitureItem
-                    .FurnitureItem.InteractionType == FurnitureItemInteractionType.WiredTriggerEnterRoom)
-            .ToList();
+                if (user.Player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == player.Player.Id))
+                {
+                    await user.Player.NetworkObject!.WriteToStreamAsync(
+                        new PlayerIgnoreStateWriter
+                        {
+                            State = (int) PlayerIgnoreState.Ignored,
+                            Username = player.Player.Username
+                        });
+                }
 
-        foreach (var trigger in matchingWiredTriggers)
-        {
-            await wiredService.RunTriggerForRoomAsync(room, trigger, roomUser);
-        }
+                if (player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == user.Player.Player.Id))
+                {
+                    await player.NetworkObject!.WriteToStreamAsync(
+                        new PlayerIgnoreStateWriter
+                        {
+                            State = (int) PlayerIgnoreState.Ignored,
+                            Username = user.Player.Player.Username
+                        });
+                }
+            }
+
+            var matchingWiredTriggers = room.Room.FurnitureItems
+                .Where(x =>
+                    x
+                        .PlayerFurnitureItem
+                        .FurnitureItem.InteractionType == FurnitureItemInteractionType.WiredTriggerEnterRoom)
+                .ToList();
+
+            foreach (var trigger in matchingWiredTriggers)
+            {
+                await wiredService.RunTriggerForRoomAsync(room, trigger, roomUser);
+            }
+        });
     }
 
     private static async Task SendRoomEntryPacketsToUserAsync(INetworkClient client, IRoomLogic room)

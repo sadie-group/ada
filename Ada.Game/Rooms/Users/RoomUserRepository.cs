@@ -84,6 +84,55 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
         return _users.Values.Where(x => x.HasRights()).ToList();
     }
     
+    public async Task ProcessNewWalkRequestsAsync()
+    {
+        try
+        {
+            var users = _users.Values;
+            List<IRoomUser>? usersStartedWalking = null;
+
+            foreach (var user in users)
+            {
+                if (await user.TryStartPendingWalkAsync())
+                {
+                    (usersStartedWalking ??= []).Add(user);
+                }
+            }
+
+            if (usersStartedWalking == null)
+            {
+                return;
+            }
+
+            var dataWriter = NetworkPacketWriterSerializer.Serialize(
+                new RoomUserDataWriter
+                {
+                    Users = usersStartedWalking
+                });
+
+            var statusWriter = NetworkPacketWriterSerializer.Serialize(
+                new RoomUserStatusWriter
+                {
+                    Users = usersStartedWalking
+                });
+
+            foreach (var u in users)
+            {
+                u.NetworkObject.QueueOutbound(dataWriter);
+                u.NetworkObject.QueueOutbound(statusWriter);
+            }
+
+            foreach (var u in usersStartedWalking)
+            {
+                u.NeedsUpdate = false;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e.ToString());
+        }
+    }
+
     public async Task RunPeriodicCheckAsync()
     {
         try
@@ -92,7 +141,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
             if (users.Count == 0)
             {
-                NoUsersSince ??= DateTime.Now;
+                NoUsersSince ??= DateTime.UtcNow;
             }
             else
             {
@@ -104,16 +153,22 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
                 await user.RunPeriodicCheckAsync();
             }
         
-            var firstUser = users.FirstOrDefault();
-        
-            if (firstUser != null)
+            if (users.Count > 0 && _room.BotRepository.Count > 0)
             {
-                var bots = firstUser.Room.BotRepository.GetAll();
+                var botsNeedUpdate = _room.BotRepository
+                    .GetAll()
+                    .Where(x => x.NeedsUpdate)
+                    .ToList();
 
-                if (bots.Count > 0)
+                if (botsNeedUpdate.Count > 0)
                 {
-                    await _room.BroadcastDataAsync(new RoomBotStatusWriter { Bots = bots });
-                    await _room.BroadcastDataAsync(new RoomBotDataWriter { Bots = bots });
+                    await _room.BroadcastDataAsync(new RoomBotStatusWriter { Bots = botsNeedUpdate });
+                    await _room.BroadcastDataAsync(new RoomBotDataWriter { Bots = botsNeedUpdate });
+
+                    foreach (var bot in botsNeedUpdate)
+                    {
+                        bot.NeedsUpdate = false;
+                    }
                 }
             }
 

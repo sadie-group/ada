@@ -14,10 +14,6 @@ namespace Ada.Game
     {
         private CancellationTokenSource? _cts;
         private Thread? _thread;
-        private readonly ParallelOptions _parallelOptions = new()
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount
-        };
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
@@ -40,24 +36,34 @@ namespace Ada.Game
             return Task.CompletedTask;
         }
 
+        // Full simulation runs every PassesPerTick passes (the original 500ms tick);
+        // the passes in between only start freshly requested walks and flush
+        // outboxes, so input latency is bounded by the pass interval.
+        private const int PassIntervalMilliseconds = 100;
+        private const int PassesPerTick = 5;
+
         private async Task GameLoopAsync(CancellationToken token)
         {
             var sw = new Stopwatch();
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                CancellationToken = token
+            };
+            var pass = 0;
 
             while (!token.IsCancellationRequested)
             {
                 sw.Restart();
 
+                var fullTick = pass++ % PassesPerTick == 0;
+
                 try
                 {
                     await Parallel.ForEachAsync(
                         roomRepository.GetAllRooms(),
-                        new ParallelOptions
-                        {
-                            MaxDegreeOfParallelism = _parallelOptions.MaxDegreeOfParallelism,
-                            CancellationToken = token
-                        },
-                        async (room, _) => await TickRoomAsync(room));
+                        parallelOptions,
+                        async (room, _) => await TickRoomAsync(room, fullTick));
                 }
                 catch (OperationCanceledException)
                 {
@@ -66,7 +72,7 @@ namespace Ada.Game
 
                 sw.Stop();
 
-                var delay = 500 - (int)sw.ElapsedMilliseconds;
+                var delay = PassIntervalMilliseconds - (int)sw.ElapsedMilliseconds;
 
                 if (delay < 0)
                 {
@@ -86,32 +92,48 @@ namespace Ada.Game
             }
         }
 
-        private async Task TickRoomAsync(IRoomLogic room)
+        private async Task TickRoomAsync(IRoomLogic room, bool fullTick)
         {
-            await room.BotRepository.RunPeriodicCheckAsync();
-            await room.PetRepository.RunPeriodicCheckAsync();
-            await room.UserRepository.RunPeriodicCheckAsync();
-            await wiredService.RunPeriodicTriggersForRoomAsync(room);
-
-            foreach (var user in room.UserRepository.GetAll())
+            if (room.UserRepository.Count == 0)
             {
-                var obj = user.NetworkObject;
-
-                if (obj.WebSocket is not { State: WebSocketState.Open })
-                {
-                    await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
-                    continue;
-                }
-
-                try
-                {
-                    await obj.FlushAsync();
-                }
-                catch
-                {
-                    await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
-                }
+                room.UserRepository.NoUsersSince ??= DateTime.UtcNow;
+                return;
             }
+
+            await room.RunLockedAsync(async () =>
+            {
+                if (fullTick)
+                {
+                    await room.BotRepository.RunPeriodicCheckAsync();
+                    await room.PetRepository.RunPeriodicCheckAsync();
+                    await room.UserRepository.RunPeriodicCheckAsync();
+                    await wiredService.RunPeriodicTriggersForRoomAsync(room);
+                }
+                else
+                {
+                    await room.UserRepository.ProcessNewWalkRequestsAsync();
+                }
+
+                foreach (var user in room.UserRepository.GetAll())
+                {
+                    var obj = user.NetworkObject;
+
+                    if (obj.WebSocket is not { State: WebSocketState.Open })
+                    {
+                        await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
+                        continue;
+                    }
+
+                    try
+                    {
+                        await obj.FlushAsync();
+                    }
+                    catch
+                    {
+                        await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
+                    }
+                }
+            });
         }
     }
 }

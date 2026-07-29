@@ -10,6 +10,7 @@ public interface IRoomUserRepository : IAsyncDisposable
     int Count { get; }
     ICollection<IRoomUser> GetAllWithRights();
     Task RunPeriodicCheckAsync();
+    Task ProcessNewWalkRequestsAsync();
     void SetRoom(IRoomLogic room);
     DateTime? NoUsersSince { get; set; }
 }

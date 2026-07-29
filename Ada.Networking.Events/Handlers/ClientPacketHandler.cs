@@ -162,7 +162,16 @@ public class ClientPacketHandler(
 
         try
         {
-            await eventHandler.HandleAsync(client);
+            var room = eventHandler is IManagesOwnRoomLock ? null : client.RoomUser?.Room;
+
+            if (room != null)
+            {
+                await room.RunLockedAsync(() => eventHandler.HandleAsync(client));
+            }
+            else
+            {
+                await eventHandler.HandleAsync(client);
+            }
         }
         catch (Exception e)
         {
