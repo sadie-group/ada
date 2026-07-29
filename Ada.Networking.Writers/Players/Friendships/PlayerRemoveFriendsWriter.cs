@@ -11,7 +11,7 @@ public class PlayerRemoveFriendsWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(PlayerIds))!, writer =>
+        Override(nameof(PlayerIds), writer =>
         {
             writer.WriteInteger(PlayerIds.Count);
             

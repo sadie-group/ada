@@ -17,10 +17,10 @@ public class PetInformationWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(OwnerName))!, _ => { });
-        Override(GetType().GetProperty(nameof(CanRide))!, _ => { });
-        Override(GetType().GetProperty(nameof(IsRiding))!, _ => { });
-        Override(GetType().GetProperty(nameof(Pet))!, writer =>
+        Override(nameof(OwnerName), _ => { });
+        Override(nameof(CanRide), _ => { });
+        Override(nameof(IsRiding), _ => { });
+        Override(nameof(Pet), writer =>
         {
             var ageDays = (int) Math.Floor((DateTimeOffset.UtcNow - Pet.CreatedAt).TotalDays);
 

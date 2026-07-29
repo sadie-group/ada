@@ -1,5 +1,4 @@
-﻿using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Networking;
+﻿using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
 
@@ -13,11 +12,11 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
     public required List<RoomData> Rooms { get; init; }
     public required bool HasAdditional { get; init; }
     public required OfficialRoomEntryData OfficialRoomEntryData { get; init; }
-    public required IPlayerRepository PlayerRepository { get; init; }
+    public string GuestRoomOwnerUsername { get; init; } = "Unknown User";
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(OfficialRoomEntryData))!, async writer =>
+        Override(nameof(OfficialRoomEntryData), writer =>
         {
             if (!HasAdditional)
             {
@@ -47,7 +46,7 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
                     writer.WriteInteger(guestRoom!.Id);
                     writer.WriteString(guestRoom.Name);
                     writer.WriteLong(guestRoom.OwnerId);
-                    writer.WriteString(await PlayerRepository.GetPlayerUsernameByIdAsync(guestRoom.OwnerId) ?? "Unknown User");
+                    writer.WriteString(GuestRoomOwnerUsername);
                     writer.WriteInteger((int) guestRoom.Settings.AccessType);
                     writer.WriteInteger(OfficialRoomEntryData.UserCount);
                     writer.WriteInteger(guestRoom.MaxUsersAllowed);

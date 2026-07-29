@@ -19,11 +19,11 @@ public class ModToolRoomChatLogWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Unknown1))!, writer => { writer.WriteByte(Unknown1); });
-        Override(GetType().GetProperty(nameof(Unknown4))!, writer => { writer.WriteByte(Unknown4); });
-        Override(GetType().GetProperty(nameof(Unknown7))!, writer => { writer.WriteByte(Unknown7); });
+        Override(nameof(Unknown1), writer => { writer.WriteByte(Unknown1); });
+        Override(nameof(Unknown4), writer => { writer.WriteByte(Unknown4); });
+        Override(nameof(Unknown7), writer => { writer.WriteByte(Unknown7); });
         
-        Override(GetType().GetProperty(nameof(Messages))!, writer =>
+        Override(nameof(Messages), writer =>
         {
             writer.WriteInteger(Messages.Count);
 

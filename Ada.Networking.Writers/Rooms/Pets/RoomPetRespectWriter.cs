@@ -12,11 +12,11 @@ public class RoomPetRespectWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(RespectType))!, writer =>
+        Override(nameof(RespectType), writer =>
         {
             writer.WriteInteger(RespectType);
             writer.WriteInteger(100);
         });
-        Override(GetType().GetProperty(nameof(Pet))!, writer => PetSerializer.Serialize(writer, Pet));
+        Override(nameof(Pet), writer => PetSerializer.Serialize(writer, Pet));
     }
 }

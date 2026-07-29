@@ -12,7 +12,7 @@ public class PlayerWearingBadgesWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Badges))!, writer =>
+        Override(nameof(Badges), writer =>
         {
             writer.WriteInteger(Badges.Count);
 

@@ -10,7 +10,7 @@ public class RoomEnterErrorWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        After(GetType().GetProperty(nameof(ErrorCode))!, writer =>
+        After(nameof(ErrorCode), writer =>
         {
             writer.WriteString("");
         });

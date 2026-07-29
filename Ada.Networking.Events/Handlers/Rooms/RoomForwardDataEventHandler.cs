@@ -39,7 +39,8 @@ public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
         }
 
         var isOwner = room.Room.OwnerId == client.Player.Player.Id;
-        
+        var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(room.Room.OwnerId);
+
         await client.WriteToStreamAsync(new RoomForwardDataWriter
         {
             Room = room.Room,
@@ -47,7 +48,7 @@ public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
             EnterRoom = EnterRoom != 0 || ForwardRoom != 1,
             IsOwner = isOwner,
             UsersNow = room.UserRepository.Count,
-            PlayerRepository = playerRepository
+            OwnerUsername = ownerUsername ?? string.Empty
         });
     }
 }

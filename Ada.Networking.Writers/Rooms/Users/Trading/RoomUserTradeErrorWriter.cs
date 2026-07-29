@@ -12,7 +12,7 @@ public class RoomUserTradeErrorWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Override(GetType().GetProperty(nameof(Code))!, 
+        Override(nameof(Code), 
             writer => writer.WriteInteger((int)Code));
     }
 }

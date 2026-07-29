@@ -11,7 +11,7 @@ public class PlayerCreditsBalanceWriter : AbstractPacketWriter
     public override void OnConfigureRules()
     {
         Convert<string>(
-            GetType().GetProperty(nameof(Credits))!,
+            nameof(Credits),
             i => (long) i + ".0");
     }
 }

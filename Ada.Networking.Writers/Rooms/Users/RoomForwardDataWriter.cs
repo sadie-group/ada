@@ -1,6 +1,5 @@
 using Ada.API;
 using Ada.API.DTOs.Rooms;
-using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
@@ -15,20 +14,18 @@ public class RoomForwardDataWriter : AbstractPacketWriter
     public required bool EnterRoom { get; init; }
     public required bool IsOwner { get; init; }
     public required int UsersNow { get; init; }
-    public required IPlayerRepository PlayerRepository { get; init; }
+    public required string OwnerUsername { get; init; }
 
-    public override async void OnSerialize(INetworkPacketWriter writer)
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
         var settings = Room.Settings;
         var chatSettings = Room.ChatSettings;
-        
-        var owner = await PlayerRepository.GetPlayerByIdAsync(Room.OwnerId);
 
         writer.WriteBool(EnterRoom);
         writer.WriteLong(Room.Id);
         writer.WriteString(Room.Name);
         writer.WriteLong(Room.OwnerId);
-        writer.WriteString(owner?.Username ?? string.Empty);
+        writer.WriteString(OwnerUsername);
         writer.WriteInteger((int) Room.Settings.AccessType);
         writer.WriteInteger(UsersNow);
         writer.WriteInteger(Room.MaxUsersAllowed);

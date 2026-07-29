@@ -1,5 +1,4 @@
-﻿using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Networking.Client;
+﻿using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
@@ -8,7 +7,7 @@ using Ada.Networking.Writers.Navigator;
 namespace Ada.Networking.Events.Handlers.Navigator;
 
 [PacketId(EventHandlerId.NavigatorPromotedRooms)]
-public class NavigatorPromotedRoomsEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler
+public class NavigatorPromotedRoomsEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
@@ -32,8 +31,7 @@ public class NavigatorPromotedRoomsEventHandler(IPlayerRepository playerReposito
                 UserCount = 1,
                 Type = OfficialRoomEntryDataType.Tag,
                 Unknown14 = "E"
-            },
-            PlayerRepository = playerRepository
+            }
         });
     }
 }

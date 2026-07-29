@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Linq.Expressions;
 using System.Reflection;
 using Ada.API;
+using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
 namespace Ada.Networking.Packets.Serialization
@@ -24,17 +26,14 @@ namespace Ada.Networking.Packets.Serialization
         private static readonly ConcurrentDictionary<Type, short> packetIdCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object>?> onConfigureRulesCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object, NetworkPacketWriter>?> onSerializeCache = new();
-        private static readonly ConcurrentDictionary<Type, RuleMapAccessors> ruleMapAccessorCache = new();
-
-        private sealed record RuleMapAccessors(
-            PropertyInfo? Before,
-            PropertyInfo? Instead,
-            PropertyInfo? After,
-            PropertyInfo? Conversion);
 
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
-            return propertyCache.GetOrAdd(type, t => t.GetProperties());
+            // The rule dictionaries declared on AbstractPacketWriter are serializer
+            // configuration, not packet fields.
+            return propertyCache.GetOrAdd(type, static t => t.GetProperties()
+                .Where(p => p.DeclaringType != typeof(AbstractPacketWriter))
+                .ToArray());
         }
 
         private static void InvokeOnConfigureRules(object packet)
@@ -43,12 +42,16 @@ namespace Ada.Networking.Packets.Serialization
             {
                 var method = t.GetMethod("OnConfigureRules");
 
-                if (method == null)
+                if (method == null || method.GetBaseDefinition().DeclaringType == method.DeclaringType)
                 {
                     return null;
                 }
 
-                return (Action<object>) (obj => method.Invoke(obj, []));
+                var packetParam = Expression.Parameter(typeof(object));
+
+                return Expression.Lambda<Action<object>>(
+                    Expression.Call(Expression.Convert(packetParam, t), method),
+                    packetParam).Compile();
             });
 
             invoker?.Invoke(packet);
@@ -65,7 +68,13 @@ namespace Ada.Networking.Packets.Serialization
                     return null;
                 }
 
-                return (Action<object, NetworkPacketWriter>) ((obj, w) => method.Invoke(obj, [w]));
+                var packetParam = Expression.Parameter(typeof(object));
+                var writerParam = Expression.Parameter(typeof(NetworkPacketWriter));
+
+                return Expression.Lambda<Action<object, NetworkPacketWriter>>(
+                    Expression.Call(Expression.Convert(packetParam, t), method, writerParam),
+                    packetParam,
+                    writerParam).Compile();
             });
 
             if (invoker == null)
@@ -93,27 +102,6 @@ namespace Ada.Networking.Packets.Serialization
                 return attr.Id;
             });
         }
-
-        private static RuleMapAccessors GetRuleMapAccessors(Type type)
-        {
-            return ruleMapAccessorCache.GetOrAdd(type, static t => new RuleMapAccessors(
-                t.BaseType?.GetProperty("BeforeRulesSerialize"),
-                t.BaseType?.GetProperty("InsteadRulesSerialize"),
-                t.BaseType?.GetProperty("AfterRulesSerialize"),
-                t.BaseType?.GetProperty("ConversionRules")));
-        }
-
-        private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetBeforeRuleMap(object obj)
-            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).Before?.GetValue(obj);
-
-        private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetInsteadRuleMap(object obj)
-            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).Instead?.GetValue(obj);
-
-        private static Dictionary<PropertyInfo, Action<INetworkPacketWriter>> GetAfterRuleMap(object obj)
-            => (Dictionary<PropertyInfo, Action<INetworkPacketWriter>>) GetRuleMapAccessors(obj.GetType()).After?.GetValue(obj);
-
-        private static Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>> GetConversionRules(object obj)
-            => (Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>>) GetRuleMapAccessors(obj.GetType()).Conversion?.GetValue(obj);
 
         private static bool TryWritePrimitive(PropertyInfo property, object packet, NetworkPacketWriter writer)
         {
@@ -150,14 +138,14 @@ namespace Ada.Networking.Packets.Serialization
                     GetCachedProperties(t).Where(p => Attribute.IsDefined(p, typeof(PacketDataAttribute))).ToArray())
                 : GetCachedProperties(packet.GetType());
 
-            var conversionRules = GetConversionRules(packet);
-            var beforeRules     = GetBeforeRuleMap(packet);
-            var insteadRules    = GetInsteadRuleMap(packet);
-            var afterRules      = GetAfterRuleMap(packet);
+            var abstractWriter  = packet as AbstractPacketWriter;
+            var conversionRules = abstractWriter?.ConversionRules;
+            var insteadRules    = abstractWriter?.InsteadRulesSerialize;
+            var afterRules      = abstractWriter?.AfterRulesSerialize;
 
             foreach (var property in props)
             {
-                if (conversionRules != null && conversionRules.TryGetValue(property, out var conv))
+                if (conversionRules != null && conversionRules.TryGetValue(property.Name, out var conv))
                 {
                     var raw = PropertyAccessorCache.GetValue(property, packet);
                     var converted = conv.Value(raw);
@@ -165,20 +153,15 @@ namespace Ada.Networking.Packets.Serialization
                     continue;
                 }
 
-                if (insteadRules != null && insteadRules.TryGetValue(property, out var instead))
+                if (insteadRules != null && insteadRules.TryGetValue(property.Name, out var instead))
                 {
                     instead(writer);
                     continue;
                 }
 
-                if (beforeRules != null && beforeRules.TryGetValue(property, out var before))
-                {
-                    before(writer);
-                }
-
                 WriteProperty(property, writer, packet);
 
-                if (afterRules != null && afterRules.TryGetValue(property, out var after))
+                if (afterRules != null && afterRules.TryGetValue(property.Name, out var after))
                 {
                     after(writer);
                 }
@@ -295,13 +278,6 @@ namespace Ada.Networking.Packets.Serialization
                  type.GetGenericTypeDefinition() == typeof(Collection<>)))
             {
                 WriteArbitraryListPropertyToWriter(property, writer, packet);
-                return;
-            }
-
-            if (type == typeof(Dictionary<PropertyInfo, Action<NetworkPacketWriter>>) ||
-                type == typeof(Dictionary<PropertyInfo, KeyValuePair<Type, Func<object, object>>>))
-            {
-                WriteType(type, value, writer);
                 return;
             }
 

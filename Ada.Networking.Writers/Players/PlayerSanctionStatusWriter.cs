@@ -22,9 +22,9 @@ public class PlayerSanctionStatusWriter : AbstractPacketWriter
 
     public override void OnConfigureRules()
     {
-        Convert<string>(GetType().GetProperty(nameof(ProbationStart))!, o => ((DateTime)o).ToString());
+        Convert<string>(nameof(ProbationStart), o => ((DateTime)o).ToString());
         
-        Override(GetType().GetProperty(nameof(TradeLockedUntil))!, writer =>
+        Override(nameof(TradeLockedUntil), writer =>
         {
             writer.WriteString(TradeLockedUntil == DateTime.MinValue ? "" : TradeLockedUntil.ToString());
         });
