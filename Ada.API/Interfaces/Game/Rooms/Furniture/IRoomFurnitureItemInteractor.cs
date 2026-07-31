@@ -10,4 +10,6 @@ public interface IRoomFurnitureItemInteractor
     Task OnPlaceAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser);
     Task OnPickUpAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser);
     Task OnMoveAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser);
+    Task OnWalkedOnAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser);
+    Task OnWalkedOffAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser);
 }

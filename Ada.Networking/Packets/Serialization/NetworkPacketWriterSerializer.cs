@@ -5,13 +5,14 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Ada.API;
 using Ada.API.Interfaces.Networking;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.Core.Shared.Attributes;
 
 namespace Ada.Networking.Packets.Serialization
 {
     public static class NetworkPacketWriterSerializer
     {
-        private static readonly Dictionary<Type, Action<object, NetworkPacketWriter>> primitiveWriters =
+        private static readonly Dictionary<Type, Action<object, INetworkPacketWriter>> primitiveWriters =
             new()
             {
                 { typeof(string), (v, w) => w.WriteString((string)v) },
@@ -25,7 +26,7 @@ namespace Ada.Networking.Packets.Serialization
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> attributedPropertyCache = new();
         private static readonly ConcurrentDictionary<Type, short> packetIdCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object>?> onConfigureRulesCache = new();
-        private static readonly ConcurrentDictionary<Type, Action<object, NetworkPacketWriter>?> onSerializeCache = new();
+        private static readonly ConcurrentDictionary<Type, Action<object, INetworkPacketWriter>?> onSerializeCache = new();
 
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
@@ -57,7 +58,7 @@ namespace Ada.Networking.Packets.Serialization
             invoker?.Invoke(packet);
         }
 
-        private static bool InvokeOnSerializeIfExists(object packet, NetworkPacketWriter writer)
+        private static bool InvokeOnSerializeIfExists(object packet, INetworkPacketWriter writer)
         {
             var invoker = onSerializeCache.GetOrAdd(packet.GetType(), static t =>
             {
@@ -69,9 +70,9 @@ namespace Ada.Networking.Packets.Serialization
                 }
 
                 var packetParam = Expression.Parameter(typeof(object));
-                var writerParam = Expression.Parameter(typeof(NetworkPacketWriter));
+                var writerParam = Expression.Parameter(typeof(INetworkPacketWriter));
 
-                return Expression.Lambda<Action<object, NetworkPacketWriter>>(
+                return Expression.Lambda<Action<object, INetworkPacketWriter>>(
                     Expression.Call(Expression.Convert(packetParam, t), method, writerParam),
                     packetParam,
                     writerParam).Compile();
@@ -103,7 +104,19 @@ namespace Ada.Networking.Packets.Serialization
             });
         }
 
-        private static bool TryWritePrimitive(PropertyInfo property, object packet, NetworkPacketWriter writer)
+        private static short GetPacketIdentifier(object packetObject, IPacketCodec codec)
+        {
+            if (codec.IdMap.TryGetOutgoingId(packetObject.GetType(), out var mapped))
+            {
+                return mapped;
+            }
+
+            throw new InvalidOperationException(
+                $"Packet type {packetObject.GetType()} has no outgoing id for revision '{codec.Revision}'"
+            );
+        }
+
+        private static bool TryWritePrimitive(PropertyInfo property, object packet, INetworkPacketWriter writer)
         {
             if (primitiveWriters.TryGetValue(property.PropertyType, out var action))
             {
@@ -117,7 +130,7 @@ namespace Ada.Networking.Packets.Serialization
 
         private static void WriteDictionary<TKey, TValue>(
             Dictionary<TKey, TValue> dict,
-            NetworkPacketWriter writer,
+            INetworkPacketWriter writer,
             Action<TKey> keyWriter,
             Action<TValue> valueWriter
         )
@@ -131,7 +144,7 @@ namespace Ada.Networking.Packets.Serialization
             }
         }
 
-        private static void AddObjectToWriter(object packet, NetworkPacketWriter writer, bool needsAttribute = false)
+        private static void AddObjectToWriter(object packet, INetworkPacketWriter writer, bool needsAttribute = false)
         {
             var props = needsAttribute
                 ? attributedPropertyCache.GetOrAdd(packet.GetType(), static t =>
@@ -168,12 +181,33 @@ namespace Ada.Networking.Packets.Serialization
             }
         }
 
+        public static IPacketCodec? DefaultCodec { get; set; }
+
         public static INetworkPacketWriter Serialize(object packet)
         {
-            var writer = new NetworkPacketWriter();
+            var codec = DefaultCodec;
 
-            writer.WriteShort(GetPacketIdentifierFromAttribute(packet));
+            if (codec == null)
+            {
+                var writer = new NetworkPacketWriter();
+                writer.WriteShort(GetPacketIdentifierFromAttribute(packet));
+                return SerializeBody(packet, writer);
+            }
 
+            return Serialize(packet, codec);
+        }
+
+        public static INetworkPacketWriter Serialize(object packet, IPacketCodec codec)
+        {
+            var writer = codec.CreateWriter();
+
+            writer.WriteShort(GetPacketIdentifier(packet, codec));
+
+            return SerializeBody(packet, writer);
+        }
+
+        private static INetworkPacketWriter SerializeBody(object packet, INetworkPacketWriter writer)
+        {
             if (InvokeOnSerializeIfExists(packet, writer))
             {
                 return writer;
@@ -185,7 +219,7 @@ namespace Ada.Networking.Packets.Serialization
             return writer;
         }
 
-        private static void WriteStringListPropertyToWriter(List<string> list, NetworkPacketWriter writer)
+        private static void WriteStringListPropertyToWriter(List<string> list, INetworkPacketWriter writer)
         {
             writer.WriteInteger(list.Count);
 
@@ -195,7 +229,7 @@ namespace Ada.Networking.Packets.Serialization
             }
         }
 
-        private static void WriteArbitraryListPropertyToWriter(PropertyInfo property, NetworkPacketWriter writer, object packet)
+        private static void WriteArbitraryListPropertyToWriter(PropertyInfo property, INetworkPacketWriter writer, object packet)
         {
             var collection = (ICollection)PropertyAccessorCache.GetValue(property, packet)!;
 
@@ -211,7 +245,7 @@ namespace Ada.Networking.Packets.Serialization
             }
         }
 
-        private static void WriteProperty(PropertyInfo property, NetworkPacketWriter writer, object packet)
+        private static void WriteProperty(PropertyInfo property, INetworkPacketWriter writer, object packet)
         {
             if (TryWritePrimitive(property, packet, writer))
             {
@@ -273,10 +307,26 @@ namespace Ada.Networking.Packets.Serialization
                 return;
             }
 
-            if (type.IsGenericType &&
-                (type.GetGenericTypeDefinition() == typeof(List<>) ||
-                 type.GetGenericTypeDefinition() == typeof(Collection<>)))
+            if (value is ICollection collection)
             {
+                var element = type.IsArray
+                    ? type.GetElementType()
+                    : type.IsGenericType
+                        ? type.GetGenericArguments().FirstOrDefault()
+                        : null;
+
+                if (element == typeof(string))
+                {
+                    writer.WriteInteger(collection.Count);
+
+                    foreach (var item in collection)
+                    {
+                        writer.WriteString(item as string ?? "");
+                    }
+
+                    return;
+                }
+
                 WriteArbitraryListPropertyToWriter(property, writer, packet);
                 return;
             }
@@ -284,7 +334,7 @@ namespace Ada.Networking.Packets.Serialization
             AddObjectToWriter(value, writer, true);
         }
 
-        private static void WriteType(Type type, object value, NetworkPacketWriter writer)
+        private static void WriteType(Type type, object value, INetworkPacketWriter writer)
         {
             if (primitiveWriters.TryGetValue(type, out var action))
             {
