@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 
@@ -6,16 +7,11 @@ namespace Ada.Networking.Packets;
 public class PacketHandlerFactory
 {
     private readonly IServiceProvider _provider;
-    private readonly Dictionary<short, Func<INetworkPacketEventHandler>> _factoryMap = new();
+    private readonly ConcurrentDictionary<Type, Func<INetworkPacketEventHandler>> _factoryMap = new();
 
-    public PacketHandlerFactory(IServiceProvider provider, Dictionary<short, Type> handlerTypes)
+    public PacketHandlerFactory(IServiceProvider provider)
     {
         _provider = provider;
-
-        foreach (var kv in handlerTypes)
-        {
-            _factoryMap[kv.Key] = BuildFactory(kv.Value);
-        }
     }
 
     private Func<INetworkPacketEventHandler> BuildFactory(Type eventType)
@@ -38,10 +34,8 @@ public class PacketHandlerFactory
         return lambda.Compile();
     }
 
-    public INetworkPacketEventHandler Create(short id)
+    public INetworkPacketEventHandler Create(Type handlerType)
     {
-        return _factoryMap.TryGetValue(id, out var creator) ? 
-            creator() : 
-            null!;
+        return _factoryMap.GetOrAdd(handlerType, BuildFactory)();
     }
 }

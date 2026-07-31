@@ -2,10 +2,13 @@ using System.Buffers;
 using System.Runtime.InteropServices;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Packets;
 
-public class PacketDispatcher(INetworkPacketHandler packetHandler)
+public class PacketDispatcher(
+    INetworkPacketHandler packetHandler,
+    ILogger<PacketDispatcher> logger)
 {
     public async Task ProcessAsync(INetworkClient client, INetworkPacket packet)
     {
@@ -13,10 +16,9 @@ public class PacketDispatcher(INetworkPacketHandler packetHandler)
         {
             await packetHandler.HandleAsync(client, packet);
         }
-        catch
+        catch (Exception e)
         {
-            // an unhandled exception would fault the ActionBlock and stop all
-            // packet processing; handlers own logging their own failures
+            logger.LogError(e, "Handler threw for packet {PacketId}", packet.PacketId);
         }
         finally
         {

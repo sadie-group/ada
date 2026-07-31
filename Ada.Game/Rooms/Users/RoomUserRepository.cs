@@ -104,23 +104,21 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
                 return;
             }
 
-            var dataWriter = NetworkPacketWriterSerializer.Serialize(
+            var recipients = users.Select(u => u.NetworkObject).ToList();
+
+            PacketBroadcast.Queue(
                 new RoomUserDataWriter
                 {
                     Users = usersStartedWalking
-                });
+                },
+                recipients);
 
-            var statusWriter = NetworkPacketWriterSerializer.Serialize(
+            PacketBroadcast.Queue(
                 new RoomUserStatusWriter
                 {
                     Users = usersStartedWalking
-                });
-
-            foreach (var u in users)
-            {
-                u.NetworkObject.QueueOutbound(dataWriter);
-                u.NetworkObject.QueueOutbound(statusWriter);
-            }
+                },
+                recipients);
 
             foreach (var u in usersStartedWalking)
             {
@@ -178,23 +176,21 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
             if (usersNeedsUpdate.Count != 0)
             {
-                var dataWriter = NetworkPacketWriterSerializer.Serialize(
+                var recipients = users.Select(u => u.NetworkObject).ToList();
+
+                PacketBroadcast.Queue(
                     new RoomUserDataWriter
                     {
                         Users = usersNeedsUpdate
-                    });
+                    },
+                    recipients);
 
-                var statusWriter = NetworkPacketWriterSerializer.Serialize(
+                PacketBroadcast.Queue(
                     new RoomUserStatusWriter
                     {
                         Users = usersNeedsUpdate
-                    });
-
-                foreach (var u in users)
-                {
-                    u.NetworkObject.QueueOutbound(dataWriter);
-                    u.NetworkObject.QueueOutbound(statusWriter);
-                }
+                    },
+                    recipients);
 
                 foreach (var u in usersNeedsUpdate)
                 {

@@ -134,8 +134,7 @@ public class PlayerRepository(
 
     public async Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        var packet = NetworkPacketWriterSerializer.Serialize(writer);
-        await Task.WhenAll(_players.Values.Select(player => player.NetworkObject!.WriteToStreamAsync(packet)));
+        await PacketBroadcast.SendAsync(writer, _players.Values.Select(player => player.NetworkObject!));
     }
 
     public async Task<string?> GetPlayerUsernameByIdAsync(long playerId)

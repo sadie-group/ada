@@ -30,10 +30,6 @@ public static class NetworkServiceCollection
         serviceCollection.AddSingleton<IValidateOptions<NetworkOptions>, NetworkOptionsValidator>();
         serviceCollection.AddSingleton<IValidateOptions<NetworkPacketOptions>, NetworkPacketOptionsValidator>();
         
-        serviceCollection.AddSingleton<PacketHandlerFactory>(sp =>
-        {
-            var handlerTypes = sp.GetRequiredService<Dictionary<short, Type>>();
-            return new PacketHandlerFactory(sp, handlerTypes);
-        });
+        serviceCollection.AddSingleton<PacketHandlerFactory>(sp => new PacketHandlerFactory(sp));
     }
 }

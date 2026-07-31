@@ -24,14 +24,11 @@ namespace Ada.Networking.Packets.Serialization
 
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> propertyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> attributedPropertyCache = new();
-        private static readonly ConcurrentDictionary<Type, short> packetIdCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object>?> onConfigureRulesCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object, INetworkPacketWriter>?> onSerializeCache = new();
 
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
-            // The rule dictionaries declared on AbstractPacketWriter are serializer
-            // configuration, not packet fields.
             return propertyCache.GetOrAdd(type, static t => t.GetProperties()
                 .Where(p => p.DeclaringType != typeof(AbstractPacketWriter))
                 .ToArray());
@@ -39,6 +36,8 @@ namespace Ada.Networking.Packets.Serialization
 
         private static void InvokeOnConfigureRules(object packet)
         {
+            (packet as AbstractPacketWriter)?.ResetRules();
+
             var invoker = onConfigureRulesCache.GetOrAdd(packet.GetType(), static t =>
             {
                 var method = t.GetMethod("OnConfigureRules");
@@ -85,23 +84,6 @@ namespace Ada.Networking.Packets.Serialization
 
             invoker(packet, writer);
             return true;
-        }
-
-        private static short GetPacketIdentifierFromAttribute(object packetObject)
-        {
-            return packetIdCache.GetOrAdd(packetObject.GetType(), static t =>
-            {
-                var attr = t.GetCustomAttribute<PacketIdAttribute>();
-
-                if (attr == null)
-                {
-                    throw new InvalidOperationException(
-                        $"Missing packet identifier attribute for packet type {t}"
-                    );
-                }
-
-                return attr.Id;
-            });
         }
 
         private static short GetPacketIdentifier(object packetObject, IPacketCodec codec)
@@ -179,22 +161,6 @@ namespace Ada.Networking.Packets.Serialization
                     after(writer);
                 }
             }
-        }
-
-        public static IPacketCodec? DefaultCodec { get; set; }
-
-        public static INetworkPacketWriter Serialize(object packet)
-        {
-            var codec = DefaultCodec;
-
-            if (codec == null)
-            {
-                var writer = new NetworkPacketWriter();
-                writer.WriteShort(GetPacketIdentifierFromAttribute(packet));
-                return SerializeBody(packet, writer);
-            }
-
-            return Serialize(packet, codec);
         }
 
         public static INetworkPacketWriter Serialize(object packet, IPacketCodec codec)
