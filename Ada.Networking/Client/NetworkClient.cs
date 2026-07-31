@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets.Serialization;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +13,7 @@ namespace Ada.Networking.Client;
 
 public class NetworkClient(
     ILogger<NetworkClient> logger,
+    IPacketCodecRegistry codecRegistry,
     IPAddress ipAddress,
     Guid guid,
     WebSocket webSocket)
@@ -20,6 +22,7 @@ public class NetworkClient(
     public IPAddress IpAddress { get; set; } = ipAddress;
     public Guid Guid { get; set; } = guid;
     public WebSocket WebSocket { get; set; } = webSocket;
+    public IPacketCodec Codec { get; set; } = codecRegistry.Default;
 
     public IPlayerLogic? Player { get; set; }
     public IRoomUser? RoomUser { get; set; }
@@ -41,7 +44,7 @@ public class NetworkClient(
 
     public async Task WriteToStreamAsync(AbstractPacketWriter writer)
     {
-        var serializedObject = NetworkPacketWriterSerializer.Serialize(writer);
+        var serializedObject = NetworkPacketWriterSerializer.Serialize(writer, Codec);
         await WriteToStreamAsync(serializedObject);
     }
 

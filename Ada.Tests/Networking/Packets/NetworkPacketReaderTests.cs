@@ -10,7 +10,7 @@ public class NetworkPacketReaderTests
     [Test]
     public void ReadInt_BigEndianBytes_Value()
     {
-        var reader = new NetworkPacketReader([0, 0, 0, 42]);
+        var reader = new NetworkPacketReader("\0\0\0*"u8.ToArray());
         Assert.That(reader.ReadInt(), Is.EqualTo(42));
     }
 
@@ -37,7 +37,7 @@ public class NetworkPacketReaderTests
     [Test]
     public void ReadBool_OneAndZero_TrueAndFalse()
     {
-        var reader = new NetworkPacketReader([1, 0]);
+        var reader = new NetworkPacketReader(new byte[] { 1, 0 });
         Assert.That(reader.ReadBool(), Is.True);
         Assert.That(reader.ReadBool(), Is.False);
     }
@@ -57,7 +57,7 @@ public class NetworkPacketReaderTests
     [Test]
     public void Read_SequentialValues_AdvancesPosition()
     {
-        var reader = new NetworkPacketReader([0, 0, 0, 1, 0, 0, 0, 2, 1]);
+        var reader = new NetworkPacketReader(new byte[] { 0, 0, 0, 1, 0, 0, 0, 2, 1 });
 
         Assert.That(reader.ReadInt(), Is.EqualTo(1));
         Assert.That(reader.ReadInt(), Is.EqualTo(2));

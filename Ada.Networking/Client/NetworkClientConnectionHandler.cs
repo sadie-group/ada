@@ -9,7 +9,6 @@ namespace Ada.Networking.Client;
 public class NetworkClientConnectionHandler(
     INetworkClientRepository clientRepository,
     IWebSocketMessageReader webSocketMessageReader,
-    INetworkPacketDecoder packetDecoder,
     PacketDispatcher packetDispatcher,
     IClientDisposalService clientDisposalService)
     : INetworkClientConnectionHandler
@@ -31,7 +30,7 @@ public class NetworkClientConnectionHandler(
                     continue;
                 }
 
-                var packet = packetDecoder.Decode(client.Guid, buffer, length);
+                var packet = client.Codec.Decoder.Decode(client.Guid, buffer, length);
                 await packetDispatcher.ProcessAsync(client, packet);
             }
         }
