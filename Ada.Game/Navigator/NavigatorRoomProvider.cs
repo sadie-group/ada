@@ -20,21 +20,46 @@ public class NavigatorRoomProvider(
     {
         return category switch
         {
-            "popular" => roomRepository.GetPopularRooms(100),
+            "popular" => await GetPopularRoomsAsync(100),
+            "official" => await GetOfficialRoomsAsync(100),
             "my_rooms" => await GetPlayerRoomsAsync(player.Player.Id),
             _ => []
         };
     }
+    
+    private async Task<List<RoomDto>> GetPopularRoomsAsync(int amount)
+    {
+        var rooms = await QueryRoomsAsync(query => query.OrderByDescending(x => x.PlayerLikes.Count)
+            .ThenByDescending(x => x.CreatedAt)
+            .Take(amount));
+
+        return rooms
+            .OrderByDescending(x => roomRepository.TryGetRoomById(x.Id)?.UserRepository.Count ?? 0)
+            .ToList();
+    }
+    
+    private async Task<List<RoomDto>> GetOfficialRoomsAsync(int amount)
+    {
+        return await QueryRoomsAsync(query => query
+            .Where(x => x.Owner!.Roles.Any(r => r.Name != "User"))
+            .OrderByDescending(x => x.PlayerLikes.Count)
+            .Take(amount));
+    }
 
     private async Task<List<RoomDto>> GetPlayerRoomsAsync(long playerId)
     {
+        return await QueryRoomsAsync(query => query.Where(x => x.OwnerId == playerId));
+    }
+    
+    
+    private async Task<List<RoomDto>> QueryRoomsAsync(Func<IQueryable<Room>, IQueryable<Room>> shape)
+    {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        var rooms = await dbContext
-            .Set<Room>()
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Where(x => x.OwnerId == playerId)
+        var rooms = await shape(dbContext
+                .Set<Room>()
+                .AsNoTracking()
+                .AsSplitQuery())
             .Include(x => x.Settings)
             .Include(x => x.Layout)
             .Include(x => x.PaintSettings)
