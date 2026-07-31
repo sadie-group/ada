@@ -16,6 +16,13 @@ public abstract class AbstractPacketWriter
     {
     }
 
+    public void ResetRules()
+    {
+        InsteadRulesSerialize?.Clear();
+        AfterRulesSerialize?.Clear();
+        ConversionRules?.Clear();
+    }
+
     public virtual void OnSerialize(INetworkPacketWriter writer)
     {
     }

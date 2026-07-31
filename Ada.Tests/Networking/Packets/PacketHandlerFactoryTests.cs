@@ -24,29 +24,29 @@ public class PacketHandlerFactoryTests
         public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
     }
 
-    private static PacketHandlerFactory CreateFactory(Dictionary<short, Type> handlerTypes)
+    private static PacketHandlerFactory CreateFactory()
     {
         var provider = new ServiceCollection()
             .AddSingleton<IDependency, Dependency>()
             .BuildServiceProvider();
 
-        return new PacketHandlerFactory(provider, handlerTypes);
+        return new PacketHandlerFactory(provider);
     }
 
     [Test]
-    public void Create_KnownId_ReturnsHandlerInstance()
+    public void Create_KnownType_ReturnsHandlerInstance()
     {
-        var factory = CreateFactory(new Dictionary<short, Type> { [1] = typeof(ParameterlessHandler) });
+        var factory = CreateFactory();
 
-        Assert.That(factory.Create(1), Is.InstanceOf<ParameterlessHandler>());
+        Assert.That(factory.Create(typeof(ParameterlessHandler)), Is.InstanceOf<ParameterlessHandler>());
     }
 
     [Test]
     public void Create_HandlerWithConstructorDependency_ResolvesFromProvider()
     {
-        var factory = CreateFactory(new Dictionary<short, Type> { [2] = typeof(HandlerWithDependency) });
+        var factory = CreateFactory();
 
-        var handler = (HandlerWithDependency)factory.Create(2);
+        var handler = (HandlerWithDependency)factory.Create(typeof(HandlerWithDependency));
 
         Assert.That(handler.Dependency, Is.InstanceOf<Dependency>());
     }
@@ -54,16 +54,19 @@ public class PacketHandlerFactoryTests
     [Test]
     public void Create_ReturnsNewInstancePerCall()
     {
-        var factory = CreateFactory(new Dictionary<short, Type> { [1] = typeof(ParameterlessHandler) });
+        var factory = CreateFactory();
 
-        Assert.That(factory.Create(1), Is.Not.SameAs(factory.Create(1)));
+        Assert.That(
+            factory.Create(typeof(ParameterlessHandler)),
+            Is.Not.SameAs(factory.Create(typeof(ParameterlessHandler))));
     }
 
     [Test]
-    public void Create_UnknownId_ReturnsNull()
+    public void Create_TypeNotSeenBefore_BuildsFactoryOnDemand()
     {
-        var factory = CreateFactory([]);
+        var factory = CreateFactory();
 
-        Assert.That(factory.Create(99), Is.Null);
+        Assert.That(factory.Create(typeof(HandlerWithDependency)), Is.InstanceOf<HandlerWithDependency>());
+        Assert.That(factory.Create(typeof(ParameterlessHandler)), Is.InstanceOf<ParameterlessHandler>());
     }
 }

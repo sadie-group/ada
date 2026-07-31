@@ -6,7 +6,6 @@ namespace Ada.API.Interfaces.Networking.Client;
 
 public interface INetworkClient : IAsyncDisposable, INetworkObject
 {
-    IPacketCodec Codec { get; set; }
     IPlayerLogic? Player { get; set; }
     IRoomUser? RoomUser { get; set; }
     string? MachineId { get; set; }

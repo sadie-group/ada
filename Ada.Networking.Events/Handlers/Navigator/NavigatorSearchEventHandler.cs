@@ -34,16 +34,11 @@ public class NavigatorSearchEventHandler(
             .Include(x => x.Categories)
             .FirstOrDefaultAsync(x => x.Name == TabName);
 
-        if (tab == null)
-        {
-            return;
-        }
+        var dbCategories = tab?
+            .Categories
+            .OrderBy(x => x.OrderId)
+            .ToList() ?? [];
 
-        var dbCategories = tab.
-            Categories.
-            OrderBy(x => x.OrderId).
-            ToList();
-        
         var categories = mapper.Map<List<NavigatorCategoryDto>>(dbCategories);
 
         var categoryRoomMap = new Dictionary<NavigatorCategoryDto, List<RoomDto>>();

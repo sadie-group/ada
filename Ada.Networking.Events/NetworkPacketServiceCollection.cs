@@ -33,16 +33,9 @@ public static class NetworkPacketServiceCollection
             sp.GetRequiredService<IPacketIdMap>(),
             sp.GetRequiredService<INetworkPacketDecoder>()));
 
-        serviceCollection.AddSingleton<IPacketCodecRegistry>(sp =>
-        {
-            var registry = new PacketCodecRegistry(
-                sp.GetServices<IPacketCodec>(),
-                BinaryPacketCodec.RevisionName);
-
-            NetworkPacketWriterSerializer.DefaultCodec = registry.Default;
-
-            return registry;
-        });
+        serviceCollection.AddSingleton<IPacketCodecRegistry>(sp => new PacketCodecRegistry(
+            sp.GetServices<IPacketCodec>(),
+            BinaryPacketCodec.RevisionName));
         serviceCollection.AddSingleton<IWebSocketMessageReader, WebSocketMessageReader>();
         serviceCollection.AddSingleton<INetworkClientConnectionHandler, NetworkClientConnectionHandler>();
         serviceCollection.AddSingleton<PacketDispatcher>(p => new PacketDispatcher(
