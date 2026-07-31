@@ -3,11 +3,14 @@ using Ada.API.Interfaces.Networking.Packets;
 
 namespace Ada.Networking.Packets;
 
-public sealed class BinaryPacketCodec(IPacketIdMap idMap, INetworkPacketDecoder decoder) : IPacketCodec
+public sealed class BinaryPacketCodec(
+    IPacketIdMap idMap,
+    INetworkPacketDecoder decoder,
+    string revision = BinaryPacketCodec.RevisionName) : IPacketCodec
 {
     public const string RevisionName = "PRODUCTION";
 
-    public string Revision => RevisionName;
+    public string Revision { get; } = revision;
 
     public IPacketIdMap IdMap { get; } = idMap;
 
