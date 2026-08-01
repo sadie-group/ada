@@ -168,19 +168,20 @@ public class RoomUser(
     
     private async Task UpdateEffectAsync()
     {
-        var effectPointToCheck = IsWalking && NextPoint != null ? 
-            NextPoint.Value : 
+        var effectPointToCheck = IsWalking && NextPoint != null ?
+            NextPoint.Value :
             Point;
-        
-        if (room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0)
+
+        var effectId = room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0
+            ? room.TileMap.EffectMap[Point.Y, Point.X]
+            : 0;
+
+        if (effectId == ActiveEffectId)
         {
-            var effectId = room.TileMap.EffectMap[Point.Y, Point.X];
-            await SetEffectAsync((RoomUserEffect) effectId);
+            return;
         }
-        else if (ActiveEffectId != 0)
-        {
-            await SetEffectAsync(0);
-        }
+
+        await SetEffectAsync((RoomUserEffect) effectId);
     }
 
     private async Task UpdateIdleStatusAsync()

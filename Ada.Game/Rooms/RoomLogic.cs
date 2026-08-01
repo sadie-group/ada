@@ -1,4 +1,5 @@
-﻿using Ada.API.DTOs.Rooms;
+﻿using Ada.API;
+using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -56,17 +57,31 @@ public class RoomLogic(
     {
     }
     
-    public async Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
+    public Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
     {
+        var users = UserRepository.GetAll();
+
+        if (users.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
         var excluded = excludedIds is { Count: > 0 }
             ? excludedIds as IReadOnlySet<long> ?? new HashSet<long>(excludedIds)
             : null;
 
-        await PacketBroadcast.SendAsync(
-            writer,
-            UserRepository
-                .GetAll()
-                .Where(user => excluded == null || !excluded.Contains(user.Player.Player.Id))
-                .Select(user => user.NetworkObject));
+        var recipients = new List<INetworkObject>(users.Count);
+
+        foreach (var user in users)
+        {
+            if (excluded != null && excluded.Contains(user.Player.Player.Id))
+            {
+                continue;
+            }
+
+            recipients.Add(user.NetworkObject);
+        }
+
+        return PacketBroadcast.SendAsync(writer, recipients);
     }
 }
