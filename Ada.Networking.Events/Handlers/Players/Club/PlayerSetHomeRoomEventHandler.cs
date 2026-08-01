@@ -9,7 +9,7 @@ namespace Ada.Networking.Events.Handlers.Players.Club;
 
 [PacketId(EventHandlerId.PlayerSetHomeRoom)]
 public class PlayerSetHomeRoomEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int RoomId { get; set; }
     

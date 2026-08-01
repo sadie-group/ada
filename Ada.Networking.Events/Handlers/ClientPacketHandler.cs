@@ -161,7 +161,9 @@ public class ClientPacketHandler(
 
         try
         {
-            var room = eventHandler is IManagesOwnRoomLock ? null : client.RoomUser?.Room;
+            var room = eventHandler is IManagesOwnRoomLock or IRunsOutsideRoomLock
+                ? null
+                : client.RoomUser?.Room;
 
             if (room != null)
             {

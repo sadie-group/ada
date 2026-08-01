@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Navigator;
 [PacketId(EventHandlerId.RoomCategories)]
 public class RoomCategoriesEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {

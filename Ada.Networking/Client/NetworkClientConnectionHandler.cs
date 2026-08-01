@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
-using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets;
 
 namespace Ada.Networking.Client;

@@ -9,7 +9,7 @@ using Ada.Networking.Writers.Players.Messenger;
 namespace Ada.Networking.Events.Handlers.Players.Messenger;
 
 [PacketId(EventHandlerId.PlayerSearch)]
-public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler
+public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? SearchQuery { get; set; }
     

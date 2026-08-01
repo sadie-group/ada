@@ -3,7 +3,6 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Groups;
 using Ada.Core.Shared.Attributes;
-using Ada.Networking.Events.Handlers.Groups;
 using Ada.Networking.Writers.Groups;
 
 namespace Ada.Networking.Events.Handlers.Groups.Forums;

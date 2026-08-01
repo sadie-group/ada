@@ -16,15 +16,35 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 {
     private readonly ConcurrentDictionary<long, IRoomUser> _users = new();
 
-    public ICollection<IRoomUser> GetAll() => _users.Values;
-    
-    public bool TryAdd(IRoomUser user) => _users.TryAdd(user.Player.Player.Id, user);
-    
+    private readonly object _snapshotLock = new();
+    private volatile IRoomUser[] _snapshot = [];
+
+    private void RebuildSnapshot()
+    {
+        lock (_snapshotLock)
+        {
+            _snapshot = _users.Values.ToArray();
+        }
+    }
+
+    public ICollection<IRoomUser> GetAll() => _snapshot;
+
+    public bool TryAdd(IRoomUser user)
+    {
+        if (!_users.TryAdd(user.Player.Player.Id, user))
+        {
+            return false;
+        }
+
+        RebuildSnapshot();
+        return true;
+    }
+
     public bool TryGetById(long id, out IRoomUser? user) => _users.TryGetValue(id, out user);
 
     public bool TryGetByUsername(string username, out IRoomUser? user)
     {
-        user = _users.Values.FirstOrDefault(x => x.Player.Player.Username == username);
+        user = _snapshot.FirstOrDefault(x => x.Player.Player.Username == username);
         return user != null;
     }
     
@@ -48,7 +68,9 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
             logger.LogError($"Failed to remove a room user");
             return;
         }
-        
+
+        RebuildSnapshot();
+
         if (notifyLeft)
         {
             var writer = new RoomUserLeftWriter
@@ -81,14 +103,14 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
     public ICollection<IRoomUser> GetAllWithRights()
     {
-        return _users.Values.Where(x => x.HasRights()).ToList();
+        return _snapshot.Where(x => x.HasRights()).ToList();
     }
     
     public async Task ProcessNewWalkRequestsAsync()
     {
         try
         {
-            var users = _users.Values;
+            var users = _snapshot;
             List<IRoomUser>? usersStartedWalking = null;
 
             foreach (var user in users)
@@ -135,9 +157,9 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
     {
         try
         {
-            var users = _users.Values;
+            var users = _snapshot;
 
-            if (users.Count == 0)
+            if (users.Length == 0)
             {
                 NoUsersSince ??= DateTime.UtcNow;
             }
@@ -151,7 +173,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
                 await user.RunPeriodicCheckAsync();
             }
         
-            if (users.Count > 0 && _room.BotRepository.Count > 0)
+            if (users.Length > 0 && _room.BotRepository.Count > 0)
             {
                 var botsNeedUpdate = _room.BotRepository
                     .GetAll()

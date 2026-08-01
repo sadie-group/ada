@@ -19,7 +19,7 @@ public class PlayerSendFriendRequestEventHandler(
     ServerPlayerConstants playerConstants,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TargetUsername { get; set; }
     

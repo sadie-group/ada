@@ -19,7 +19,7 @@ public class PlayerSendDirectMessageEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int PlayerId { get; set; }
     public required string Message { get; set; }

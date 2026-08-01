@@ -9,7 +9,7 @@ namespace Ada.Networking.Events.Handlers.Players;
 
 [PacketId(EventHandlerId.PlayerProfile)]
 public class PlayerProfileEventHandler(IPlayerRepository playerRepository)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int ProfileId { get; set; }
     

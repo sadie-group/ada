@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Players.Friendships;
 public class PlayerDeclineFriendRequestEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public bool DeclineAll { get; set; }
     public required List<int> Ids { get; set; }

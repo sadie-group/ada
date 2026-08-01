@@ -1,6 +1,5 @@
 using Ada.API;
 using Ada.API.DTOs.Players;
-using Ada.API.Interfaces.Networking;
 
 namespace Ada.Networking.Writers.Rooms.Pets;
 

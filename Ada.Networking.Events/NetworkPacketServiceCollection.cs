@@ -1,14 +1,11 @@
-using System.Reflection;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
-using Ada.Core.Shared.Attributes;
 using Ada.Networking.Client;
 using Ada.Networking.Events.Handlers;
 using Ada.Networking.Events.Handlers.Rooms;
 using Ada.Networking.Packets;
-using Ada.Networking.Packets.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -25,6 +22,7 @@ public static class NetworkPacketServiceCollection
             .WithTransientLifetime());
 
         serviceCollection.AddSingleton<RoomHeightmapEventHandler>();
+        serviceCollection.AddSingleton<PlayerLoginPacketService>();
         serviceCollection.AddSingleton<INetworkPacketHandler, ClientPacketHandler>();
         serviceCollection.AddSingleton<INetworkPacketDecoder, NetworkPacketDecoder>();
         serviceCollection.AddSingleton<IPacketIdMap>(_ => new DefaultPacketIdMap());

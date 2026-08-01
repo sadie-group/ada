@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Players.Friendships;
 public class PlayerRemoveFriendsEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public List<long> Ids { get; init; } = [];
     

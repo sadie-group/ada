@@ -12,7 +12,7 @@ namespace Ada.Networking.Events.Handlers.Players.Inventory;
 [PacketId(EventHandlerId.PetInventory)]
 public class PlayerInventoryPetsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {

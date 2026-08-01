@@ -22,7 +22,7 @@ public class CatalogPurchaseEventHandler(
     ICatalogTeleportPurchaseService teleportPurchaseService,
     ICatalogPurchaseConfirmationService purchaseConfirmationService,
     ICatalogVipPurchaseService vipPurchaseProcessor,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int PageId { get; set; }
     public int ItemId { get; set; }

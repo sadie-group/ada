@@ -1,6 +1,4 @@
-﻿using Ada.Game.Rooms.PathFinding.ToGo;
-
-namespace Ada.Game.Rooms.PathFinding.ToGo.Collections.PathFinder;
+﻿namespace Ada.Game.Rooms.PathFinding.ToGo.Collections.PathFinder;
 
 public readonly struct PathFinderNode(Position p, int g, int h, Position parent)
 {

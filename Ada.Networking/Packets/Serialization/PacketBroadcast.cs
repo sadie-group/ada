@@ -25,16 +25,27 @@ public static class PacketBroadcast
         INetworkPacketWriter? firstPacket = null;
         Dictionary<IPacketCodec, INetworkPacketWriter>? others = null;
 
-        List<Task>? sendTasks = null;
+        List<INetworkObject>? queued = null;
 
         foreach (var recipient in recipients)
         {
-            var packet = ResolvePacket(writer, recipient.Codec, ref firstCodec, ref firstPacket, ref others);
+            recipient.QueueOutbound(
+                ResolvePacket(writer, recipient.Codec, ref firstCodec, ref firstPacket, ref others));
 
-            (sendTasks ??= []).Add(recipient.WriteToStreamAsync(packet));
+            (queued ??= []).Add(recipient);
         }
 
-        return sendTasks == null ? Task.CompletedTask : Task.WhenAll(sendTasks);
+        if (queued == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        foreach (var recipient in queued)
+        {
+            _ = recipient.FlushAsync();
+        }
+
+        return Task.CompletedTask;
     }
 
     private static INetworkPacketWriter ResolvePacket(

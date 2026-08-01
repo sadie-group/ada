@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Club;
 [PacketId(EventHandlerId.HabboClubData)]
 public class PlayerClubOffersEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int WindowId { get; set; }
     

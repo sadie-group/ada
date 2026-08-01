@@ -1,5 +1,4 @@
 ﻿using Ada.API;
-using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
