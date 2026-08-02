@@ -1,4 +1,4 @@
-﻿using Ada.API;
+using Ada.API;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -30,16 +30,31 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
 {
     public async Task HandleAsync(INetworkClient client)
     {
-        var room = roomRepository.TryGetRoomById(client.Player.State.CurrentRoomId);
-        
+        var player = client.Player;
+
+        if (player == null)
+        {
+            return;
+        }
+
+        var room = roomRepository.TryGetRoomById(player.State.CurrentRoomId);
+
         if (room == null)
+        {
+            return;
+        }
+
+        var layout = room.Room.Layout;
+        var settings = room.Room.Settings;
+
+        if (layout == null || settings == null)
         {
             return;
         }
 
         var roomTileMap = room.TileMap;
         var userRepository = room.UserRepository;
-        var isOwner = room.Room.OwnerId == client.Player.Player.Id;
+        var isOwner = room.Room.OwnerId == player.Player.Id;
         
         await client.WriteToStreamAsync(new RoomRelativeMapWriter
         {
@@ -50,14 +65,14 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
         {
             Scale = true,
             WallHeight = -1,
-            RelativeHeightmap = room.Room.Layout.Heightmap.Replace("\r\n", "\r")
+            RelativeHeightmap = layout.Heightmap?.Replace("\r\n", "\r") ?? string.Empty
         });
         
         await client.WriteToStreamAsync(new RoomWallFloorSettingsWriter
         {
-            HideWalls = room.Room.Settings.HideWalls,
-            WallThickness = room.Room.Settings.WallThickness,
-            FloorThickness = room.Room.Settings.FloorThickness
+            HideWalls = settings.HideWalls,
+            WallThickness = settings.WallThickness,
+            FloorThickness = settings.FloorThickness
         });
         
         if (room.BotRepository.Count > 0)
@@ -90,22 +105,15 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
 
         await SendFurnitureItemsAsync(room.Room, client, playerRepository);
 
-        try
+        await client.WriteToStreamAsync(new RoomForwardDataWriter
         {
-            await client.WriteToStreamAsync(new RoomForwardDataWriter
-            {
-                Room = room.Room,
-                RoomForward = false,
-                EnterRoom = true,
-                IsOwner = isOwner,
-                UsersNow = room.UserRepository.Count,
-                OwnerUsername = await playerRepository.GetPlayerUsernameByIdAsync(room.Room.OwnerId) ?? string.Empty
-            });
-        }
-        catch (NullReferenceException)
-        {
-            var y = 0;
-        }
+            Room = room.Room,
+            RoomForward = false,
+            EnterRoom = true,
+            IsOwner = isOwner,
+            UsersNow = room.UserRepository.Count,
+            OwnerUsername = await playerRepository.GetPlayerUsernameByIdAsync(room.Room.OwnerId) ?? string.Empty
+        });
     }
 
     private async Task SendFurnitureItemsAsync(
@@ -128,7 +136,7 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
             ownerIds.Add(item.PlayerFurnitureItem.PlayerId);
         }
 
-        var furnitureOwners = new Dictionary<long, string?>(ownerIds.Count);
+        var furnitureOwners = new Dictionary<long, string>(ownerIds.Count);
 
         foreach (var ownerId in ownerIds)
         {

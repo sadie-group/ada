@@ -23,9 +23,15 @@ public class RoomUserTradeOfferItemEventHandler(IRoomRepository roomRepository) 
         }
 
         var player = client.Player;
+
+        if (player == null)
+        {
+            return;
+        }
+
         var playerItem = player.Player.FurnitureItems.FirstOrDefault(x => x.Id == ItemId);
 
-        if (playerItem == null)
+        if (playerItem == null || playerItem.PlacementData != null)
         {
             return;
         }

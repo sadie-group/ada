@@ -147,7 +147,7 @@ public class RoomUnitData(
     public void WalkToPoint(Point point, Action? onReachedGoal = null)
     {
         if (room.TileMap.UsersAtPoint(point) &&
-            !room.Room.Settings.CanUsersOverlap)
+            room.Room.Settings?.CanUsersOverlap == false)
         {
             return;
         }

@@ -48,24 +48,31 @@ public class RoomPaintItemPlacedEventHandler(
             return;
         }
         
+        var paintSettings = room.Room.PaintSettings;
+
+        if (paintSettings == null)
+        {
+            return;
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         switch (playerItem.FurnitureItem.AssetName)
         {
             case "floor":
-                room.Room.PaintSettings.FloorPaint = playerItem.MetaData;
+                paintSettings.FloorPaint = playerItem.MetaData;
                 await dbContext.RoomPaintSettings
                     .Where(x => x.RoomId == room.Room.Id)
                     .ExecuteUpdateAsync(s => s.SetProperty(x => x.FloorPaint, playerItem.MetaData));
                 break;
             case "wallpaper":
-                room.Room.PaintSettings.WallPaint = playerItem.MetaData;
+                paintSettings.WallPaint = playerItem.MetaData;
                 await dbContext.RoomPaintSettings
                     .Where(x => x.RoomId == room.Room.Id)
                     .ExecuteUpdateAsync(s => s.SetProperty(x => x.WallPaint, playerItem.MetaData));
                 break;
             case "landscape":
-                room.Room.PaintSettings.LandscapePaint = playerItem.MetaData;
+                paintSettings.LandscapePaint = playerItem.MetaData;
                 await dbContext.RoomPaintSettings
                     .Where(x => x.RoomId == room.Room.Id)
                     .ExecuteUpdateAsync(s => s.SetProperty(x => x.LandscapePaint, playerItem.MetaData));

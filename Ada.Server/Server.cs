@@ -1,4 +1,5 @@
 using Ada.API.Interfaces.Game.Catalog;
+using Ada.API.Interfaces.Game.Moderation;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Server;
 using Ada.API.Interfaces.Server.Tasks;
@@ -13,7 +14,8 @@ public class Server(
     IServerDataCleaner dataCleaner,
     IServerTaskWorker taskWorker,
     INetworkClientRepository networkClientRepository,
-    ICatalogPageRepository catalogPageRepository) : IServer
+    ICatalogPageRepository catalogPageRepository,
+    IModerationTicketService moderationTicketService) : IServer
 {
     
     public async Task RunAsync(CancellationToken token)
@@ -22,6 +24,7 @@ public class Server(
         await dataCleaner.CleanAsync(token);
         await taskWorker.WorkAsync(token);
         await catalogPageRepository.LoadAsync();
+        await moderationTicketService.LoadAsync();
     }
 
     public async ValueTask DisposeAsync()

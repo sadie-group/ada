@@ -41,12 +41,17 @@ public class RoomItemEjectedEventHandler(
             .Room.FurnitureItems
             .FirstOrDefault(x => x.PlayerFurnitureItemId == itemId);
 
-        if (roomFurnitureItem == null)
+        if (room == null || roomFurnitureItem == null)
         {
             return;
         }
         
         var ownsItem = roomFurnitureItem.PlayerFurnitureItem.PlayerId == player.Player.Id;
+
+        if (!ownsItem && !client.RoomUser.HasRights())
+        {
+            return;
+        }
         
         var interactors = interactorRepository
             .GetInteractorsForType(roomFurnitureItem
