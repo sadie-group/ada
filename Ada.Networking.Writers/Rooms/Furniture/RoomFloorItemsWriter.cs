@@ -10,7 +10,7 @@ namespace Ada.Networking.Writers.Rooms.Furniture;
 [PacketId(ServerPacketId.RoomFloorItems)]
 public class RoomFloorItemsWriter : AbstractPacketWriter
 {
-    public required Dictionary<long, string?> FurnitureOwners { get; init; }
+    public required Dictionary<long, string> FurnitureOwners { get; init; }
     public required ICollection<PlayerFurnitureItemPlacementDataDto> FloorItems { get; init; }
     public required IRoomFurnitureItemHelperService RoomFurnitureItemHelperService { get; init; }
 

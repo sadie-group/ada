@@ -33,8 +33,15 @@ public static class RoomEntryEventHelpers
         IMapper mapper)
     {
         var player = client.Player;
-        var entryPoint = new Point(room.Room.Layout.DoorX, room.Room.Layout.DoorY);
-        var entryDirection = room.Room.Layout.DoorDirection;
+        var layout = room.Room.Layout;
+
+        if (player == null || layout == null)
+        {
+            return;
+        }
+
+        var entryPoint = new Point(layout.DoorX, layout.DoorY);
+        var entryDirection = layout.DoorDirection;
         var teleport = player.State.Teleport;
 
         if (teleport != null)
@@ -163,11 +170,18 @@ public static class RoomEntryEventHelpers
     {
         var player = client.Player;
         var roomUser = client.RoomUser;
+        var layout = room.Room.Layout;
+
+        if (player == null || roomUser == null || layout == null)
+        {
+            return;
+        }
+
         var canLikeRoom = player.Player.RoomLikes.FirstOrDefault(x => x.RoomId == room.Room.Id) == null;
-        
+
         await client.WriteToStreamAsync(new RoomDataWriter
         {
-            LayoutName = room.Room.Layout.Name,
+            LayoutName = layout.Name ?? string.Empty,
             RoomId = room.Room.Id
         });
 

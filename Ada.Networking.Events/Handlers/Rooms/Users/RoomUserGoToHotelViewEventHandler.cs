@@ -15,6 +15,11 @@ public class RoomUserGoToHotelViewEventHandler(IRoomRepository roomRepository,
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var player = client.Player;
         var lastRoomId = player.State.CurrentRoomId;
         

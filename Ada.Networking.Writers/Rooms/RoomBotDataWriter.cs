@@ -21,9 +21,9 @@ public class RoomBotDataWriter : AbstractPacketWriter
                 var botData = bot.Bot;
                 
                 writer.WriteLong(bot.Bot.Id);
-                writer.WriteString(botData.Username);
-                writer.WriteString(botData.Motto);
-                writer.WriteString(botData.FigureCode);
+                writer.WriteString(botData.Username ?? string.Empty);
+                writer.WriteString(botData.Motto ?? string.Empty);
+                writer.WriteString(botData.FigureCode ?? string.Empty);
                 writer.WriteInteger(botData.Id);
                 writer.WriteInteger(bot.Point.X);
                 writer.WriteInteger(bot.Point.Y);

@@ -19,6 +19,11 @@ public class RoomCloseDiceEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.RoomUser == null)
+        {
+            return;
+        }
+
         var room = client
             .RoomUser
             .Room;

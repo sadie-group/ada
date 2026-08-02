@@ -11,6 +11,11 @@ public class RoomUserTradeCancelOfferItemEventHandler(IRoomRepository roomReposi
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out _, out var roomUser))
         {
             return;
