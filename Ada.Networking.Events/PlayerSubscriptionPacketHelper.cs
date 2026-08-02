@@ -11,9 +11,9 @@ public static class PlayerSubscriptionPacketHelper
         {
             var tillExpire = playerSub.ExpiresAt - playerSub.CreatedAt;
 
-            await player.NetworkObject.WriteToStreamAsync(new PlayerSubscriptionWriter
+            await player.NetworkObject!.WriteToStreamAsync(new PlayerSubscriptionWriter
             {
-                Name = playerSub.Subscription.Name.ToLower(),
+                Name = playerSub.Subscription?.Name?.ToLower() ?? string.Empty,
                 DaysLeft = (int)tillExpire.TotalDays,
                 MinutesTillExpire = (int)tillExpire.TotalMinutes,
                 MinutesSinceModified = (int)(DateTime.Now - player.State.LastSubscriptionModification).TotalMinutes,

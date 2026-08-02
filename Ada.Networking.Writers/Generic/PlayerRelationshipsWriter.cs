@@ -21,8 +21,8 @@ public class PlayerRelationshipsWriter : AbstractPacketWriter
                 writer.WriteInteger((int) relationship.TypeId);
                 writer.WriteInteger(Relationships.Count(x => x.TypeId == relationship.TypeId));
                 writer.WriteLong(relationship.TargetPlayerId);
-                writer.WriteString(relationship.TargetPlayer.Username);
-                writer.WriteString(relationship.TargetPlayer.AvatarData.FigureCode);
+                writer.WriteString(relationship.TargetPlayer?.Username ?? string.Empty);
+                writer.WriteString(relationship.TargetPlayer?.AvatarData?.FigureCode ?? string.Empty);
             }
         });
     }

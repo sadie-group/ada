@@ -19,6 +19,11 @@ public class PlayerRemoveFriendsEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var playerId = client.Player.Player.Id;
         
         foreach (var currentId in Ids)

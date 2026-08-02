@@ -16,16 +16,19 @@ public class PlayerProfileWriter : AbstractPacketWriter
 
     public override void OnSerialize(INetworkPacketWriter writer)
     {
-        var lastOnline = Player.Data.LastOnline == null
+        var data = Player.Data;
+        var avatarData = Player.AvatarData;
+
+        var lastOnline = data?.LastOnline == null
             ? 0
-            : (int) (DateTime.Now - Player.Data.LastOnline).Value.TotalSeconds;
-        
+            : (int) (DateTime.Now - data.LastOnline).Value.TotalSeconds;
+
         writer.WriteLong(Player.Id);
         writer.WriteString(Player.Username);
-        writer.WriteString(Player.AvatarData.FigureCode);
-        writer.WriteString(Player.AvatarData.Motto ?? "");
+        writer.WriteString(avatarData?.FigureCode ?? string.Empty);
+        writer.WriteString(avatarData?.Motto ?? "");
         writer.WriteString(Player.CreatedAt.ToString("dd MMMM yyyy"));
-        writer.WriteLong(Player.Data.AchievementScore);
+        writer.WriteLong(data?.AchievementScore ?? 0);
         writer.WriteLong(FriendshipCount);
         writer.WriteBool(FriendshipExists);
         writer.WriteBool(FriendshipRequestExists);

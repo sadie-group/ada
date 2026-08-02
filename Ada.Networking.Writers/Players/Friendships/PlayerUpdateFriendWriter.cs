@@ -26,14 +26,16 @@ public class PlayerUpdateFriendWriter : AbstractPacketWriter
             }
             else
             {
-                writer.WriteLong(update.Friend.Id);
-                writer.WriteString(update.Friend.Username);
-                writer.WriteInteger(update.Friend.Gender == PlayerAvatarGender.Male ? 0 : 1);
+                var friend = update.Friend;
+
+                writer.WriteLong(friend?.Id ?? 0);
+                writer.WriteString(friend?.Username ?? string.Empty);
+                writer.WriteInteger(friend?.Gender == PlayerAvatarGender.Male ? 0 : 1);
                 writer.WriteBool(update.FriendOnline);
                 writer.WriteBool(update.FriendInRoom);
-                writer.WriteString(update.Friend.FigureCode);
+                writer.WriteString(friend?.FigureCode ?? string.Empty);
                 writer.WriteInteger(0);
-                writer.WriteString(update.Friend.Motto);
+                writer.WriteString(friend?.Motto ?? string.Empty);
                 writer.WriteString("");
                 writer.WriteString("");
                 writer.WriteBool(false);

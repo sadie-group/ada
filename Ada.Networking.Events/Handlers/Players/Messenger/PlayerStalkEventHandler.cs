@@ -15,6 +15,11 @@ public class PlayerStalkEventHandler(IPlayerRepository playerRepository) : INetw
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var playerId = PlayerId;
 
         if (!client.Player.IsFriendsWith(PlayerId))

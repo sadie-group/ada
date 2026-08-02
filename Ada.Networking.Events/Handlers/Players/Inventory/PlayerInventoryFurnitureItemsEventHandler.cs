@@ -1,3 +1,4 @@
+using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
@@ -11,6 +12,11 @@ public class PlayerInventoryFurnitureItemsEventHandler : INetworkPacketEventHand
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var furnitureItems = client
             .Player
             .Player.FurnitureItems
@@ -37,7 +43,7 @@ public class PlayerInventoryFurnitureItemsEventHandler : INetworkPacketEventHand
             {
                 Pages = pages,
                 CurrentPage = page,
-                Items = batch.ToList()
+                Items = batch?.ToList() ?? []
             });
             
             page++;

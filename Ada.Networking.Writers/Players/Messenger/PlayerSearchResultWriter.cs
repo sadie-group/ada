@@ -19,12 +19,12 @@ public class PlayerSearchResultWriter : AbstractPacketWriter
         {
             writer.WriteLong(friend.Id);
             writer.WriteString(friend.Username);
-            writer.WriteString(friend.AvatarData.Motto ?? string.Empty);
+            writer.WriteString(friend.AvatarData?.Motto ?? string.Empty);
             writer.WriteBool(false);
             writer.WriteBool(false);
             writer.WriteString("");
             writer.WriteInteger(1);
-            writer.WriteString(friend.AvatarData.FigureCode);
+            writer.WriteString(friend.AvatarData?.FigureCode ?? string.Empty);
             writer.WriteString("");
         }
         
@@ -34,12 +34,12 @@ public class PlayerSearchResultWriter : AbstractPacketWriter
         {
             writer.WriteLong(stranger.Id);
             writer.WriteString(stranger.Username);
-            writer.WriteString(stranger.AvatarData.Motto ?? string.Empty);
+            writer.WriteString(stranger.AvatarData?.Motto ?? string.Empty);
             writer.WriteBool(false);
             writer.WriteBool(false);
             writer.WriteString("");
             writer.WriteInteger(1);
-            writer.WriteString(stranger.AvatarData.FigureCode);
+            writer.WriteString(stranger.AvatarData?.FigureCode ?? string.Empty);
             writer.WriteString("");
         }
     }

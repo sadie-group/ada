@@ -26,6 +26,11 @@ public class PlayerSendDirectMessageEventHandler(
 
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if ((DateTime.Now - client.Player.State.LastDirectMessage).TotalMilliseconds < CooldownIntervals.PlayerDirectMessage)
         {
             return;
@@ -69,7 +74,7 @@ public class PlayerSendDirectMessageEventHandler(
             CreatedAt = DateTime.Now
         };
 
-        await targetPlayer.NetworkObject.WriteToStreamAsync(new PlayerDirectMessageWriter
+        await targetPlayer.NetworkObject!.WriteToStreamAsync(new PlayerDirectMessageWriter
         {
             Message = playerMessage
         });

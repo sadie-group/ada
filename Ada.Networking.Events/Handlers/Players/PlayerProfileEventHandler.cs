@@ -15,6 +15,11 @@ public class PlayerProfileEventHandler(IPlayerRepository playerRepository)
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var profilePlayer = await playerRepository.GetPlayerByIdAsync(ProfileId);
         
         if (profilePlayer == null)
@@ -31,7 +36,7 @@ public class PlayerProfileEventHandler(IPlayerRepository playerRepository)
         var profileWriter = new PlayerProfileWriter
         {
             Player = profilePlayer,
-            Online = profilePlayer.Data.IsOnline,
+            Online = profilePlayer.Data?.IsOnline ?? false,
             FriendshipCount = acceptedFriendCount,
             FriendshipExists = friendship is { Status: PlayerFriendshipStatus.Accepted },
             FriendshipRequestExists = friendship is { Status: PlayerFriendshipStatus.Pending }

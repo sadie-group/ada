@@ -15,6 +15,11 @@ public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INet
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if ((DateTime.Now - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
         {
             return;
