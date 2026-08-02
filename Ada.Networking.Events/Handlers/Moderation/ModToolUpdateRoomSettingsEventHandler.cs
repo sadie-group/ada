@@ -38,7 +38,10 @@ public class ModToolUpdateRoomSettingsEventHandler(
         
         if (LockDoor == 1)
         {
-            room.Room.Settings.AccessType = RoomAccessType.Doorbell;
+            if (room.Room.Settings != null)
+            {
+                room.Room.Settings.AccessType = RoomAccessType.Doorbell;
+            }
             needsSaving = true;
         }
 

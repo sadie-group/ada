@@ -102,6 +102,13 @@ namespace Ada.Networking.Packets.Serialization
             if (primitiveWriters.TryGetValue(property.PropertyType, out var action))
             {
                 var value = PropertyAccessorCache.GetValue(property, packet);
+
+                if (value == null)
+                {
+                    writer.WriteString(string.Empty);
+                    return true;
+                }
+
                 action(value, writer);
                 return true;
             }
@@ -115,6 +122,7 @@ namespace Ada.Networking.Packets.Serialization
             Action<TKey> keyWriter,
             Action<TValue> valueWriter
         )
+            where TKey : notnull
         {
             writer.WriteInteger(dict.Count);
 
@@ -142,6 +150,13 @@ namespace Ada.Networking.Packets.Serialization
                 if (conversionRules != null && conversionRules.TryGetValue(property.Name, out var conv))
                 {
                     var raw = PropertyAccessorCache.GetValue(property, packet);
+
+                    if (raw == null)
+                    {
+                        WriteProperty(property, writer, packet);
+                        continue;
+                    }
+
                     var converted = conv.Value(raw);
                     WriteType(conv.Key, converted, writer);
                     continue;
@@ -222,31 +237,31 @@ namespace Ada.Networking.Packets.Serialization
 
             if (type == typeof(List<string>))
             {
-                WriteStringListPropertyToWriter((List<string>)value, writer);
+                WriteStringListPropertyToWriter(value as List<string> ?? new(), writer);
                 return;
             }
 
             if (type == typeof(Dictionary<int, string>))
             {
-                WriteDictionary((Dictionary<int, string>)value, writer, writer.WriteInteger, v => writer.WriteString(v ?? ""));
+                WriteDictionary(value as Dictionary<int, string> ?? new(), writer, writer.WriteInteger, v => writer.WriteString(v ?? ""));
                 return;
             }
 
             if (type == typeof(Dictionary<long, string>))
             {
-                WriteDictionary((Dictionary<long, string>)value, writer, writer.WriteLong, v => writer.WriteString(v ?? ""));
+                WriteDictionary(value as Dictionary<long, string> ?? new(), writer, writer.WriteLong, v => writer.WriteString(v ?? ""));
                 return;
             }
 
             if (type == typeof(Dictionary<int, long>))
             {
-                WriteDictionary((Dictionary<int, long>)value, writer, writer.WriteInteger, writer.WriteLong);
+                WriteDictionary(value as Dictionary<int, long> ?? new(), writer, writer.WriteInteger, writer.WriteLong);
                 return;
             }
 
             if (type == typeof(Dictionary<int, List<string>>))
             {
-                var dict = (Dictionary<int, List<string>>)value;
+                var dict = value as Dictionary<int, List<string>> ?? new();
 
                 writer.WriteInteger(dict.Count);
                 foreach (var kv in dict)
@@ -262,13 +277,13 @@ namespace Ada.Networking.Packets.Serialization
 
             if (type == typeof(Dictionary<string, int>))
             {
-                WriteDictionary((Dictionary<string, int>)value, writer, writer.WriteString, writer.WriteInteger);
+                WriteDictionary(value as Dictionary<string, int> ?? new(), writer, writer.WriteString, writer.WriteInteger);
                 return;
             }
 
             if (type == typeof(Dictionary<string, string>))
             {
-                WriteDictionary((Dictionary<string, string>)value, writer, writer.WriteString, writer.WriteString);
+                WriteDictionary(value as Dictionary<string, string> ?? new(), writer, writer.WriteString, writer.WriteString);
                 return;
             }
 
@@ -293,6 +308,11 @@ namespace Ada.Networking.Packets.Serialization
                 }
 
                 WriteArbitraryListPropertyToWriter(property, writer, packet);
+                return;
+            }
+
+            if (value == null)
+            {
                 return;
             }
 

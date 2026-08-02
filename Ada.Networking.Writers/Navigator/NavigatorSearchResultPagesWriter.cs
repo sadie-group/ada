@@ -19,8 +19,8 @@ public class NavigatorSearchResultPagesWriter : AbstractPacketWriter
 
     public override void OnSerialize(INetworkPacketWriter writer)
     {
-        writer.WriteString(TabName);
-        writer.WriteString(SearchQuery);
+        writer.WriteString(TabName ?? string.Empty);
+        writer.WriteString(SearchQuery ?? string.Empty);
         
         writer.WriteInteger(CategoryRoomMap.Count);
 
@@ -43,7 +43,7 @@ public class NavigatorSearchResultPagesWriter : AbstractPacketWriter
                 writer.WriteString(room.Name);
                 writer.WriteLong(room.OwnerId);
                 writer.WriteString(OwnerUsernames.GetValueOrDefault(room.OwnerId, "Unknown User"));
-                writer.WriteInteger((int) room.Settings.AccessType);
+                writer.WriteInteger(room.Settings == null ? 0 : (int) room.Settings.AccessType);
                 writer.WriteInteger(userCount);
                 writer.WriteInteger(room.MaxUsersAllowed);
                 writer.WriteString(room.Description);

@@ -31,7 +31,7 @@ public class ModToolRoomChatLogWriter : AbstractPacketWriter
             {
                 writer.WriteString(message.CreatedAt.ToString("HH:mm"));
                 writer.WriteLong(message.PlayerId);
-                writer.WriteString(message.Player.Username);
+                writer.WriteString(message.Player?.Username ?? string.Empty);
                 writer.WriteString(message.Message ?? "Unable to display message");
                 writer.WriteBool(false);
             }
