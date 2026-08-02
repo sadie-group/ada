@@ -215,4 +215,11 @@ public static class ServerPacketId
     public const short PetBreedingResult = 634;
     public const short PetBreedingCompleted = 2527;
     public const short PetBreedingFailed = 1625;
+    public const short CfhTopicsInit = 325;
+    public const short ModerationTicketIssue = 3609;
+    public const short ModerationTicketResponse = 934;
+    public const short ModerationTicketChatLog = 607;
+    public const short CallForHelpPendingCalls = 1121;
+    public const short CallForHelperWindow = 1591;
+    public const short CallForHelperError = 673;
 }
