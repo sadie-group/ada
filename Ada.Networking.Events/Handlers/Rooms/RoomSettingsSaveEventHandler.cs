@@ -146,11 +146,16 @@ public class RoomSettingsSaveEventHandler(
             });
         }
         
-        UpdateSettings(room.Room.Settings);
-        UpdateChatSettings(room.Room.ChatSettings);
-
         var settings = room.Room.Settings;
         var chatSettings = room.Room.ChatSettings;
+
+        if (settings == null || chatSettings == null)
+        {
+            return;
+        }
+
+        UpdateSettings(settings);
+        UpdateChatSettings(chatSettings);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
@@ -221,7 +226,12 @@ public class RoomSettingsSaveEventHandler(
     {
         var settings = room.Room.Settings;
         var chatSettings = room.Room.ChatSettings;
-        
+
+        if (settings == null || chatSettings == null)
+        {
+            return;
+        }
+
         var floorSettingsWriter = new RoomWallFloorSettingsWriter
         {
             HideWalls = settings.HideWalls,

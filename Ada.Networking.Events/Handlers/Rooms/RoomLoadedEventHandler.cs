@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Game.Players;
+using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -88,7 +88,7 @@ public class RoomLoadedEventHandler(
             return;
         }
 
-        if (room.Room.Settings.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password && 
+        if (room.Room.Settings?.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password && 
             !isOwner && 
             !await ValidateRoomAccessForClientAsync(client, room, Password))
         {
@@ -111,11 +111,17 @@ public class RoomLoadedEventHandler(
     private static async Task<bool> ValidateRoomAccessForClientAsync(INetworkClient client, IRoomLogic room, string password)
     {
         var player = client.Player!;
-        
-        switch (room.Room.Settings.AccessType)
+        var settings = room.Room.Settings;
+
+        if (settings == null)
+        {
+            return false;
+        }
+
+        switch (settings.AccessType)
         {
             case RoomAccessType.Password:
-                if (room.Room.Settings.Password == password)
+                if (settings.Password == password)
                 {
                     return true;
                 }

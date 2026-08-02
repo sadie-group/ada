@@ -22,7 +22,14 @@ public class RoomRedeemItemEventHandler(
 
         if (player?.NetworkObject == null || 
             client.RoomUser == null || 
-            room.Room.OwnerId != client.Player!.Player.Id)
+            room.Room.OwnerId != player.Player.Id)
+        {
+            return;
+        }
+
+        var data = player.Player.Data;
+
+        if (data == null)
         {
             return;
         }
@@ -84,23 +91,23 @@ public class RoomRedeemItemEventHandler(
 
             if (assetName.StartsWith("PF_"))
             {
-                player.Player.Data.PixelBalance += value;
+                data.PixelBalance += value;
 
                 await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
-                        player.Player.Data.PixelBalance,
-                        player.Player.Data.SeasonalBalance,
-                        player.Player.Data.GotwPoints)
+                        data.PixelBalance,
+                        data.SeasonalBalance,
+                        data.GotwPoints)
                 });
             }
             else
             {
-                player.Player.Data.CreditBalance += value;
+                data.CreditBalance += value;
 
                 await client.WriteToStreamAsync(new PlayerCreditsBalanceWriter
                 {
-                    Credits = player.Player.Data.CreditBalance
+                    Credits = data.CreditBalance
                 });
             }
         }
@@ -114,28 +121,28 @@ public class RoomRedeemItemEventHandler(
 
             if (pointsType == 5 || assetName.StartsWith("CF_diamond_"))
             {
-                player.Player.Data.SeasonalBalance += points;
+                data.SeasonalBalance += points;
             }
             else if (pointsType == 103)
             {
-                player.Player.Data.GotwPoints += points;
+                data.GotwPoints += points;
             }
                 
             await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
             {
                 Currencies = PlayerCurrencyMapper.FromBalances(
-    player.Player.Data.PixelBalance,
-    player.Player.Data.SeasonalBalance,
-    player.Player.Data.GotwPoints)
+    data.PixelBalance,
+    data.SeasonalBalance,
+    data.GotwPoints)
             });
         }
 
         await dbContext.PlayerData
             .Where(x => x.PlayerId == player.Player.Id)
             .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.PixelBalance, player.Player.Data.PixelBalance)
-                .SetProperty(x => x.CreditBalance, player.Player.Data.CreditBalance)
-                .SetProperty(x => x.SeasonalBalance, player.Player.Data.SeasonalBalance)
-                .SetProperty(x => x.GotwPoints, player.Player.Data.GotwPoints));
+                .SetProperty(x => x.PixelBalance, data.PixelBalance)
+                .SetProperty(x => x.CreditBalance, data.CreditBalance)
+                .SetProperty(x => x.SeasonalBalance, data.SeasonalBalance)
+                .SetProperty(x => x.GotwPoints, data.GotwPoints));
     }
 }
