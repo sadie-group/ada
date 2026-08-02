@@ -4,6 +4,7 @@ using Ada.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Ada.Db.Migrations
 {
     [DbContext(typeof(AdaMigrationsDbContext))]
-    partial class AdaMigrationsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802110742_AddModerationTickets")]
+    partial class AddModerationTickets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -719,126 +722,6 @@ namespace Ada.Db.Migrations
                         .HasName("pk_hand_items");
 
                     b.ToTable("hand_items", (string)null);
-                });
-
-            modelBuilder.Entity("Ada.Db.Models.Moderation.ModerationCfhTopic", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("category_name");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("varchar(128)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int")
-                        .HasColumnName("order");
-
-                    b.HasKey("Id")
-                        .HasName("pk_moderation_cfh_topics");
-
-                    b.HasIndex("CategoryName")
-                        .HasDatabaseName("ix_moderation_cfh_topics_category_name");
-
-                    b.ToTable("moderation_cfh_topics", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CategoryName = "Bullying",
-                            Name = "Verbal abuse",
-                            Order = 1
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CategoryName = "Bullying",
-                            Name = "Threats",
-                            Order = 2
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CategoryName = "Bullying",
-                            Name = "Harassment",
-                            Order = 3
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CategoryName = "Scamming",
-                            Name = "Trade scam",
-                            Order = 4
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CategoryName = "Scamming",
-                            Name = "Password phishing",
-                            Order = 5
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CategoryName = "Scamming",
-                            Name = "Account theft",
-                            Order = 6
-                        },
-                        new
-                        {
-                            Id = 7,
-                            CategoryName = "Inappropriate",
-                            Name = "Offensive language",
-                            Order = 7
-                        },
-                        new
-                        {
-                            Id = 8,
-                            CategoryName = "Inappropriate",
-                            Name = "Offensive room",
-                            Order = 8
-                        },
-                        new
-                        {
-                            Id = 9,
-                            CategoryName = "Inappropriate",
-                            Name = "Offensive name or motto",
-                            Order = 9
-                        },
-                        new
-                        {
-                            Id = 10,
-                            CategoryName = "Other",
-                            Name = "Room flooding",
-                            Order = 10
-                        },
-                        new
-                        {
-                            Id = 11,
-                            CategoryName = "Other",
-                            Name = "Bot or scripting",
-                            Order = 11
-                        },
-                        new
-                        {
-                            Id = 12,
-                            CategoryName = "Other",
-                            Name = "Something else",
-                            Order = 12
-                        });
                 });
 
             modelBuilder.Entity("Ada.Db.Models.Moderation.ModerationTicket", b =>
