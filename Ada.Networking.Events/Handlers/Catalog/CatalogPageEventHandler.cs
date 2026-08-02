@@ -31,8 +31,8 @@ public class CatalogPageEventHandler(
         {
             PageId = page.Id,
             PageLayout = page.Layout,
-            Images = page.ImagesJson,
-            Texts = page.TextsJson,
+            Images = page.ImagesJson?.Cast<string?>().ToList() ?? [],
+            Texts = page.TextsJson?.Cast<string?>().ToList() ?? [],
             Items = page.Items.ToList(),
             CatalogMode = CatalogMode,
             AcceptSeasonCurrencyAsCredits = false,

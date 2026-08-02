@@ -9,12 +9,17 @@ using Ada.Networking.Writers.Players.Messenger;
 namespace Ada.Networking.Events.Handlers.Players.Messenger;
 
 [PacketId(EventHandlerId.PlayerSearch)]
-public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler
+public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? SearchQuery { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if ((DateTime.Now - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
         {
             return;

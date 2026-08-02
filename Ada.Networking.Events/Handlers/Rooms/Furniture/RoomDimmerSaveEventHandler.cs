@@ -27,6 +27,11 @@ public class RoomDimmerSaveEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.RoomUser == null)
+        {
+            return;
+        }
+
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _))
         {
             return;
@@ -65,9 +70,16 @@ public class RoomDimmerSaveEventHandler(
         preset.Color = Color;
         preset.Intensity = Intensity;
 
-        room.Room.DimmerSettings.Enabled = Apply;
+        var dimmerSettings = room.Room.DimmerSettings;
 
-        var enabled = room.Room.DimmerSettings.Enabled ? 2 : 0;
+        if (dimmerSettings == null)
+        {
+            return;
+        }
+
+        dimmerSettings.Enabled = Apply;
+
+        var enabled = dimmerSettings.Enabled ? 2 : 0;
         var bgOnly = preset.BackgroundOnly ? 2 : 0;
         var meta = $"{enabled},{preset.PresetId},{bgOnly},{preset.Color},{preset.Intensity}";
         
@@ -78,13 +90,13 @@ public class RoomDimmerSaveEventHandler(
 
         await dbContext.RoomDimmerSettings
             .Where(x => x.RoomId == room.Room.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, room.Room.DimmerSettings.Enabled));
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, dimmerSettings.Enabled));
 
         await dbContext.SaveChangesAsync();
         
         await room.BroadcastDataAsync(new RoomDimmerSettingsWriter
         {
-            DimmerSettings = room.Room.DimmerSettings,
+            DimmerSettings = dimmerSettings,
             DimmerPresets = mapper.Map<List<RoomDimmerPresetDto>>(presets)
         });
     }

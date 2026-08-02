@@ -43,7 +43,7 @@ public class CatalogTeleportPurchaseService(
         var parent = mapper.Map<PlayerFurnitureItemDto>(parentEntity);
         var child = mapper.Map<PlayerFurnitureItemDto>(childEntity);
 
-        client.Player.Player.FurnitureItems.Add(parent);
+        client.Player!.Player.FurnitureItems.Add(parent);
         client.Player.Player.FurnitureItems.Add(child);
 
         await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
@@ -64,7 +64,7 @@ public class CatalogTeleportPurchaseService(
     {
         return new PlayerFurnitureItemDto
         {
-            PlayerId = client.Player.Player.Id,
+            PlayerId = client.Player!.Player.Id,
             FurnitureItemId = furniture.Id,
             FurnitureItem = furniture,
             LimitedData = "1:1",

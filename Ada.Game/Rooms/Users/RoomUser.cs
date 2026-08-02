@@ -2,6 +2,7 @@ using System.Drawing;
 using Ada.API;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
 using Ada.API.Interfaces.Game.Rooms.Services;
@@ -30,7 +31,8 @@ public class RoomUser(
     IRoomTileMapHelperService tileMapHelperService,
     IRoomHelperService roomHelperService,
     IRoomWiredService wiredService,
-    IRoomPathFinderHelperService pathFinderHelperService)
+    IRoomPathFinderHelperService pathFinderHelperService,
+    IRoomFurnitureItemInteractorRepository interactorRepository)
     : RoomUnitData(
             room,
             point,
@@ -103,6 +105,40 @@ public class RoomUser(
         {
             await CheckForStepTriggersAsync(position, FurnitureItemInteractionType.WiredTriggerUserWalksOffFurniture);
             await CheckForStepTriggersAsync(Point, FurnitureItemInteractionType.WiredTriggerUserWalksOnFurniture);
+            await RunStepInteractorsAsync(position, walkedOn: false);
+            await RunStepInteractorsAsync(Point, walkedOn: true);
+        }
+    }
+
+    private async Task RunStepInteractorsAsync(Point point, bool walkedOn)
+    {
+        foreach (var item in tileMapHelperService.GetItemsForPosition(point.X, point.Y, room.Room.FurnitureItems))
+        {
+            var interactionType = item.PlayerFurnitureItem.FurnitureItem.InteractionType;
+
+            if (string.IsNullOrEmpty(interactionType))
+            {
+                continue;
+            }
+
+            foreach (var interactor in interactorRepository.GetInteractorsForType(interactionType))
+            {
+                try
+                {
+                    if (walkedOn)
+                    {
+                        await interactor.OnWalkedOnAsync(room, item, this);
+                    }
+                    else
+                    {
+                        await interactor.OnWalkedOffAsync(room, item, this);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Serilog.Log.Error(e, "Step interactor {Interactor} failed", interactor.GetType().Name);
+                }
+            }
         }
     }
     
@@ -132,19 +168,20 @@ public class RoomUser(
     
     private async Task UpdateEffectAsync()
     {
-        var effectPointToCheck = IsWalking && NextPoint != null ? 
-            NextPoint.Value : 
+        var effectPointToCheck = IsWalking && NextPoint != null ?
+            NextPoint.Value :
             Point;
-        
-        if (room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0)
+
+        var effectId = room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0
+            ? room.TileMap.EffectMap[Point.Y, Point.X]
+            : 0;
+
+        if (effectId == ActiveEffectId)
         {
-            var effectId = room.TileMap.EffectMap[Point.Y, Point.X];
-            await SetEffectAsync((RoomUserEffect) effectId);
+            return;
         }
-        else if (ActiveEffectId != 0)
-        {
-            await SetEffectAsync(0);
-        }
+
+        await SetEffectAsync((RoomUserEffect) effectId);
     }
 
     private async Task UpdateIdleStatusAsync()

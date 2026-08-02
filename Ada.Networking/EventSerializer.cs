@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using Ada.Networking.Packets;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets.Serialization;
 
 namespace Ada.Networking;
@@ -9,9 +9,9 @@ public static class EventSerializer
 {
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritableProperties = new();
 
-    public static void SetPropertiesForEventHandler(object handler, NetworkPacketReader packetReader)
+    public static void SetPropertiesForEventHandler(object handler, INetworkPacketReader packetReader)
     {
-        FillProperties(handler, ref packetReader);
+        FillProperties(handler, packetReader);
     }
 
     private static PropertyInfo[] GetWritableProperties(Type type)
@@ -21,15 +21,15 @@ public static class EventSerializer
             .OrderBy(p => p.MetadataToken)
             .ToArray());
 
-    private static void FillProperties(object target, ref NetworkPacketReader packetReader)
+    private static void FillProperties(object target, INetworkPacketReader packetReader)
     {
         foreach (var property in GetWritableProperties(target.GetType()))
         {
-            PropertyAccessorCache.SetValue(property, target, ReadValue(property.PropertyType, ref packetReader));
+            PropertyAccessorCache.SetValue(property, target, ReadValue(property.PropertyType, packetReader));
         }
     }
 
-    private static object ReadValue(Type type, ref NetworkPacketReader packetReader)
+    private static object ReadValue(Type type, INetworkPacketReader packetReader)
     {
         if (type == typeof(int))
         {
@@ -53,12 +53,12 @@ public static class EventSerializer
 
         if (type == typeof(Dictionary<string, string>))
         {
-            return ReadAllStringDictionary(ref packetReader);
+            return ReadAllStringDictionary(packetReader);
         }
 
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
         {
-            return ReadList(type.GetGenericArguments()[0], ref packetReader);
+            return ReadList(type.GetGenericArguments()[0], packetReader);
         }
 
         if (type is { IsClass: true, IsAbstract: false })
@@ -66,7 +66,7 @@ public static class EventSerializer
             var instance = Activator.CreateInstance(type)
                 ?? throw new Exception($"Cannot instantiate packet record type {type.FullName}");
 
-            FillProperties(instance, ref packetReader);
+            FillProperties(instance, packetReader);
 
             return instance;
         }
@@ -74,7 +74,7 @@ public static class EventSerializer
         throw new Exception($"Unsupported packet property type {type.FullName}");
     }
 
-    private static object ReadList(Type elementType, ref NetworkPacketReader packetReader)
+    private static object ReadList(Type elementType, INetworkPacketReader packetReader)
     {
         var count = packetReader.ReadInt();
         var list = (System.Collections.IList) Activator.CreateInstance(
@@ -82,13 +82,13 @@ public static class EventSerializer
 
         for (var i = 0; i < count; i++)
         {
-            list.Add(ReadValue(elementType, ref packetReader));
+            list.Add(ReadValue(elementType, packetReader));
         }
 
         return list;
     }
 
-    private static Dictionary<string, string> ReadAllStringDictionary(ref NetworkPacketReader packetReader)
+    private static Dictionary<string, string> ReadAllStringDictionary(INetworkPacketReader packetReader)
     {
         var temp = new Dictionary<string, string>();
         var amount = packetReader.ReadInt();

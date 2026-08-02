@@ -14,10 +14,15 @@ namespace Ada.Networking.Events.Handlers.Club;
 [PacketId(EventHandlerId.HabboClubGifts)]
 public class HabboClubGiftsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
         var clubGiftPage = await dbContext

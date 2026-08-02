@@ -26,4 +26,14 @@ public abstract class AbstractRoomFurnitureItemInteractor : IRoomFurnitureItemIn
     {
         return Task.CompletedTask;
     }
+
+    public virtual Task OnWalkedOnAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
+    {
+        return Task.CompletedTask;
+    }
+
+    public virtual Task OnWalkedOffAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
+    {
+        return Task.CompletedTask;
+    }
 }

@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Catalog;
 [PacketId(EventHandlerId.CatalogIndex)]
 public class CatalogIndexEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {

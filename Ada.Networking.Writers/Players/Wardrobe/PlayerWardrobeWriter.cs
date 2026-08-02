@@ -24,7 +24,7 @@ public class PlayerWardrobeWriter : AbstractPacketWriter
                 i++;
             
                 writer.WriteInteger(i);
-                writer.WriteString(outfit.FigureCode);
+                writer.WriteString(outfit.FigureCode ?? string.Empty);
                 writer.WriteString(outfit.Gender == PlayerAvatarGender.Male ? "M" : "F");
             }
         });

@@ -12,7 +12,7 @@ namespace Ada.Networking.Events.Handlers.Navigator;
 public class SaveNavigatorSettingsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
-    ILogger<SaveNavigatorSettingsEventHandler> logger) : INetworkPacketEventHandler
+    ILogger<SaveNavigatorSettingsEventHandler> logger) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int WindowX { get; set; }
     public int WindowY { get; set; }

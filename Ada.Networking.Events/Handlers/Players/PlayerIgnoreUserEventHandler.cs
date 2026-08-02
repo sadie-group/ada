@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Players;
 
 [PacketId(EventHandlerId.PlayerIgnoredUser)]
 public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public required string Username { get; set; }
     

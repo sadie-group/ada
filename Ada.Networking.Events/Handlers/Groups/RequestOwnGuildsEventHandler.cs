@@ -1,4 +1,3 @@
-using Ada.API.DTOs.Groups;
 using Ada.API.Interfaces.Game.Groups;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;

@@ -1,4 +1,5 @@
-﻿using Ada.API.DTOs.Rooms;
+﻿using Ada.API;
+using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -30,9 +31,6 @@ public class RoomLogic(
     private readonly SemaphoreSlim _writerLock = new(1, 1);
     private static readonly AsyncLocal<RoomLogic?> CurrentHolder = new();
 
-    // Serializes every mutation of this room's state (packet handlers, game loop
-    // ticks, roller processing, disposal). Re-entrant within one async flow; never
-    // acquire a second room's lock while holding one.
     public async Task RunLockedAsync(Func<Task> action)
     {
         if (CurrentHolder.Value == this)
@@ -59,26 +57,31 @@ public class RoomLogic(
     {
     }
     
-    public async Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
+    public Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
     {
-        var packet = NetworkPacketWriterSerializer.Serialize(writer);
+        var users = UserRepository.GetAll();
+
+        if (users.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
 
         var excluded = excludedIds is { Count: > 0 }
             ? excludedIds as IReadOnlySet<long> ?? new HashSet<long>(excludedIds)
             : null;
 
-        var sendTasks = new List<Task>();
+        var recipients = new List<INetworkObject>(users.Count);
 
-        foreach (var user in UserRepository.GetAll())
+        foreach (var user in users)
         {
             if (excluded != null && excluded.Contains(user.Player.Player.Id))
             {
                 continue;
             }
 
-            sendTasks.Add(user.NetworkObject.WriteToStreamAsync(packet));
+            recipients.Add(user.NetworkObject);
         }
 
-        await Task.WhenAll(sendTasks);
+        return PacketBroadcast.SendAsync(writer, recipients);
     }
 }

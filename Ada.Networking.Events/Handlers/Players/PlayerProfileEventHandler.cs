@@ -9,12 +9,17 @@ namespace Ada.Networking.Events.Handlers.Players;
 
 [PacketId(EventHandlerId.PlayerProfile)]
 public class PlayerProfileEventHandler(IPlayerRepository playerRepository)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int ProfileId { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var profilePlayer = await playerRepository.GetPlayerByIdAsync(ProfileId);
         
         if (profilePlayer == null)
@@ -31,7 +36,7 @@ public class PlayerProfileEventHandler(IPlayerRepository playerRepository)
         var profileWriter = new PlayerProfileWriter
         {
             Player = profilePlayer,
-            Online = profilePlayer.Data.IsOnline,
+            Online = profilePlayer.Data?.IsOnline ?? false,
             FriendshipCount = acceptedFriendCount,
             FriendshipExists = friendship is { Status: PlayerFriendshipStatus.Accepted },
             FriendshipRequestExists = friendship is { Status: PlayerFriendshipStatus.Pending }

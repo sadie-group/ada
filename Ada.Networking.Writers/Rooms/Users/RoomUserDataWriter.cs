@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
@@ -31,12 +31,12 @@ public class RoomUserDataWriter : AbstractPacketWriter
                 writer.WriteString(user.PointZ + "");
                 writer.WriteInteger((int) user.Direction);
                 writer.WriteInteger(1);
-                writer.WriteString(user.Player.Player.AvatarData.Gender == PlayerAvatarGender.Male ? "M" : "F");
+                writer.WriteString(user.Player.Player.AvatarData?.Gender == PlayerAvatarGender.Male ? "M" : "F");
                 writer.WriteInteger(-1);
                 writer.WriteInteger(-1);
                 writer.WriteString("");
                 writer.WriteString("");
-                writer.WriteInteger(user.Player.Player.Data.AchievementScore);
+                writer.WriteInteger(user.Player.Player.Data?.AchievementScore ?? 0);
                 writer.WriteBool(true);
             }
         });

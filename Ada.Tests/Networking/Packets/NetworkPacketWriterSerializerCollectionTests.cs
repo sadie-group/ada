@@ -52,7 +52,7 @@ public class NetworkPacketWriterSerializerCollectionTests
 
     private static byte[] Payload(object packet)
     {
-        var writer = (NetworkPacketWriter)NetworkPacketWriterSerializer.Serialize(packet);
+        var writer = (NetworkPacketWriter)NetworkPacketWriterSerializer.Serialize(packet, TestPacketCodec.Instance);
         return writer.GetAllBytes().Skip(4).ToArray();
     }
 
@@ -61,7 +61,7 @@ public class NetworkPacketWriterSerializerCollectionTests
     {
         var payload = Payload(new IntStringDictionaryPacket { Values = { [3] = "c" } });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var key = reader.ReadInt();
         var value = reader.ReadString();
@@ -79,7 +79,7 @@ public class NetworkPacketWriterSerializerCollectionTests
     {
         var payload = Payload(new StringIntDictionaryPacket { Values = { ["hp"] = 100 } });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var key = reader.ReadString();
         var value = reader.ReadInt();
@@ -97,7 +97,7 @@ public class NetworkPacketWriterSerializerCollectionTests
     {
         var payload = Payload(new StringStringDictionaryPacket { Values = { ["k"] = "v" } });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var key = reader.ReadString();
         var value = reader.ReadString();
@@ -115,7 +115,7 @@ public class NetworkPacketWriterSerializerCollectionTests
     {
         var payload = Payload(new IntLongDictionaryPacket { Values = { [1] = 42L } });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var key = reader.ReadInt();
         var value = reader.ReadInt();
@@ -133,7 +133,7 @@ public class NetworkPacketWriterSerializerCollectionTests
     {
         var payload = Payload(new NestedListDictionaryPacket { Values = { [9] = ["a", "b"] } });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var key = reader.ReadInt();
         var first = reader.ReadString();
@@ -156,7 +156,7 @@ public class NetworkPacketWriterSerializerCollectionTests
             Badges = [new BadgeSlot { Slot = 1, Code = "ADM" }, new BadgeSlot { Slot = 2, Code = "VIP" }],
         });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var slot1 = reader.ReadInt();
         var code1 = reader.ReadString();

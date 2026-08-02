@@ -143,8 +143,11 @@ public class SecureLoginEventHandler(
         
         await client.WriteToStreamAsync(new SecureLoginWriter());
         
-        playerLogic.Player.Data.IsOnline = true;
-        playerLogic.Player.Data.LastOnline = DateTime.Now;
+        if (playerLogic.Player.Data != null)
+        {
+            playerLogic.Player.Data.IsOnline = true;
+            playerLogic.Player.Data.LastOnline = DateTime.Now;
+        }
         
         playerLogic.Authenticated = true;
 
@@ -206,7 +209,7 @@ public class SecureLoginEventHandler(
 
         var formattedMessage = serverSettings.PlayerWelcomeMessage
             .Replace("[username]", player.Player.Username)
-            .Replace("[version]", GlobalState.Version.ToString());
+            .Replace("[version]", GlobalState.Version?.ToString() ?? string.Empty);
 
         await player.SendAlertAsync(formattedMessage);
     }

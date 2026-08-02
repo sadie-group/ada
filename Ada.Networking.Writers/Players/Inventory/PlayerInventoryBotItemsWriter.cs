@@ -18,10 +18,10 @@ public class PlayerInventoryBotItemsWriter : AbstractPacketWriter
         foreach (var bot in Bots)
         {
             writer.WriteInteger(bot.Id);
-            writer.WriteString(bot.Username);
-            writer.WriteString(bot.Motto);
+            writer.WriteString(bot.Username ?? string.Empty);
+            writer.WriteString(bot.Motto ?? string.Empty);
             writer.WriteString(bot.Gender == PlayerAvatarGender.Male ? "m" : "f");
-            writer.WriteString(bot.FigureCode);
+            writer.WriteString(bot.FigureCode ?? string.Empty);
         }
     }
 }

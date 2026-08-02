@@ -26,13 +26,22 @@ public class RoomUserTradeEventHandler(
             return;
         }
 
-        if (roomUser.Player.Player.Id == TargetUserId || !room.UserRepository.TryGetById(TargetUserId, out var targetUser))
+        if (roomUser.Player.Player.Id == TargetUserId ||
+            !room.UserRepository.TryGetById(TargetUserId, out var targetUser) ||
+            targetUser == null)
         {
             return;
         }
 
-        if ((room.Room.Settings.TradeOption == RoomTradeOption.RequiresRights && !roomUser.HasRights()) || 
-            room.Room.Settings.TradeOption != RoomTradeOption.Allowed)
+        var roomSettings = room.Room.Settings;
+
+        if (roomSettings == null)
+        {
+            return;
+        }
+
+        if ((roomSettings.TradeOption == RoomTradeOption.RequiresRights && !roomUser.HasRights()) || 
+            roomSettings.TradeOption != RoomTradeOption.Allowed)
         {
             await client.WriteToStreamAsync(new RoomUserTradeErrorWriter { Code = RoomUserTradeError.RoomTradingNotAllowed });
             return;

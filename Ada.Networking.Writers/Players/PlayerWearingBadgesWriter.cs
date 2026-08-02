@@ -19,7 +19,7 @@ public class PlayerWearingBadgesWriter : AbstractPacketWriter
             foreach (var item in Badges)
             {
                 writer.WriteInteger(item.Slot);
-                writer.WriteString(item.Badge.Code);
+                writer.WriteString(item.Badge?.Code ?? string.Empty);
             }
         });
     }

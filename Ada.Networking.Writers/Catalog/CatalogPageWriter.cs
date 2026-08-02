@@ -35,8 +35,11 @@ public class CatalogPageWriter : AbstractPacketWriter
 
             foreach (var item in Items)
             {
+                var itemName = item.Name ?? string.Empty;
+                var metaData = item.MetaData ?? string.Empty;
+
                 writer.WriteInteger(item.Id);
-                writer.WriteString(item.Name);
+                writer.WriteString(itemName);
                 writer.WriteBool(false);
                 writer.WriteInteger(item.CostCredits);
                 writer.WriteInteger(item.CostPoints);
@@ -56,20 +59,20 @@ public class CatalogPageWriter : AbstractPacketWriter
                     {
                         writer.WriteInteger(furnitureItem.AssetId);
 
-                        if (item.Name.Contains("_single_"))
+                        if (itemName.Contains("_single_"))
                         {
-                            writer.WriteString(item.Name.Split("_")[2]);
+                            writer.WriteString(itemName.Split("_")[2]);
                         }
-                        else if (item.Name.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
+                        else if (itemName.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
                         {
-                            var look = item.MetaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
-                            writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : item.MetaData);
+                            var look = metaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
+                            writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : metaData);
                         }
                         else if (furnitureItem.Type == FurnitureItemType.Bot ||
-                                 item.Name.ToLower() == "poster" ||
-                                 item.Name.StartsWith("SONG "))
+                                 itemName.ToLower() == "poster" ||
+                                 itemName.StartsWith("SONG "))
                         {
-                            writer.WriteString(item.MetaData);
+                            writer.WriteString(metaData);
                         }
                         else
                         {
@@ -84,7 +87,7 @@ public class CatalogPageWriter : AbstractPacketWriter
                 writer.WriteInteger(item.RequiresClubMembership ? 1 : 0);
                 writer.WriteBool(item.Amount == 1);
                 writer.WriteBool(false);
-                writer.WriteString($"{item.Name}.png");
+                writer.WriteString($"{itemName}.png");
             }
         });
     }
@@ -103,20 +106,20 @@ public class CatalogPageWriter : AbstractPacketWriter
             foreach (var item in FrontPageItems)
             {
                 writer.WriteInteger(item.Id);
-                writer.WriteString(item.Title);
-                writer.WriteString(item.Image);
+                writer.WriteString(item.Title ?? string.Empty);
+                writer.WriteString(item.Image ?? string.Empty);
                 writer.WriteInteger((int)item.TypeId);
 
                 switch (item.TypeId)
                 {
                     case CatalogFrontPageItemType.PageId:
-                        writer.WriteInteger(item.CatalogPage.Id);
+                        writer.WriteInteger(item.CatalogPage?.Id ?? 0);
                         break;
                     case CatalogFrontPageItemType.PageName:
-                        writer.WriteString(item.CatalogPage.Name);
+                        writer.WriteString(item.CatalogPage?.Name ?? string.Empty);
                         break;
                     case CatalogFrontPageItemType.ProductName:
-                        writer.WriteString(item.ProductName);
+                        writer.WriteString(item.ProductName ?? string.Empty);
                         break;
                     default:
                         throw new Exception($"Unknown catalog front page item type {(int)item.TypeId}");

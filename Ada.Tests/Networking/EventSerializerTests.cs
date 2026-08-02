@@ -179,6 +179,6 @@ public class EventSerializerTests
         var handler = new UnsupportedHandler();
 
         Assert.Throws<Exception>(() =>
-            EventSerializer.SetPropertiesForEventHandler(handler, new NetworkPacketReader([])));
+            EventSerializer.SetPropertiesForEventHandler(handler, new NetworkPacketReader(new byte[] {  })));
     }
 }

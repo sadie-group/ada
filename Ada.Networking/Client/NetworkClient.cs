@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Net.WebSockets;
 using Ada.API;
@@ -5,6 +6,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets.Serialization;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +14,7 @@ namespace Ada.Networking.Client;
 
 public class NetworkClient(
     ILogger<NetworkClient> logger,
+    IPacketCodecRegistry codecRegistry,
     IPAddress ipAddress,
     Guid guid,
     WebSocket webSocket)
@@ -20,6 +23,7 @@ public class NetworkClient(
     public IPAddress IpAddress { get; set; } = ipAddress;
     public Guid Guid { get; set; } = guid;
     public WebSocket WebSocket { get; set; } = webSocket;
+    public IPacketCodec Codec { get; set; } = codecRegistry.Default;
 
     public IPlayerLogic? Player { get; set; }
     public IRoomUser? RoomUser { get; set; }
@@ -34,102 +38,186 @@ public class NetworkClient(
     public DateTime LastPing { get; set; } = DateTime.Now;
     public DateTime LastPong { get; set; } = DateTime.Now;
 
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private const int MaxOutboxBytes = 8 * 1024 * 1024;
 
     private readonly object _outboxLock = new();
     private readonly List<INetworkPacketWriter> _outbox = [];
+    private int _outboxBytes;
+    private bool _sendInFlight;
+    private bool _overflowed;
+    private bool _disposed;
+    private Task _pumpTask = Task.CompletedTask;
 
-    public async Task WriteToStreamAsync(AbstractPacketWriter writer)
-    {
-        var serializedObject = NetworkPacketWriterSerializer.Serialize(writer);
-        await WriteToStreamAsync(serializedObject);
-    }
+    public Task WriteToStreamAsync(AbstractPacketWriter writer)
+        => WriteToStreamAsync(NetworkPacketWriterSerializer.Serialize(writer, Codec));
 
-    public async Task WriteToStreamAsync(INetworkPacketWriter writer)
+    public Task WriteToStreamAsync(INetworkPacketWriter writer)
     {
-        try
-        {
-            await SendBytesAsync(writer.GetAllBytes());
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e.ToString());
-        }
+        QueueOutbound(writer);
+        _ = FlushAsync();
+
+        return Task.CompletedTask;
     }
 
     public void QueueOutbound(INetworkPacketWriter writer)
     {
         lock (_outboxLock)
         {
-            _outbox.Add(writer);
-        }
-    }
-
-    public async Task FlushAsync()
-    {
-        INetworkPacketWriter[] batch;
-
-        lock (_outboxLock)
-        {
-            if (_outbox.Count == 0)
+            if (_disposed)
             {
                 return;
             }
 
-            batch = _outbox.ToArray();
-            _outbox.Clear();
+            var length = writer.GetAllBytes().Length;
+
+            if (_outboxBytes + length > MaxOutboxBytes)
+            {
+                if (!_overflowed)
+                {
+                    _overflowed = true;
+                    logger.LogError("Outbox overflow for client {Guid}, aborting connection", Guid);
+                    WebSocket.Abort();
+                }
+
+                return;
+            }
+
+            _outbox.Add(writer);
+            _outboxBytes += length;
+        }
+    }
+
+    public Task FlushAsync()
+    {
+        lock (_outboxLock)
+        {
+            if (_sendInFlight || _outbox.Count == 0 || _disposed)
+            {
+                return Task.CompletedTask;
+            }
+
+            _sendInFlight = true;
+
+            return _pumpTask = PumpAsync();
+        }
+    }
+
+    private async Task PumpAsync()
+    {
+        try
+        {
+            while (true)
+            {
+                INetworkPacketWriter[] batch;
+
+                lock (_outboxLock)
+                {
+                    if (_outbox.Count == 0 || _disposed)
+                    {
+                        _sendInFlight = false;
+                        return;
+                    }
+
+                    batch = _outbox.ToArray();
+                    _outbox.Clear();
+                    _outboxBytes = 0;
+                }
+
+                await SendBatchAsync(batch);
+            }
+        }
+        catch (Exception e)
+        {
+            lock (_outboxLock)
+            {
+                _sendInFlight = false;
+                _outbox.Clear();
+                _outboxBytes = 0;
+            }
+
+            logger.LogError(e.ToString());
+        }
+    }
+
+    private async Task SendBatchAsync(INetworkPacketWriter[] batch)
+    {
+        if (WebSocket.State is not WebSocketState.Open)
+        {
+            return;
         }
 
         if (batch.Length == 1)
         {
-            await SendBytesAsync(batch[0].GetAllBytes());
+            await WebSocket.SendAsync(
+                batch[0].GetAllBytes(),
+                WebSocketMessageType.Binary,
+                true,
+                CancellationToken.None);
+
             return;
         }
 
         var totalLength = 0;
+        
         foreach (var writer in batch)
         {
             totalLength += writer.GetAllBytes().Length;
         }
 
-        var payload = new byte[totalLength];
-        var offset = 0;
-        foreach (var writer in batch)
-        {
-            var bytes = writer.GetAllBytes();
-            bytes.CopyTo(payload, offset);
-            offset += bytes.Length;
-        }
+        var payload = ArrayPool<byte>.Shared.Rent(totalLength);
 
-        await SendBytesAsync(payload);
-    }
-
-    private async Task SendBytesAsync(ReadOnlyMemory<byte> bytes)
-    {
-        await _sendLock.WaitAsync();
         try
         {
-            if (WebSocket.State is WebSocketState.Open)
+            var offset = 0;
+
+            foreach (var writer in batch)
             {
-                await WebSocket.SendAsync(bytes, WebSocketMessageType.Binary, true, CancellationToken.None);
+                var bytes = writer.GetAllBytes();
+                bytes.CopyTo(payload.AsSpan(offset));
+                offset += bytes.Length;
             }
+
+            await WebSocket.SendAsync(
+                payload.AsMemory(0, totalLength),
+                WebSocketMessageType.Binary,
+                true,
+                CancellationToken.None);
         }
         finally
         {
-            _sendLock.Release();
+            ArrayPool<byte>.Shared.Return(payload);
         }
     }
 
-    private bool _disposed;
-
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        Task pump;
+
+        lock (_outboxLock)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            pump = _pumpTask;
         }
 
-        _disposed = true;
+        try
+        {
+            await FlushAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            await pump.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception e) when (e is TimeoutException or WebSocketException or OperationCanceledException)
+        {
+        }
+
+        lock (_outboxLock)
+        {
+            _disposed = true;
+            _outbox.Clear();
+            _outboxBytes = 0;
+        }
 
         try
         {
@@ -143,9 +231,5 @@ public class NetworkClient(
             }
         }
         catch (WebSocketException) {}
-        finally
-        {
-            _sendLock.Dispose();
-        }
     }
 }

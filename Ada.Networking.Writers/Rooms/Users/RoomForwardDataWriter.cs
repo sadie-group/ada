@@ -21,12 +21,18 @@ public class RoomForwardDataWriter : AbstractPacketWriter
         var settings = Room.Settings;
         var chatSettings = Room.ChatSettings;
 
+        if (settings == null || chatSettings == null)
+        {
+            throw new InvalidOperationException(
+                $"Room {Room.Id} has no settings or chat settings loaded and cannot be serialized");
+        }
+
         writer.WriteBool(EnterRoom);
         writer.WriteLong(Room.Id);
         writer.WriteString(Room.Name);
         writer.WriteLong(Room.OwnerId);
         writer.WriteString(OwnerUsername);
-        writer.WriteInteger((int) Room.Settings.AccessType);
+        writer.WriteInteger((int) settings.AccessType);
         writer.WriteInteger(UsersNow);
         writer.WriteInteger(Room.MaxUsersAllowed);
         writer.WriteString(Room.Description);
@@ -40,7 +46,7 @@ public class RoomForwardDataWriter : AbstractPacketWriter
         {
             writer.WriteString(tag.Name);
         }
-        
+
         writer.WriteInteger((int) RoomBitmask.ShowOwner);
         writer.WriteBool(RoomForward);
         writer.WriteBool(false);
@@ -50,10 +56,10 @@ public class RoomForwardDataWriter : AbstractPacketWriter
         writer.WriteInteger(settings.WhoCanKick);
         writer.WriteInteger(settings.WhoCanBan);
         writer.WriteBool(IsOwner);
-        writer.WriteInteger(chatSettings.ChatType); 
-        writer.WriteInteger(chatSettings.ChatWeight); 
-        writer.WriteInteger(chatSettings.ChatSpeed); 
-        writer.WriteInteger(chatSettings.ChatDistance); 
-        writer.WriteInteger(chatSettings.ChatProtection); 
+        writer.WriteInteger(chatSettings.ChatType);
+        writer.WriteInteger(chatSettings.ChatWeight);
+        writer.WriteInteger(chatSettings.ChatSpeed);
+        writer.WriteInteger(chatSettings.ChatDistance);
+        writer.WriteInteger(chatSettings.ChatProtection);
     }
 }

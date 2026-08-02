@@ -19,14 +19,19 @@ public class PlayerSendFriendRequestEventHandler(
     ServerPlayerConstants playerConstants,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TargetUsername { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
-        
+
+        if (player == null || string.IsNullOrEmpty(TargetUsername))
+        {
+            return;
+        }
+
         if (player.GetAcceptedFriendshipCount() >= playerConstants.MaxFriendships)
         {
             await client.WriteToStreamAsync(new PlayerFriendshipErrorWriter
@@ -81,7 +86,7 @@ public class PlayerSendFriendRequestEventHandler(
             return;
         }
         
-        if (!targetPlayer.Data.AllowFriendRequests)
+        if (targetPlayer.Data is not { AllowFriendRequests: true })
         {
             await client.WriteToStreamAsync(new PlayerFriendshipErrorWriter
             {
@@ -165,12 +170,15 @@ public class PlayerSendFriendRequestEventHandler(
             {
                 Id = player.Id,
                 Username = player.Username,
-                FigureCode = player.AvatarData.FigureCode
+                FigureCode = player.AvatarData?.FigureCode ?? string.Empty
             };
-            
+
             onlineTarget.Player.IncomingFriendships.Add(playerFriendship);
-                
-            await onlineTarget.NetworkObject.WriteToStreamAsync(friendRequestWriter);
+
+            if (onlineTarget.NetworkObject != null)
+            {
+                await onlineTarget.NetworkObject.WriteToStreamAsync(friendRequestWriter);
+            }
         }
         
         var entity = mapper.Map<PlayerFriendship>(playerFriendship);

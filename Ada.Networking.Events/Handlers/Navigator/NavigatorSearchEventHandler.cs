@@ -28,22 +28,22 @@ public class NavigatorSearchEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
         var tab = await dbContext.Set<NavigatorTab>()
             .Include(x => x.Categories)
             .FirstOrDefaultAsync(x => x.Name == TabName);
 
-        if (tab == null)
-        {
-            return;
-        }
+        var dbCategories = tab?
+            .Categories
+            .OrderBy(x => x.OrderId)
+            .ToList() ?? [];
 
-        var dbCategories = tab.
-            Categories.
-            OrderBy(x => x.OrderId).
-            ToList();
-        
         var categories = mapper.Map<List<NavigatorCategoryDto>>(dbCategories);
 
         var categoryRoomMap = new Dictionary<NavigatorCategoryDto, List<RoomDto>>();

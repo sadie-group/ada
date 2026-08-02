@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Networking;
+using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
 
@@ -47,11 +47,11 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
                     writer.WriteString(guestRoom.Name);
                     writer.WriteLong(guestRoom.OwnerId);
                     writer.WriteString(GuestRoomOwnerUsername);
-                    writer.WriteInteger((int) guestRoom.Settings.AccessType);
+                    writer.WriteInteger(guestRoom.Settings == null ? 0 : (int) guestRoom.Settings.AccessType);
                     writer.WriteInteger(OfficialRoomEntryData.UserCount);
                     writer.WriteInteger(guestRoom.MaxUsersAllowed);
                     writer.WriteString(guestRoom.Description);
-                    writer.WriteInteger((int) guestRoom.Settings.TradeOption);
+                    writer.WriteInteger(guestRoom.Settings == null ? 0 : (int) guestRoom.Settings.TradeOption);
                     writer.WriteInteger(guestRoom.PlayerLikes.Count);
                     writer.WriteInteger(0);
                     writer.WriteInteger(1);

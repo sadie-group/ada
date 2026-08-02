@@ -11,7 +11,6 @@ using Ada.Db.Models.Rooms.Rights;
 using Ada.Game.Rooms;
 using Ada.Game.Rooms.Mapping;
 using Ada.Game.Rooms.PathFinding;
-using Ada.Game.Rooms.PathFinding.ToGo;
 using Ada.Game.Rooms.PathFinding.ToGo.Options;
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;

@@ -8,6 +8,7 @@ using Ada.Db.Models.Constants;
 using Ada.Db.Models.Furniture;
 using Ada.Db.Models.Groups;
 using Ada.Db.Models.Navigator;
+using Ada.Db.Models.Moderation;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Db.Models.Rooms;
@@ -60,6 +61,8 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<PlayerRoomLike> PlayerRoomLikes { get; init; }
     public DbSet<PlayerMessage> PlayerMessages { get; init; }
     public DbSet<PlayerBan> PlayerBans { get; init; }
+    public DbSet<ModerationTicket> ModerationTickets { get; init; }
+    public DbSet<ModerationCfhTopic> ModerationCfhTopics { get; init; }
     public DbSet<BannedIpAddress> BannedIpAddresses { get; init; }
     public DbSet<BannedMachine> BannedMachines { get; init; }
     public DbSet<OauthClient> OauthClients { get; init; }

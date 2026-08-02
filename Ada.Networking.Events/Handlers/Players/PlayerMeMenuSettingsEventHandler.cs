@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Networking.Writers.Players.Other;
@@ -10,8 +10,18 @@ public class PlayerMeMenuSettingsEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var player = client.Player!;
         var playerGameSettings = player.Player.GameSettings;
+
+        if (playerGameSettings == null)
+        {
+            return;
+        }
         
         await client.WriteToStreamAsync(new PlayerMeMenuSettingsWriter
         {
@@ -22,7 +32,7 @@ public class PlayerMeMenuSettingsEventHandler : INetworkPacketEventHandler
             BlockRoomInvites = playerGameSettings.BlockRoomInvites,
             BlockCameraFollow = playerGameSettings.BlockCameraFollow,
             UiFlags = playerGameSettings.UiFlags,
-            ChatBubble = (int) player.Player.AvatarData.ChatBubbleId
+            ChatBubble = (int) (player.Player.AvatarData?.ChatBubbleId ?? 0)
         });
     }
 }

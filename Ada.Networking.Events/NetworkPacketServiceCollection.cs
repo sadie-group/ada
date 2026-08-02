@@ -1,14 +1,13 @@
-using System.Reflection;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
-using Ada.Core.Shared.Attributes;
 using Ada.Networking.Client;
 using Ada.Networking.Events.Handlers;
 using Ada.Networking.Events.Handlers.Rooms;
 using Ada.Networking.Packets;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events;
 
@@ -22,28 +21,23 @@ public static class NetworkPacketServiceCollection
             .AsImplementedInterfaces()
             .WithTransientLifetime());
 
-        var packetHandlerTypeMap = new Dictionary<short, Type>();
-        
-        foreach(var type in Assembly.GetExecutingAssembly().GetTypes())
-        {
-            var attributes = type.GetCustomAttributes(typeof(PacketIdAttribute), false);
-            var headerAttribute = attributes.FirstOrDefault();
-
-            if (headerAttribute == null)
-            {
-                continue;
-            }
-            
-            packetHandlerTypeMap.Add(((PacketIdAttribute) headerAttribute).Id, type);
-        }
-
-        serviceCollection.AddSingleton(packetHandlerTypeMap);
         serviceCollection.AddSingleton<RoomHeightmapEventHandler>();
+        serviceCollection.AddSingleton<PlayerLoginPacketService>();
         serviceCollection.AddSingleton<INetworkPacketHandler, ClientPacketHandler>();
         serviceCollection.AddSingleton<INetworkPacketDecoder, NetworkPacketDecoder>();
+        serviceCollection.AddSingleton<IPacketIdMap>(_ => new DefaultPacketIdMap());
+
+        serviceCollection.AddSingleton<IPacketCodec>(sp => new BinaryPacketCodec(
+            sp.GetRequiredService<IPacketIdMap>(),
+            sp.GetRequiredService<INetworkPacketDecoder>()));
+
+        serviceCollection.AddSingleton<IPacketCodecRegistry>(sp => new PacketCodecRegistry(
+            sp.GetServices<IPacketCodec>(),
+            BinaryPacketCodec.RevisionName));
         serviceCollection.AddSingleton<IWebSocketMessageReader, WebSocketMessageReader>();
         serviceCollection.AddSingleton<INetworkClientConnectionHandler, NetworkClientConnectionHandler>();
         serviceCollection.AddSingleton<PacketDispatcher>(p => new PacketDispatcher(
-            p.GetRequiredService<INetworkPacketHandler>()));
+            p.GetRequiredService<INetworkPacketHandler>(),
+            p.GetRequiredService<ILogger<PacketDispatcher>>()));
     }
 }

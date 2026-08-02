@@ -63,7 +63,7 @@ public class RoomItemPlacedEventHandler(
 
         var playerItem = player.Player.FurnitureItems.FirstOrDefault(x => x.Id == itemId);
 
-        if (playerItem == null)
+        if (playerItem == null || playerItem.PlacementData != null)
         {
             await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
             return;

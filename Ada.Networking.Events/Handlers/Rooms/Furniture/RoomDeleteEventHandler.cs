@@ -5,7 +5,6 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
-using Ada.Db.Models.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +21,11 @@ public class RoomDeleteEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var room = await RoomHelpers.TryLoadRoomByIdAsync(
             RoomId, 
             roomRepository, 

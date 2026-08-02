@@ -34,7 +34,7 @@ public static class RoomHelpers
         
         var room = await dbContext.Set<Room>()
             .Include(x => x.Layout)
-            .Include(x => x.FurnitureItems)
+            .Include(x => x.FurnitureItems).ThenInclude(x => x.PlayerFurnitureItem).ThenInclude(x => x.FurnitureItem)
             .Include(x => x.Owner)
             .Include(x => x.PaintSettings)
             .Include(x => x.ChatSettings)
@@ -44,7 +44,7 @@ public static class RoomHelpers
             .Include(x => x.DimmerSettings)
             .Include(x => x.PlayerBans).ThenInclude(x => x.Player)
             .AsSplitQuery()
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (room == null)

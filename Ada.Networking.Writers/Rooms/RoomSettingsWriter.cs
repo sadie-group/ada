@@ -15,7 +15,7 @@ public class RoomSettingsWriter : AbstractPacketWriter
         writer.WriteInteger(Room.Id);
         writer.WriteString(Room.Name);
         writer.WriteString(Room.Description);
-        writer.WriteInteger((int) Room.Settings.AccessType);
+        writer.WriteInteger(Room.Settings == null ? 0 : (int) Room.Settings.AccessType);
         writer.WriteInteger(0);
         writer.WriteInteger(Room.MaxUsersAllowed);
         writer.WriteInteger(Room.MaxUsersAllowed);
@@ -26,7 +26,7 @@ public class RoomSettingsWriter : AbstractPacketWriter
             writer.WriteString(tag.Name);
         }
 
-        var settings = Room.Settings;
+        var settings = Room.Settings!;
         var chatSettings = Room.ChatSettings!;
         
         writer.WriteInteger((int) settings.TradeOption);

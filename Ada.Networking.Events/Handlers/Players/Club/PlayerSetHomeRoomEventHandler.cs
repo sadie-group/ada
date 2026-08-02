@@ -9,14 +9,19 @@ namespace Ada.Networking.Events.Handlers.Players.Club;
 
 [PacketId(EventHandlerId.PlayerSetHomeRoom)]
 public class PlayerSetHomeRoomEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int RoomId { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (client.Player?.NetworkObject == null ||
-            client.Player.Player.Data.HomeRoomId == RoomId)
+            client.Player.Player.Data?.HomeRoomId == RoomId)
         {
             return;
         }
@@ -27,7 +32,10 @@ public class PlayerSetHomeRoomEventHandler(
             RoomIdToEnter = 0
         });
         
-        client.Player.Player.Data.HomeRoomId = RoomId;
+        if (client.Player.Player.Data != null)
+        {
+            client.Player.Player.Data.HomeRoomId = RoomId;
+        }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 

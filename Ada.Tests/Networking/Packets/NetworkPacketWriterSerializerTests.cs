@@ -61,7 +61,7 @@ public class NetworkPacketWriterSerializerTests
 
     private static byte[] Payload(object packet)
     {
-        var writer = (NetworkPacketWriter)NetworkPacketWriterSerializer.Serialize(packet);
+        var writer = (NetworkPacketWriter)NetworkPacketWriterSerializer.Serialize(packet, TestPacketCodec.Instance);
         return writer.GetAllBytes().Skip(4).ToArray();
     }
 
@@ -78,7 +78,7 @@ public class NetworkPacketWriterSerializerTests
     [Test]
     public void Serialize_MissingPacketIdAttribute_Throws()
     {
-        Assert.Throws<InvalidOperationException>(() => NetworkPacketWriterSerializer.Serialize(new NoAttributePacket()));
+        Assert.Throws<InvalidOperationException>(() => NetworkPacketWriterSerializer.Serialize(new NoAttributePacket(), TestPacketCodec.Instance));
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class NetworkPacketWriterSerializerTests
     {
         var payload = Payload(new ScalarPacket { Number = 7, Text = "ada", Flag = true });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var number = reader.ReadInt();
         var text = reader.ReadString();
         var flag = reader.ReadBool();
@@ -104,7 +104,7 @@ public class NetworkPacketWriterSerializerTests
     {
         var payload = Payload(new StringListPacket { Items = ["a", "b"] });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var count = reader.ReadInt();
         var first = reader.ReadString();
         var second = reader.ReadString();
@@ -122,7 +122,7 @@ public class NetworkPacketWriterSerializerTests
     {
         var payload = Payload(new CustomSerializePacket { Ignored = 5 });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         var value = reader.ReadInt();
 
         Assert.Multiple(() =>
@@ -137,7 +137,7 @@ public class NetworkPacketWriterSerializerTests
     {
         var payload = Payload(new ConvertedPacket { Number = 8 });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         Assert.That(reader.ReadString(), Is.EqualTo("n8"));
     }
 
@@ -146,7 +146,7 @@ public class NetworkPacketWriterSerializerTests
     {
         var payload = Payload(new OverriddenPacket { Number = 8 });
 
-        var reader = new NetworkPacketReader(payload.AsSpan(2));
+        var reader = new NetworkPacketReader(payload.AsMemory(2));
         Assert.That(reader.ReadInt(), Is.EqualTo(-1));
     }
 }

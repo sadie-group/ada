@@ -35,7 +35,8 @@ public class RoomUserRespectEventHandler(
         var lastRoom = player.State.CurrentRoomId;
         var targetPlayer = playerRepository.GetPlayerLogicById(TargetId);
         
-        if (playerData.RespectPoints < 1 || 
+        if (playerData == null ||
+            playerData.RespectPoints < 1 || 
             player.Player.Id == TargetId || 
             targetPlayer == null || 
             targetPlayer.State.CurrentRoomId != 0 && lastRoom != targetPlayer.State.CurrentRoomId)

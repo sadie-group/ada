@@ -13,12 +13,17 @@ namespace Ada.Networking.Events.Handlers.Players.Friendships;
 public class PlayerRemoveFriendsEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public List<long> Ids { get; init; } = [];
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var playerId = client.Player.Player.Id;
         
         foreach (var currentId in Ids)

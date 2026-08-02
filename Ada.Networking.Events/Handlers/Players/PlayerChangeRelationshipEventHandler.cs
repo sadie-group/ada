@@ -17,7 +17,7 @@ public sealed class PlayerChangeRelationshipEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int PlayerId { get; set; }
     public int RelationId { get; set; }

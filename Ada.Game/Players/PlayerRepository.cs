@@ -34,7 +34,6 @@ public class PlayerRepository(
         
         var player = await dbContext
             .Set<Player>()
-            .AsNoTracking()
             .Include(x => x.Data)
             .Include(x => x.AvatarData)
             .Include(x => x.OriginRelationships).ThenInclude(x => x.TargetPlayer)
@@ -47,7 +46,10 @@ public class PlayerRepository(
             .Include(x => x.Roles)
             .Include(x => x.OutgoingIgnores)
             .Include(x => x.RoomLikes)
+            .Include(x => x.FurnitureItems).ThenInclude(x => x.FurnitureItem)
+            .Include(x => x.FurnitureItems).ThenInclude(x => x.PlacementData)
             .AsSplitQuery()
+            .AsNoTrackingWithIdentityResolution()
             .FirstOrDefaultAsync(x => x.Id == id);
         
         var value = mapper.Map<PlayerDto>(player);
@@ -134,8 +136,7 @@ public class PlayerRepository(
 
     public async Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        var packet = NetworkPacketWriterSerializer.Serialize(writer);
-        await Task.WhenAll(_players.Values.Select(player => player.NetworkObject!.WriteToStreamAsync(packet)));
+        await PacketBroadcast.SendAsync(writer, _players.Values.Select(player => player.NetworkObject!));
     }
 
     public async Task<string?> GetPlayerUsernameByIdAsync(long playerId)

@@ -1,4 +1,3 @@
-using Ada.API.Interfaces.Game.Rooms.Pathfinding.ToGo;
 using Ada.Game.Rooms.PathFinding.ToGo.Collections.MultiDimensional;
 
 namespace Ada.Game.Rooms.PathFinding.ToGo.Collections.PathFinder;

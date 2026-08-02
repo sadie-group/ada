@@ -1,5 +1,6 @@
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Networking.Writers.Players;
 
@@ -13,6 +14,11 @@ public class ModToolsRoomAlertEventHandler : INetworkPacketEventHandler
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null || !client.Player.HasPermission(PlayerPermissionName.Moderator))
+        {
+            return;
+        }
+
         await client.RoomUser?.Room.BroadcastDataAsync(new PlayerAlertWriter
         {
             Message = Message

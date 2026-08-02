@@ -28,8 +28,11 @@ public class CatalogPurchaseOkWriter : AbstractPacketWriter
 
     public override void OnSerialize(INetworkPacketWriter writer)
     {
+        var name = Name ?? string.Empty;
+        var metadata = Metadata ?? string.Empty;
+
         writer.WriteInteger(Id);
-        writer.WriteString(Name);
+        writer.WriteString(name);
         writer.WriteBool(Rented);
         writer.WriteInteger(CostCredits);
         writer.WriteInteger(CostPoints);
@@ -49,18 +52,18 @@ public class CatalogPurchaseOkWriter : AbstractPacketWriter
             {
                 writer.WriteInteger(furnitureItem.AssetId);
 
-                if (Name.Contains("wallpaper_single") || Name.Contains("floor_single") || Name.Contains("landscape_single"))
+                if (name.Contains("wallpaper_single") || name.Contains("floor_single") || name.Contains("landscape_single"))
                 {
-                    writer.WriteString(Name.Split("_")[2]);
+                    writer.WriteString(name.Split("_")[2]);
                 }
-                else if (Name.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
+                else if (name.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
                 {
-                    var look = Metadata.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
-                    writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : Metadata);
+                    var look = metadata.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
+                    writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : metadata);
                 }
-                else if (furnitureItem.Type == FurnitureItemType.Bot || Name.ToLower() == "poster" || Name.StartsWith("SONG "))
+                else if (furnitureItem.Type == FurnitureItemType.Bot || name.ToLower() == "poster" || name.StartsWith("SONG "))
                 {
-                    writer.WriteString(Metadata);
+                    writer.WriteString(metadata);
                 }
                 else
                 {

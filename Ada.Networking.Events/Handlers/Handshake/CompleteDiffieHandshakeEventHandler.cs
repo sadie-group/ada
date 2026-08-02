@@ -16,6 +16,11 @@ public class CompleteDiffieHandshakeEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (string.IsNullOrEmpty(PublicKey))
+        {
+            return;
+        }
+
         var sharedKey = habboEncryption.CalculateDiffieHellmanSharedKey(PublicKey);
 
         await client.WriteToStreamAsync(new CompleteDiffieHandshakeWriter

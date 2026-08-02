@@ -17,7 +17,6 @@ namespace Ada.Networking.Events.Handlers;
 
 public class ClientPacketHandler(
     ILogger<ClientPacketHandler> logger,
-    Dictionary<short, Type> packetHandlerTypeMap,
     PacketHandlerFactory handlerFactory,
     IOptions<NetworkPacketOptions> packetOptions,
     IEnumerable<INetworkPacketEventFilter> packetFilters)
@@ -27,7 +26,7 @@ public class ClientPacketHandler(
     {
         try
         {
-            if (!packetHandlerTypeMap.TryGetValue(packet.PacketId, out var packetEventType))
+            if (!client.Codec.IdMap.TryGetHandlerType(packet.PacketId, out var packetEventType))
             {
                 if (packetOptions.Value.NotifyMissingPacket)
                 {
@@ -38,7 +37,7 @@ public class ClientPacketHandler(
                 return;
             }
 
-            var eventHandler = handlerFactory.Create(packet.PacketId);
+            var eventHandler = handlerFactory.Create(packetEventType);
 
             if (!ValidateAttributes(eventHandler, client))
             {
@@ -46,7 +45,7 @@ public class ClientPacketHandler(
                 return;
             }
             
-            var packetReader = new NetworkPacketReader(packet.Data.Span);
+            var packetReader = client.Codec.CreateReader(packet.Data);
             EventSerializer.SetPropertiesForEventHandler(eventHandler, packetReader);
 
             if (client.RoomUser != null &&
@@ -162,7 +161,9 @@ public class ClientPacketHandler(
 
         try
         {
-            var room = eventHandler is IManagesOwnRoomLock ? null : client.RoomUser?.Room;
+            var room = eventHandler is IManagesOwnRoomLock or IRunsOutsideRoomLock
+                ? null
+                : client.RoomUser?.Room;
 
             if (room != null)
             {

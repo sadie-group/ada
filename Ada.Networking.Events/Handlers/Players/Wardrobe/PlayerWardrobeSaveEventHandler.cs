@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Players.Wardrobe;
 [PacketId(EventHandlerId.PlayerWardrobeSave)]
 public class PlayerWardrobeSaveEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int SlotId { get; set; }
     public required string FigureCode { get; set; }

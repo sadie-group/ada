@@ -2,6 +2,7 @@
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Networking.Events.Attributes;
+using Ada.Networking.Writers.Client;
 
 namespace Ada.Networking.Events.Handlers.Client;
 
@@ -9,7 +10,13 @@ namespace Ada.Networking.Events.Handlers.Client;
 [AllowUnauthenticated]
 public class ClientLatencyEventHandler : INetworkPacketEventHandler
 {
+    public int Timestamp { get; set; }
+
     public async Task HandleAsync(INetworkClient client)
     {
+        await client.WriteToStreamAsync(new ClientLatencyWriter
+        {
+            Timestamp = Timestamp
+        });
     }
 }

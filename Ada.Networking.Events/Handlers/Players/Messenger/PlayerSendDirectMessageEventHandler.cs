@@ -19,13 +19,18 @@ public class PlayerSendDirectMessageEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int PlayerId { get; set; }
     public required string Message { get; set; }
 
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if ((DateTime.Now - client.Player.State.LastDirectMessage).TotalMilliseconds < CooldownIntervals.PlayerDirectMessage)
         {
             return;
@@ -69,7 +74,7 @@ public class PlayerSendDirectMessageEventHandler(
             CreatedAt = DateTime.Now
         };
 
-        await targetPlayer.NetworkObject.WriteToStreamAsync(new PlayerDirectMessageWriter
+        await targetPlayer.NetworkObject!.WriteToStreamAsync(new PlayerDirectMessageWriter
         {
             Message = playerMessage
         });

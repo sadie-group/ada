@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
-using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets;
 
 namespace Ada.Networking.Client;
@@ -9,7 +8,6 @@ namespace Ada.Networking.Client;
 public class NetworkClientConnectionHandler(
     INetworkClientRepository clientRepository,
     IWebSocketMessageReader webSocketMessageReader,
-    INetworkPacketDecoder packetDecoder,
     PacketDispatcher packetDispatcher,
     IClientDisposalService clientDisposalService)
     : INetworkClientConnectionHandler
@@ -31,7 +29,7 @@ public class NetworkClientConnectionHandler(
                     continue;
                 }
 
-                var packet = packetDecoder.Decode(client.Guid, buffer, length);
+                var packet = client.Codec.Decoder.Decode(client.Guid, buffer, length);
                 await packetDispatcher.ProcessAsync(client, packet);
             }
         }

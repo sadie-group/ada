@@ -6,7 +6,6 @@ using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Db;
-using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Rooms.Furniture;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.WebSockets;
+using Ada.API;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Microsoft.Extensions.Hosting;
@@ -36,9 +37,6 @@ namespace Ada.Game
             return Task.CompletedTask;
         }
 
-        // Full simulation runs every PassesPerTick passes (the original 500ms tick);
-        // the passes in between only start freshly requested walks and flush
-        // outboxes, so input latency is bounded by the pass interval.
         private const int PassIntervalMilliseconds = 100;
         private const int PassesPerTick = 5;
 
@@ -100,6 +98,8 @@ namespace Ada.Game
                 return;
             }
 
+            List<INetworkObject>? toFlush = null;
+
             await room.RunLockedAsync(async () =>
             {
                 if (fullTick)
@@ -124,16 +124,19 @@ namespace Ada.Game
                         continue;
                     }
 
-                    try
-                    {
-                        await obj.FlushAsync();
-                    }
-                    catch
-                    {
-                        await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
-                    }
+                    (toFlush ??= []).Add(obj);
                 }
             });
+
+            if (toFlush == null)
+            {
+                return;
+            }
+
+            foreach (var obj in toFlush)
+            {
+                _ = obj.FlushAsync();
+            }
         }
     }
 }
