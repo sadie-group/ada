@@ -27,7 +27,14 @@ public sealed class PlayerChangeRelationshipEventHandler(
         var targetPlayerId = PlayerId;
         var relationId = RelationId;
 
-        var friendship = client.Player.TryGetAcceptedFriendshipFor(targetPlayerId);
+        var player = client.Player;
+
+        if (player == null)
+        {
+            return;
+        }
+
+        var friendship = player.TryGetAcceptedFriendshipFor(targetPlayerId);
         if (friendship is null)
         {
             return;
@@ -57,7 +64,12 @@ public sealed class PlayerChangeRelationshipEventHandler(
         int targetPlayerId,
         int relationId)
     {
-        var originPlayer = client.Player.Player;
+        var originPlayer = client.Player?.Player;
+
+        if (originPlayer == null)
+        {
+            return;
+        }
 
         var relationship = originPlayer.OriginRelationships
             .FirstOrDefault(x => x.TargetPlayerId == targetPlayerId);
@@ -109,12 +121,17 @@ public sealed class PlayerChangeRelationshipEventHandler(
             ? mapper.Map<PlayerDto>(onlineFriend!)
             : await playerRepository.GetPlayerByIdAsync(targetPlayerId);
 
+        if (friend?.AvatarData == null)
+        {
+            return;
+        }
+
         var friendData = new FriendData
         {
             Username = friend.Username,
-            Motto = friend.AvatarData.Motto,
-            FigureCode = friend.AvatarData.FigureCode,
-            Gender = PlayerAvatarGender.Male 
+            Motto = friend.AvatarData.Motto ?? string.Empty,
+            FigureCode = friend.AvatarData.FigureCode ?? string.Empty,
+            Gender = PlayerAvatarGender.Male
         };
 
         var writer = new PlayerUpdateFriendWriter

@@ -39,7 +39,7 @@ public class CatalogFurniturePurchaseService(
         {
             var dto = new PlayerFurnitureItemDto
             {
-                PlayerId = client.Player.Player.Id,
+                PlayerId = client.Player!.Player.Id,
                 FurnitureItemId = furniture.Id,
                 FurnitureItem = furniture,
                 LimitedData = "1:1",

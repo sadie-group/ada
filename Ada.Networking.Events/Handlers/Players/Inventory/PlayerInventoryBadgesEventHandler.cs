@@ -10,6 +10,11 @@ public class PlayerInventoryBadgesEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var badges = client.Player.Player.Badges
             .ToDictionary(x => x.Id, x => x.Badge?.Code ?? "");
         

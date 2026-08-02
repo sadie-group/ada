@@ -1,5 +1,4 @@
 using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
@@ -14,7 +13,6 @@ namespace Ada.Networking.Events.Handlers.Players.Friendships;
 [PacketId(EventHandlerId.PlayerAcceptFriendRequest)]
 public class PlayerAcceptFriendRequestEventHandler(
     IPlayerRepository playerRepository,
-    IRoomRepository roomRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IPlayerHelperService playerHelperService)
     : INetworkPacketEventHandler
@@ -32,8 +30,14 @@ public class PlayerAcceptFriendRequestEventHandler(
     private async Task AcceptRequestAsync(INetworkClient client, int originId)
     {
         var player = client.Player;
+
+        if (player?.Player.AvatarData == null)
+        {
+            return;
+        }
+
         var playerId = player.Player.Id;
-        
+
         var request = player
             .Player
             .IncomingFriendships
@@ -54,24 +58,30 @@ public class PlayerAcceptFriendRequestEventHandler(
         
         var targetPlayer = playerRepository.GetPlayerLogicById(originId);
         var targetOnline = targetPlayer != null;
-        var targetInRoom = targetPlayer != null && targetPlayer.State.CurrentRoomId != 0;
+        var targetInRoom = targetPlayer is { State.CurrentRoomId: not 0 };
 
-        var targetRelationship = targetOnline
-            ? targetPlayer!
-                .Player
-                .OriginRelationships
-                .FirstOrDefault(x => x.TargetPlayerId == request.OriginPlayerId || x.TargetPlayerId == request.TargetPlayerId) : null;
+        var targetData = targetPlayer?.Player ?? await playerRepository.GetPlayerByIdAsync(originId);
 
-        await playerHelperService.SendFriendUpdatesToPlayerAsync(client.Player, [
+        if (targetData?.AvatarData == null)
+        {
+            return;
+        }
+
+        var targetRelationship = targetPlayer?
+            .Player
+            .OriginRelationships
+            .FirstOrDefault(x => x.TargetPlayerId == request.OriginPlayerId || x.TargetPlayerId == request.TargetPlayerId);
+
+        await playerHelperService.SendFriendUpdatesToPlayerAsync(player, [
             new PlayerFriendshipUpdate
             {
                 Type = 0,
                 Friend = new FriendData
                 {
-                    Username = targetPlayer.Player.Username,
-                    FigureCode = targetPlayer.Player.AvatarData.FigureCode,
-                    Motto = targetPlayer.Player.AvatarData.Motto,
-                    Gender = targetPlayer.Player.AvatarData.Gender
+                    Username = targetData.Username,
+                    FigureCode = targetData.AvatarData.FigureCode ?? string.Empty,
+                    Motto = targetData.AvatarData.Motto ?? string.Empty,
+                    Gender = targetData.AvatarData.Gender
                 },
                 FriendOnline = targetOnline,
                 FriendInRoom = targetInRoom,
@@ -79,7 +89,7 @@ public class PlayerAcceptFriendRequestEventHandler(
             }
         ]);
 
-        if (targetOnline)
+        if (targetPlayer != null)
         {
             var targetRequest = targetPlayer.
                 Player.OutgoingFriendships.
@@ -89,7 +99,7 @@ public class PlayerAcceptFriendRequestEventHandler(
             {
                 return;
             }
-            
+
             var relationship = targetPlayer
                 .Player
                 .OriginRelationships
@@ -103,8 +113,8 @@ public class PlayerAcceptFriendRequestEventHandler(
                     Friend = new FriendData
                     {
                         Username = player.Player.Username,
-                        FigureCode = player.Player.AvatarData.FigureCode,
-                        Motto = player.Player.AvatarData.Motto,
+                        FigureCode = player.Player.AvatarData.FigureCode ?? string.Empty,
+                        Motto = player.Player.AvatarData.Motto ?? string.Empty,
                         Gender = player.Player.AvatarData.Gender
                     },
                     FriendOnline = true,

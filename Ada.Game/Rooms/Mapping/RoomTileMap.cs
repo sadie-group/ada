@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Drawing;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -78,7 +78,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
         }
         
         var topItemOnSquare = itemsOnSquare.MaxBy(x => x.PositionZ);
-        var effect = GetEffectFromInteractionType(topItemOnSquare.PlayerFurnitureItem.FurnitureItem.InteractionType);
+        var effect = GetEffectFromInteractionType(topItemOnSquare?.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "");
                     
         EffectMap[y, x] = (short) effect;
     }

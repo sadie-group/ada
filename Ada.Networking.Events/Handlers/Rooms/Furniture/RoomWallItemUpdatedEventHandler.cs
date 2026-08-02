@@ -21,7 +21,7 @@ public class RoomWallItemUpdatedEventHandler(
     : INetworkPacketEventHandler
 {
     public int ItemId { get; init; }
-    public string WallPosition { get; init; }
+    public string WallPosition { get; init; } = string.Empty;
     
     public async Task HandleAsync(INetworkClient client)
     {

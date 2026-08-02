@@ -56,7 +56,7 @@ public class PlayerHelperService : IPlayerHelperService
     
     public IPlayerSubscriptionWriter? GetSubscriptionWriterAsync(IPlayerLogic player, string name)
     {
-        var playerSub = player.Player.Subscriptions.FirstOrDefault(x => x.Subscription.Name == name);
+        var playerSub = player.Player.Subscriptions.FirstOrDefault(x => x.Subscription?.Name == name);
         
         if (playerSub?.Subscription == null)
         {
@@ -70,7 +70,7 @@ public class PlayerHelperService : IPlayerHelperService
 
         return new PlayerSubscriptionWriter
         {
-            Name = playerSub.Subscription.Name!.ToLower(),
+            Name = playerSub.Subscription.Name?.ToLower() ?? string.Empty,
             DaysLeft = daysLeft,
             MemberPeriods = 1,
             PeriodsSubscribedAhead = 2,
@@ -91,6 +91,8 @@ public class PlayerHelperService : IPlayerHelperService
         bool inRoom,
         IPlayerRepository playerRepository)
     {
+        var avatarData = player.Player.AvatarData;
+
         var update = new PlayerFriendshipUpdate
         {
             Type = 0,
@@ -98,9 +100,9 @@ public class PlayerHelperService : IPlayerHelperService
             {
                 Id = player.Player.Id,
                 Username = player.Player.Username,
-                FigureCode = player.Player.AvatarData.FigureCode,
-                Motto = player.Player.AvatarData.Motto,
-                Gender = player.Player.AvatarData.Gender
+                FigureCode = avatarData?.FigureCode ?? string.Empty,
+                Motto = avatarData?.Motto ?? string.Empty,
+                Gender = avatarData?.Gender ?? PlayerAvatarGender.Male
             },
             FriendOnline = isOnline,
             FriendInRoom = inRoom,

@@ -31,4 +31,13 @@
       <ProjectReference Include="..\Ada.Networking.Writers\Ada.Networking.Writers.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="TestResults\bf946460-637b-45df-9235-c9137f5c5afb\" />
+      <Folder Include="TestResults\e2773eb1-4c70-4d9f-8558-d644f352925b\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="TestResults\e2773eb1-4c70-4d9f-8558-d644f352925b\coverage.cobertura.xml" />
+    </ItemGroup>
+
 </Project>

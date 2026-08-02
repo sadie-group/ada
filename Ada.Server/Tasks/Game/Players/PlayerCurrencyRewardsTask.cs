@@ -85,38 +85,45 @@ public class PlayerCurrencyRewardsTask(
 
     private static async Task RewardPlayerAsync(IPlayerLogic player, ServerPeriodicCurrencyReward reward)
     {
+        var data = player.Player.Data;
+
+        if (data == null)
+        {
+            return;
+        }
+
         AbstractPacketWriter? writer = null;
         
         switch (reward.Type)
         {
             case "credits":
-                player.Player.Data.CreditBalance += reward.Amount;
+                data.CreditBalance += reward.Amount;
                 
                 writer = new PlayerCreditsBalanceWriter
                 {
-                    Credits = player.Player.Data.CreditBalance
+                    Credits = data.CreditBalance
                 };
                 break;
             case "pixels":
-                player.Player.Data.PixelBalance += reward.Amount;
+                data.PixelBalance += reward.Amount;
                 
                 writer = new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
-    player.Player.Data.PixelBalance,
-    player.Player.Data.SeasonalBalance,
-    player.Player.Data.GotwPoints)
+    data.PixelBalance,
+    data.SeasonalBalance,
+    data.GotwPoints)
                 };
                 break;
             case "seasonal":
-                player.Player.Data.SeasonalBalance += reward.Amount;
+                data.SeasonalBalance += reward.Amount;
                 
                 writer = new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
-                        player.Player.Data.PixelBalance,
-                        player.Player.Data.SeasonalBalance,
-                        player.Player.Data.GotwPoints)
+                        data.PixelBalance,
+                        data.SeasonalBalance,
+                        data.GotwPoints)
                 };
                 break;
         }

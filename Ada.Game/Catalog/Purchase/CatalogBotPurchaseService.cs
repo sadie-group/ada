@@ -25,6 +25,11 @@ public class CatalogBotPurchaseService(
         var info = data.Split(";")
             .ToDictionary(x => x.Split(":")[0], x => x.Split(":")[1]);
 
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var bot = new PlayerBotDto
         {
             PlayerId = client.Player.Player.Id,
