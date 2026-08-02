@@ -38,7 +38,8 @@ public class CatalogPurchaseEventHandler(
             return;
         }
 
-        if ((DateTime.Now - player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
+        if (Amount < 1 ||
+            (DateTime.Now - player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
             return;
@@ -86,7 +87,7 @@ public class CatalogPurchaseEventHandler(
         }
 
         if (page.Layout == CatalogPageLayout.Bots &&
-            item.Name.Contains("bot_") &&
+            item.Name?.Contains("bot_") == true &&
             !string.IsNullOrEmpty(item.MetaData))
         {
             await botPurchaseService.ProcessAsync(client, item);
