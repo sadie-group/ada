@@ -199,4 +199,12 @@ public static class EventHandlerId
     public const short ModToolsSanctionBan = 2766;
     public const short JukeboxRequestTrackData = 3082;
     public const short JukeboxRequestTrackCode = 3189;
+    public const short CallForHelp = 1691;
+    public const short PickTicket = 15;
+    public const short ReleaseTicket = 1572;
+    public const short CloseTicket = 2067;
+    public const short ModToolsTicketChatLog = 211;
+    public const short ModerationDefaultSanction = 1681;
+    public const short CallForHelpFromIm = 3969;
+    public const short GetCfhTopics = 3277;
 }
