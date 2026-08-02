@@ -44,6 +44,7 @@ public class RoomFurnitureItemHelperService(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
             .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
     }

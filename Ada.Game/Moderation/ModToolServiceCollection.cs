@@ -8,5 +8,6 @@ public static class ModToolServiceCollection
     public static void AddServices(IServiceCollection serviceCollection)
     {
         serviceCollection.AddSingleton<IModToolRepository, ModToolRepository>();
+        serviceCollection.AddSingleton<IModerationTicketService, ModerationTicketService>();
     }
 }

@@ -37,7 +37,7 @@ public class PetPlaceEventHandler(
         var playerId = roomUser.Player.Player.Id;
         var isOwner = room.Room.OwnerId == playerId;
 
-        if (!isOwner && !room.Room.Settings.AllowPets)
+        if (!isOwner && room.Room.Settings?.AllowPets != true)
         {
             await client.WriteToStreamAsync(new PetErrorWriter { ErrorCode = PetErrorWriter.PetsForbiddenInFlat });
             return;

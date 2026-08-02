@@ -69,7 +69,7 @@ public static class RoomChatService
 
         var muteSeconds = floodProtectionService.RegisterMessage(
             playerId,
-            room.Room.ChatSettings.ChatProtection,
+            room.Room.ChatSettings?.ChatProtection ?? 0,
             playerId == room.Room.OwnerId);
 
         if (muteSeconds != null)

@@ -23,7 +23,7 @@ public class RoomBannedUsersEventHandler(IRoomRepository roomRepository) : INetw
 
         foreach (var i in room.Room.PlayerBans.Where(x => x.ExpiresAt > DateTime.Now))
         {
-            banListMap[i.PlayerId] = i.Player.Username;
+            banListMap[i.PlayerId] = i.Player?.Username ?? string.Empty;
         }
         
         await client.WriteToStreamAsync(new RoomBannedUsersWriter

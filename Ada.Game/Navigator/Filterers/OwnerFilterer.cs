@@ -9,6 +9,6 @@ public class OwnerFilterer : INavigatorSearchFilterer
     public IQueryable<Room> Apply(IQueryable<Room> query, string value)
     {
         return query
-            .Where(x => x.Owner.Username.Contains(value));
+            .Where(x => x.Owner != null && x.Owner.Username.Contains(value));
     }
 }

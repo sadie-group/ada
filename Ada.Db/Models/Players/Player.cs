@@ -30,18 +30,18 @@ public class Player
     
     public ICollection<PlayerBadge> Badges { get; init; } = [];
 
-    public ICollection<PlayerFurnitureItem> FurnitureItems { get; init; }
+    public ICollection<PlayerFurnitureItem> FurnitureItems { get; init; } = [];
     
     public ICollection<PlayerWardrobeItem> WardrobeItems { get; init; } = [];
     public ICollection<PlayerSubscription> Subscriptions { get; init; } = [];
     [InverseProperty("TargetPlayer")] public ICollection<PlayerRespect> Respects { get; init; } = [];
     public ICollection<PlayerSavedSearch> SavedSearches { get; init; } = [];
     
-    [InverseProperty("OriginPlayer")]  public ICollection<PlayerFriendship> OutgoingFriendships { get; init; }
-    [InverseProperty("TargetPlayer")]  public ICollection<PlayerFriendship> IncomingFriendships { get; init; }
+    [InverseProperty("OriginPlayer")]  public ICollection<PlayerFriendship> OutgoingFriendships { get; init; } = [];
+    [InverseProperty("TargetPlayer")]  public ICollection<PlayerFriendship> IncomingFriendships { get; init; } = [];
     
     public ICollection<ServerPeriodicCurrencyRewardLog> RewardLogs { get; init; } = [];
-    public ICollection<Room> Rooms { get; set; }
+    public ICollection<Room> Rooms { get; set; } = [];
     public ICollection<PlayerIgnore> OutgoingIgnores { get; init; } = [];
     public ICollection<PlayerIgnore> IncomingIgnores { get; init; } = [];
     public ICollection<Group> Groups { get; init; } = [];

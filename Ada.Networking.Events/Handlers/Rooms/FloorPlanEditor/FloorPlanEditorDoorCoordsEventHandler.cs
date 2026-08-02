@@ -18,9 +18,9 @@ public class FloorPlanEditorDoorCoordsEventHandler(IRoomRepository roomRepositor
         
         await client.WriteToStreamAsync(new FloorPlanEditorDoorCoordsWriter
         {
-            X = room.Room.Layout.DoorX,
-            Y = room.Room.Layout.DoorY,
-            Direction = room.Room.Layout.DoorDirection
+            X = room.Room.Layout?.DoorX ?? 0,
+            Y = room.Room.Layout?.DoorY ?? 0,
+            Direction = room.Room.Layout?.DoorDirection ?? 0
         });
     }
 }

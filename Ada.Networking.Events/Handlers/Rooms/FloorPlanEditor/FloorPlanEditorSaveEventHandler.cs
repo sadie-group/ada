@@ -30,6 +30,11 @@ public class FloorPlanEditorSaveEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _) ||
             room.Room.OwnerId != client.Player.Player.Id || 
             room.Room.Layout == null)
