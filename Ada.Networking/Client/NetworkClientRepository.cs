@@ -35,65 +35,68 @@ public class NetworkClientRepository(
             return false;
         }
 
-        if (!_clients.TryRemove(guid, out var client))
-        {
-            return false;
-        }
-
-        var player = client.Player;
-        var roomUser = client.RoomUser;
-
-        if (player != null)
-        {
-            await NotifySessionListenersAsync(player, roomUser);
-        }
-
-        if (roomUser != null)
-        {
-            await roomUser.Room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
-        }
-
         try
         {
+            if (!_clients.TryRemove(guid, out var client))
+            {
+                return false;
+            }
+
+            var player = client.Player;
+            var roomUser = client.RoomUser;
+
             if (player != null)
             {
-                if (!await playerRepository.TryRemovePlayerAsync(player.Player.Id))
-                {
-                    logger.LogError("Failed to remove player whilst disposing network client.");
-                    return false;
-                }
-
-                var friendships = player.GetMergedFriendships();
-
-                if (friendships.Count != 0)
-                {
-                    await playerHelperService.UpdatePlayerStatusForFriendsAsync(
-                        player,
-                        friendships,
-                        false,
-                        false,
-                        playerRepository);
-                }
-                
-                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-                
-                await dbContext.Database
-                    .ExecuteSqlRawAsync(
-                        "UPDATE player_data SET is_online = 0 WHERE player_id = @p0 LIMIT 1",
-                        player.Player.Id);
+                await NotifySessionListenersAsync(player, roomUser);
             }
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Another thread removed the player already, safe to ignore
+
+            if (roomUser != null)
+            {
+                await roomUser.Room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
+            }
+
+            try
+            {
+                if (player != null)
+                {
+                    if (!await playerRepository.TryRemovePlayerAsync(player.Player.Id))
+                    {
+                        logger.LogError("Failed to remove player whilst disposing network client.");
+                        return false;
+                    }
+
+                    var friendships = player.GetMergedFriendships();
+
+                    if (friendships.Count != 0)
+                    {
+                        await playerHelperService.UpdatePlayerStatusForFriendsAsync(
+                            player,
+                            friendships,
+                            false,
+                            false,
+                            playerRepository);
+                    }
+
+                    await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+                    await dbContext.Database
+                        .ExecuteSqlRawAsync(
+                            "UPDATE player_data SET is_online = 0 WHERE player_id = @p0 LIMIT 1",
+                            player.Player.Id);
+                }
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Another thread removed the player already, safe to ignore
+            }
+
+            await client.DisposeAsync();
+            return true;
         }
         finally
         {
             _removalGuard.TryRemove(guid, out _);
         }
-        
-        await client.DisposeAsync();
-        return true;
     }
 
     public async Task DisconnectIdleClientsAsync()

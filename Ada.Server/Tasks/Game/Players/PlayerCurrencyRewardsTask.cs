@@ -76,8 +76,13 @@ public class PlayerCurrencyRewardsTask(
             logs.Add(log);
         }
 
+        if (logs.Count == 0)
+        {
+            return;
+        }
+
         var entityLogs = mapper.Map<List<ServerPeriodicCurrencyRewardLog>>(logs);
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         await dbContext.ServerPeriodicCurrencyRewardLogs.AddRangeAsync(entityLogs);
         await dbContext.SaveChangesAsync();

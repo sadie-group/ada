@@ -38,7 +38,7 @@ public class CatalogPurchaseEventHandler(
             return;
         }
 
-        if (Amount < 1 ||
+        if (Amount is < 1 ||
             (DateTime.Now - player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
