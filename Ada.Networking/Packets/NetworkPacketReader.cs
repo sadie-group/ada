@@ -9,6 +9,8 @@ public sealed class NetworkPacketReader(ReadOnlyMemory<byte> body) : INetworkPac
     private readonly ReadOnlyMemory<byte> _body = body;
     private int _position;
 
+    public int Remaining => _body.Length - _position;
+
     public int ReadInt()
         => BinaryPrimitives.ReadInt32BigEndian(Read(4));
 
@@ -27,11 +29,24 @@ public sealed class NetworkPacketReader(ReadOnlyMemory<byte> body) : INetworkPac
     public string ReadString()
     {
         int length = ReadShort();
+
+        if (length < 0)
+        {
+            throw new MalformedPacketException(
+                $"String declared a negative length of {length} at offset {_position - 2}.");
+        }
+
         return Encoding.UTF8.GetString(Read(length));
     }
 
     private ReadOnlySpan<byte> Read(int count)
     {
+        if (count > Remaining)
+        {
+            throw new MalformedPacketException(
+                $"Tried to read {count} byte(s) at offset {_position} with only {Remaining} remaining.");
+        }
+
         var slice = _body.Span.Slice(_position, count);
         _position += count;
         return slice;

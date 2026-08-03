@@ -7,10 +7,13 @@ using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Extensions;
 using Ada.Networking.Writers.Rooms.Users.HandItems;
 
+using Microsoft.Extensions.Logging;
+
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
 public class VendingInteractor(IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : AbstractRoomFurnitureItemInteractor
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    ILogger<VendingInteractor> logger) : AbstractRoomFurnitureItemInteractor
 {
     public override List<string> InteractionTypes => [FurnitureItemInteractionType.VendingMachine];
     
@@ -35,10 +38,9 @@ public class VendingInteractor(IRoomTileMapHelperService tileMapHelperService,
             roomUser.WalkToPoint(squareInFront, OnReachedGoal);
             return;
 
-            async void OnReachedGoal()
-            {
-                await OnTriggerAsync(room, item, roomUser);
-            }
+            void OnReachedGoal()
+                => OnTriggerAsync(room, item, roomUser)
+                    .FireAndForget(logger, "vending walk-to-goal trigger");
         }
         
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "1");

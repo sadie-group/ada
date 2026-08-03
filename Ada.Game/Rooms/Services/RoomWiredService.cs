@@ -8,9 +8,11 @@ using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Game.Rooms.Furniture;
+using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Db.Models.Players.Furniture;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Services;
 
@@ -19,7 +21,8 @@ public class RoomWiredService(
     IRoomFurnitureItemHelperService furnitureItemHelperService,
     IEnumerable<IWiredEffectStrategy> effectStrategies,
     IEnumerable<IWiredConditionStrategy> conditionStrategies,
-    IWiredTimerService timerService) : IRoomWiredService
+    IWiredTimerService timerService,
+    ILogger<RoomWiredService> logger) : IRoomWiredService
 {
     private const int PulseMilliseconds = 500;
 
@@ -99,7 +102,7 @@ public class RoomWiredService(
             return;
         }
 
-        _ = CycleInteractionStateAsync(room, trigger);
+        CycleInteractionStateAsync(room, trigger).FireAndForget(logger, "wired trigger state cycle");
 
         foreach (var effect in stack.Where(x => IsEffect(GetInteractionType(x))))
         {
@@ -213,12 +216,13 @@ public class RoomWiredService(
 
         if (delay > 0)
         {
-            _ = RunEffectDelayedAsync(room, effect, userWhoTriggered, strategy, delay);
+            RunEffectDelayedAsync(room, effect, userWhoTriggered, strategy, delay)
+                .FireAndForget(logger, $"delayed wired effect '{GetInteractionType(effect)}'");
             return;
         }
 
         await strategy.ExecuteAsync(room, effect, userWhoTriggered);
-        _ = CycleInteractionStateAsync(room, effect);
+        CycleInteractionStateAsync(room, effect).FireAndForget(logger, "wired effect state cycle");
     }
 
     private async Task RunEffectDelayedAsync(
@@ -230,7 +234,7 @@ public class RoomWiredService(
     {
         await Task.Delay(delayInPulses * PulseMilliseconds);
         await strategy.ExecuteAsync(room, effect, userWhoTriggered);
-        _ = CycleInteractionStateAsync(room, effect);
+        CycleInteractionStateAsync(room, effect).FireAndForget(logger, "wired effect state cycle");
     }
 
     public int GetWiredCode(string interactionType)
