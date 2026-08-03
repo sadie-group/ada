@@ -8,6 +8,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Doorbell;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +30,8 @@ public class RoomDoorbellAnswerEventHandler(
 {
     public required string Username { get; init; }
     public bool Accept { get; init; }
-    
+
+    [RequiresRoomRights]
     public async Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _))
