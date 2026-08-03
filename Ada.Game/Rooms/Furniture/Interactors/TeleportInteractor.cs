@@ -5,11 +5,14 @@ using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
+using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Networking.Events;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
@@ -18,7 +21,8 @@ public class TeleportInteractor(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
     IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : AbstractRoomFurnitureItemInteractor
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    ILogger<TeleportInteractor> logger) : AbstractRoomFurnitureItemInteractor
 {
     public override List<string> InteractionTypes => [FurnitureItemInteractionType.Teleport];
 
@@ -69,10 +73,9 @@ public class TeleportInteractor(
             roomUser.WalkToPoint(itemInFront, OnReachedGoal);
             return;
 
-            async void OnReachedGoal()
-            {
-                await OnTriggerAsync(room, item, roomUser);
-            }
+            void OnReachedGoal()
+                => OnTriggerAsync(room, item, roomUser)
+                    .FireAndForget(logger, "teleport walk-to-goal trigger");
         }
     }
 
@@ -190,12 +193,15 @@ public class TeleportInteractor(
         roomUser.WalkToPoint(squareInFront, OnReachedGoal);
         return;
 
-        async void OnReachedGoal()
+        void OnReachedGoal()
+            => CompleteTeleportAsync().FireAndForget(logger, "teleport exit walk-to-goal");
+
+        async Task CompleteTeleportAsync()
         {
             await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
             await Task.Delay(_delay);
             await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "0");
-            
+
             roomUser.CanWalk = true;
         }
     }
