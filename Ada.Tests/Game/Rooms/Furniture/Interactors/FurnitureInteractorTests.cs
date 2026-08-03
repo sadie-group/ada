@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Drawing;
 using Ada.API.DTOs;
 using Ada.API.DTOs.Furniture;
@@ -174,7 +175,8 @@ public class OneWayGateInteractorTests
         var tileHelper = new Mock<IRoomTileMapHelperService>();
         var furniHelper = new Mock<IRoomFurnitureItemHelperService>();
 
-        return (new OneWayGateInteractor(factory, tileHelper.Object, furniHelper.Object), tileHelper, furniHelper);
+        return (new OneWayGateInteractor(factory, tileHelper.Object, furniHelper.Object,
+            NullLogger<OneWayGateInteractor>.Instance), tileHelper, furniHelper);
     }
 
     [Test]
@@ -480,7 +482,8 @@ public class VendingInteractorTests
         var tileHelper = new Mock<IRoomTileMapHelperService>();
         var furniHelper = new Mock<IRoomFurnitureItemHelperService>();
 
-        return (new VendingInteractor(tileHelper.Object, furniHelper.Object), tileHelper, furniHelper);
+        return (new VendingInteractor(tileHelper.Object, furniHelper.Object,
+            NullLogger<VendingInteractor>.Instance), tileHelper, furniHelper);
     }
 
     [Test]
@@ -549,7 +552,7 @@ public class DiceInteractorTests
     [Test]
     public void InteractionTypes_ContainsDice()
     {
-        var interactor = new DiceInteractor(Mock.Of<IRoomFurnitureItemHelperService>());
+        var interactor = new DiceInteractor(Mock.Of<IRoomFurnitureItemHelperService>(), NullLogger<DiceInteractor>.Instance);
 
         Assert.That(interactor.InteractionTypes, Is.EqualTo(new[] { "dice" }));
     }
@@ -576,7 +579,7 @@ public class DiceInteractorTests
             })
             .Returns(Task.CompletedTask);
 
-        var interactor = new DiceInteractor(furniHelper.Object);
+        var interactor = new DiceInteractor(furniHelper.Object, NullLogger<DiceInteractor>.Instance);
         var item = InteractorTestHelpers.MakeItem(100, 2, 2, HDirection.North, "dice");
         var room = InteractorTestHelpers.MakeRoom();
         var user = InteractorTestHelpers.MakeUser(new Point(0, 0), InteractorTestHelpers.MakePlayerDto(1));

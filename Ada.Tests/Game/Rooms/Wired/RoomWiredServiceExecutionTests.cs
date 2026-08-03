@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -107,7 +108,8 @@ public class RoomWiredServiceExecutionTests : MockHelpers
             helperService ?? new RecordingHelperService(),
             effectStrategies ?? [],
             [],
-            timerService ?? new WiredTimerService());
+            timerService ?? new WiredTimerService(),
+            NullLogger<RoomWiredService>.Instance);
     }
 
     [Test]

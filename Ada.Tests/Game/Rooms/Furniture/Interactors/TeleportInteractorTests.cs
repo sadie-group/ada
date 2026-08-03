@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Concurrent;
 using System.Drawing;
 using Ada.API;
@@ -57,7 +58,8 @@ public class TeleportInteractorTests
                 factory,
                 Mock.Of<IMapper>(),
                 tileHelper.Object,
-                furniHelper.Object),
+                furniHelper.Object,
+                NullLogger<TeleportInteractor>.Instance),
             RoomRepository = roomRepository,
             TileHelper = tileHelper,
             FurniHelper = furniHelper

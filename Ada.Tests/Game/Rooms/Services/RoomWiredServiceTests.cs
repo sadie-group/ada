@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Game.Rooms.Furniture;
@@ -18,7 +19,8 @@ public class RoomWiredServiceTests : MockHelpers
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
         var furnitureItemHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
-        var wiredService = new RoomWiredService(dbFactory, furnitureItemHelperService, [], [], new WiredTimerService());
+        var wiredService = new RoomWiredService(dbFactory, furnitureItemHelperService, [], [], new WiredTimerService(),
+            NullLogger<RoomWiredService>.Instance);
         var trigger = MockFurnitureItemPlacementData(FurnitureItemInteractionType.WiredTriggerEnterRoom);
         
         var items = new List<PlayerFurnitureItemPlacementDataDto>

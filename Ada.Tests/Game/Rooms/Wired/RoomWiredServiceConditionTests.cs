@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
@@ -66,7 +67,8 @@ public class RoomWiredServiceConditionTests : MockHelpers
             helperService,
             [effectStrategy],
             [new FixedConditionStrategy(conditionSatisfied)],
-            new WiredTimerService());
+            new WiredTimerService(),
+            NullLogger<RoomWiredService>.Instance);
 
         var trigger = WithWiredData(MockFurnitureItemPlacementData(FurnitureItemInteractionType.WiredTriggerEnterRoom, id: 1));
         var condition = WithWiredData(MockFurnitureItemPlacementData(FurnitureItemInteractionType.WiredConditionUserCountInRoom, 0, 0, 1, id: 2));
