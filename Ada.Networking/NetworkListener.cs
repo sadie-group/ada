@@ -11,6 +11,7 @@ namespace Ada.Networking;
 
 public class NetworkListener(
     IOptions<NetworkOptions> options,
+    ILogger<NetworkListener> logger,
     INetworkClientFactory clientFactory,
     INetworkClientConnectionHandler connectionHandler)
     : IHostedService
@@ -26,16 +27,27 @@ public class NetworkListener(
         {
             var ip = IPAddress.Parse(_options.Host ?? "127.0.0.1");
 
-            if (_options.UseWss && !string.IsNullOrWhiteSpace(_options.CertificateFile))
-            {
-                k.Listen(ip, _options.Port, o => o.UseHttps(_options.CertificateFile));
-            }
-            else
+            if (!_options.UseWss)
             {
                 k.Listen(ip, _options.Port);
+                return;
             }
+
+            if (string.IsNullOrWhiteSpace(_options.CertificateFile))
+            {
+                throw new InvalidOperationException(
+                    "Network:UseWss is enabled but Network:CertificateFile is not set.");
+            }
+
+            if (!File.Exists(_options.CertificateFile))
+            {
+                throw new InvalidOperationException(
+                    $"Network:CertificateFile '{_options.CertificateFile}' was not found.");
+            }
+
+            k.Listen(ip, _options.Port, o => o.UseHttps(_options.CertificateFile));
         });
-        
+
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
         builder.Logging.ClearProviders();
 
