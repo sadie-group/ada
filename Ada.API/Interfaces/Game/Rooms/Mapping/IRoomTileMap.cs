@@ -15,7 +15,7 @@ public interface IRoomTileMap : IRoomTileMapHelperService
     short[,] EffectMap { get; }
     short[,] ZMap { get; set; }
     short[,] TileExistenceMap { get; set; }
-    void UpdateEffectMapForTile(int x, int y, ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems);
+    void UpdateEffectMapForTile(int x, int y, ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems, PlayerFurnitureItemPlacementDataDto? excludeItem = null);
     void AddUnitToMap(Point point, IRoomUnitData unit);
     bool UsersAtPoint(Point point);
     bool TileExists(Point point);

@@ -5,12 +5,14 @@ namespace Ada.API.Interfaces.Game.Rooms.Services;
 
 public interface IRoomWiredService
 {
+    bool HasTriggers(string interactionType, ICollection<PlayerFurnitureItemPlacementDataDto> roomItems);
+
     IEnumerable<PlayerFurnitureItemPlacementDataDto> GetTriggers(
         string interactionType,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems,
         string requiredMessage = "",
         List<int>? requiredSelectedIds = null);
-    
+
     IEnumerable<PlayerFurnitureItemPlacementDataDto> GetEffectsForTrigger(
         PlayerFurnitureItemPlacementDataDto trigger,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems);
