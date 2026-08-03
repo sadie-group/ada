@@ -12,16 +12,17 @@ public interface IRoomTileMapHelperService
     HDirection GetOppositeDirection(HDirection direction);
 
     List<Point> GetPointsForPlacement(
-        int x, 
-        int y, 
-        int width, 
-        int length, 
+        int x,
+        int y,
+        int width,
+        int length,
         HDirection direction);
 
     RoomTileState GetTileState(
-        int x, 
-        int y, 
-        IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems);
+        int x,
+        int y,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null);
 
     List<PlayerFurnitureItemPlacementDataDto> GetItemsForPosition(int x,
         int y,
@@ -29,14 +30,22 @@ public interface IRoomTileMapHelperService
 
     void InvalidateItemIndex(IEnumerable<PlayerFurnitureItemPlacementDataDto> items);
 
+    void MoveItemInIndex(
+        ICollection<PlayerFurnitureItemPlacementDataDto> items,
+        PlayerFurnitureItemPlacementDataDto item,
+        List<Point> oldPoints,
+        List<Point> newPoints);
+
     short[,] GetWorldArrayFromTileMap(IRoomTileMap map,
         Point goalPoint,
         List<Point> overridePoints);
 
     void UpdateTileMapsForPoints(
-        List<Point> points, 
-        IRoomTileMap tileMap, 
-        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems);
+        List<Point> points,
+        IRoomTileMap tileMap,
+        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null,
+        bool invalidateIndex = true);
 
     bool CanPlaceAt(
         IEnumerable<Point> points,
@@ -44,7 +53,7 @@ public interface IRoomTileMapHelperService
         bool checkForUsers = true);
 
     bool CanPlaceAt(
-        IEnumerable<Point> points,  
+        IEnumerable<Point> points,
         IRoomTileMap tileMap,
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
         bool checkForUsers = true);
@@ -54,7 +63,7 @@ public interface IRoomTileMapHelperService
 
     double GetItemPlacementHeight(
         IRoomTileMap roomTileMap,
-        IEnumerable<Point> pointsForPlacement, 
+        IEnumerable<Point> pointsForPlacement,
         ICollection<PlayerFurnitureItemPlacementDataDto> roomFurnitureItems);
 
     int GetSquaresBetweenPoints(Point a, Point b);

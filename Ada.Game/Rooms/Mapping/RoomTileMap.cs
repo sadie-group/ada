@@ -67,9 +67,15 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
 
     public void UpdateEffectMapForTile(int x,
         int y,
-        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
+        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
         var itemsOnSquare = GetItemsForPosition(x, y, furnitureItems);
+
+        if (excludeItem != null)
+        {
+            itemsOnSquare.Remove(excludeItem);
+        }
 
         if (itemsOnSquare.Count == 0)
         {
