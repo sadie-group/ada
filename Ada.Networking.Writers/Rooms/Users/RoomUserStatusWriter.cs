@@ -1,4 +1,5 @@
-﻿using Ada.API;
+﻿using System.Text;
+using Ada.API;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
@@ -14,19 +15,42 @@ public class RoomUserStatusWriter : AbstractPacketWriter
     {
         writer.WriteInteger(Users.Count);
 
+        var status = new StringBuilder();
+
         foreach (var user in Users)
         {
-            var statusList = user.
-                StatusMap.
-                Select(x => x.Key + (string.IsNullOrEmpty(x.Value) ? "" : " " + x.Value));
-            
+            status.Clear().Append('/');
+
+            var first = true;
+
+            foreach (var entry in user.StatusMap)
+            {
+                if (!first)
+                {
+                    status.Append('/');
+                }
+
+                first = false;
+                status.Append(entry.Key);
+
+                if (!string.IsNullOrEmpty(entry.Value))
+                {
+                    status.Append(' ').Append(entry.Value);
+                }
+            }
+
+            while (status.Length > 1 && status[^1] == '/')
+            {
+                status.Length--;
+            }
+
             writer.WriteLong(user.Player.Player.Id);
             writer.WriteInteger(user.Point.X);
             writer.WriteInteger(user.Point.Y);
             writer.WriteString(user.PointZ.ToString("0.00"));
             writer.WriteInteger((int) user.DirectionHead);
             writer.WriteInteger((int) user.Direction);
-            writer.WriteString("/" + string.Join("/", statusList).TrimEnd('/'));
+            writer.WriteString(status.ToString());
         }
     }
 }
