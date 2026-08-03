@@ -98,7 +98,7 @@ public class SecureLoginEventHandler(
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         
-        if (dbContext.BannedIpAddresses.Any(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        if (await dbContext.BannedIpAddresses.AnyAsync(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
         {
             logger.LogWarning("Disconnected banned IP {@Ip}", ipAddress);
             await client.DisposeAsync();
@@ -108,7 +108,7 @@ public class SecureLoginEventHandler(
         var machineId = client.MachineId;
 
         if (!string.IsNullOrEmpty(machineId) &&
-            dbContext.BannedMachines.Any(x => x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+            await dbContext.BannedMachines.AnyAsync(x => x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
         {
             logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
             await client.DisposeAsync();
