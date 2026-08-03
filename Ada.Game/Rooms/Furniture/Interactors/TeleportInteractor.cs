@@ -107,10 +107,12 @@ public class TeleportInteractor(
                 item,
                 targetRoomItem,
                 room);
+
+            return;
         }
-        
+
         await UseTeleportInDifferentRoomAsync(
-            roomUser, 
+            roomUser,
             item,
             targetItemId,
             room);
