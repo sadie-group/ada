@@ -88,8 +88,21 @@ public class RoomLoadedEventHandler(
             return;
         }
 
-        if (room.Room.Settings?.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password && 
-            !isOwner && 
+        if (!isOwner &&
+            room.Room.PlayerBans.Any(x => x.PlayerId == player.Player.Id && x.ExpiresAt > DateTimeOffset.Now))
+        {
+            await client.WriteToStreamAsync(new RoomEnterErrorWriter
+            {
+                ErrorCode = (int) RoomEnterError.Banned
+            });
+
+            await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+
+            return;
+        }
+
+        if (room.Room.Settings?.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password &&
+            !isOwner &&
             !await ValidateRoomAccessForClientAsync(client, room, Password))
         {
             return;
