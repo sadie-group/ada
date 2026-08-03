@@ -19,19 +19,19 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
     public async Task<IEnumerable<AbstractPacketWriter>> GetUpdatesForRoomAsync(IRoomLogic room)
     {
         var writers = new List<AbstractPacketWriter>();
-        
+
         var roomRollers = room
             .Room.FurnitureItems
             .Where(x => x.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Roller);
-        
+
         var rollerUpdates = await GetRollerUpdatesAsync(room, roomRollers);
-        
+
         writers.AddRange(rollerUpdates);
         return writers;
     }
 
     private async Task<IEnumerable<RoomObjectsRollingWriter>> GetRollerUpdatesAsync(
-        IRoomLogic room, 
+        IRoomLogic room,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> rollers)
     {
         var writers = new List<RoomObjectsRollingWriter>();
@@ -42,17 +42,17 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
         {
             var x = roller.PositionX;
             var y = roller.PositionY;
-            
+
             var nextStep = tileMapHelperService.GetPointInFront(x, y, roller.Direction);
-            
+
             var rollerPosition = new Point(x, y);
-            
+
             var nextRoller = tileMapHelperService
                 .GetItemsForPosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
                 .FirstOrDefault(fi => fi.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Roller);
-            
+
             var nextHeight = nextRoller?.PlayerFurnitureItem.FurnitureItem?.StackHeight ?? 0;
-            
+
             var users = room.UserRepository
                 .GetAll()
                 .Where(u => !userIdsProcessed.Contains(u.Player.Player.Id));
@@ -65,49 +65,47 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
             {
                 continue;
             }
-            
+
             var rollingUsers = tileMapHelperService.GetUsersAtPoints([rollerPosition], users);
-            
+
             foreach (var rollingUser in rollingUsers)
             {
                 await MoveUserOnRollerAsync(
-                    x, 
-                    y, 
-                    nextStep, 
-                    userIdsProcessed, 
-                    rollingUser, 
-                    writers, 
-                    room, 
+                    x,
+                    y,
+                    nextStep,
+                    userIdsProcessed,
+                    rollingUser,
+                    writers,
+                    room,
                     roller,
-                    nextRoller, 
+                    nextRoller,
                     nextHeight);
             }
 
-            var unprocessedNonRollers = room.Room.FurnitureItems.Where(i =>
-                !itemIdsProcessed.Contains(i.Id) && i.PlayerFurnitureItem.FurnitureItem.InteractionType !=
-                FurnitureItemInteractionType.Roller);
+            var nonRollerItemsOnRoller = tileMapHelperService
+                .GetItemsForPosition(roller.PositionX, roller.PositionY, room.Room.FurnitureItems)
+                .Where(i => !itemIdsProcessed.Contains(i.Id) &&
+                            i.PlayerFurnitureItem.FurnitureItem.InteractionType !=
+                            FurnitureItemInteractionType.Roller)
+                .ToList();
 
-            var nonRollerItemsOnRoller = tileMapHelperService.GetItemsForPosition(
-                roller.PositionX, 
-                roller.PositionY,
-                unprocessedNonRollers);
-            
             if (nonRollerItemsOnRoller.Count == 0)
             {
                 continue;
             }
-            
+
             foreach (var item in nonRollerItemsOnRoller)
             {
                 var furnitureItem = item.PlayerFurnitureItem.FurnitureItem;
-                
+
                 var oldPoints = tileMapHelperService.GetPointsForPlacement(
-                    item.PositionX, 
-                    item.PositionY, 
+                    item.PositionX,
+                    item.PositionY,
                     furnitureItem.TileSpanX,
-                    furnitureItem.TileSpanY, 
+                    furnitureItem.TileSpanY,
                     item.Direction);
-                
+
                 MoveItemOnRoller(
                     nextStep,
                     itemIdsProcessed,
@@ -116,30 +114,32 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
                     roller,
                     nextHeight);
 
-                tileMapHelperService.UpdateTileMapsForPoints(oldPoints, 
-                    room.TileMap,
-                    room.Room.FurnitureItems);
-
                 var newPoints = tileMapHelperService.GetPointsForPlacement(
-                    nextStep.X, nextStep.Y, 
+                    nextStep.X, nextStep.Y,
                     furnitureItem.TileSpanX,
-                    furnitureItem.TileSpanY, 
+                    furnitureItem.TileSpanY,
                     item.Direction);
 
-                tileMapHelperService.UpdateTileMapsForPoints(newPoints, 
+                tileMapHelperService.MoveItemInIndex(room.Room.FurnitureItems, item, oldPoints, newPoints);
+
+                tileMapHelperService.UpdateTileMapsForPoints(oldPoints,
                     room.TileMap,
-                    room
-                        .Room.FurnitureItems
-                        .Except([item])
-                        .ToList());
-                
+                    room.Room.FurnitureItems,
+                    invalidateIndex: false);
+
+                tileMapHelperService.UpdateTileMapsForPoints(newPoints,
+                    room.TileMap,
+                    room.Room.FurnitureItems,
+                    excludeItem: item,
+                    invalidateIndex: false);
+
                 await roomFurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
             }
         }
 
         return writers;
     }
-    
+
     private void MoveItemOnRoller(
         Point nextStep,
         ISet<int> itemIdsProcessed,
@@ -154,7 +154,7 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
             Height = item.PositionZ.ToString(),
             NextHeight = nextHeight.ToString()
         };
-        
+
         writers.Add(new RoomObjectsRollingWriter
         {
             X = item.PositionX,
@@ -168,11 +168,11 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
             Height = roller.PositionZ.ToString(),
             NextHeight = nextHeight.ToString()
         });
-                
+
         item.PositionX = nextStep.X;
         item.PositionY = nextStep.Y;
         item.PositionZ = nextHeight;
-                
+
         itemIdsProcessed.Add(item.PlayerFurnitureItemId);
     }
 
@@ -213,7 +213,7 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
         room.TileMap.AddUnitToMap(nextStep, rollingUser);
 
         await rollingUser.SetPositionAsync(nextStep);
-        
+
         rollingUser.PointZ = nextRoller?
             .PlayerFurnitureItem
             .FurnitureItem
