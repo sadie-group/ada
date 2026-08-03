@@ -46,7 +46,18 @@ public class ClientPacketHandler(
             }
             
             var packetReader = client.Codec.CreateReader(packet.Data);
-            EventSerializer.SetPropertiesForEventHandler(eventHandler, packetReader);
+
+            try
+            {
+                EventSerializer.SetPropertiesForEventHandler(eventHandler, packetReader);
+            }
+            catch (MalformedPacketException e)
+            {
+                logger.LogWarning(
+                    $"Discarded malformed packet '{packet.PacketId}' for handler " +
+                    $"'{eventHandler.GetType().Name}' from {client.IpAddress}: {e.Message}");
+                return;
+            }
 
             if (client.RoomUser != null &&
                 (packetEventType == typeof(RoomUserWalkEventHandler) ||

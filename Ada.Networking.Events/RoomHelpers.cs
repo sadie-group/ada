@@ -18,8 +18,8 @@ namespace Ada.Networking.Events;
 public static class RoomHelpers
 {
     public static async Task<IRoomLogic?> TryLoadRoomByIdAsync(
-        long id, 
-        IRoomRepository roomRepository, 
+        long id,
+        IRoomRepository roomRepository,
         IDbContextFactory<AdaDbContext> dbContextFactory,
         IMapper mapper)
     {
@@ -31,7 +31,7 @@ public static class RoomHelpers
         }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var room = await dbContext.Set<Room>()
             .Include(x => x.Layout)
             .Include(x => x.FurnitureItems).ThenInclude(x => x.PlayerFurnitureItem).ThenInclude(x => x.FurnitureItem)
@@ -60,11 +60,11 @@ public static class RoomHelpers
 
         return roomLogic;
     }
-    
+
     private static RoomControllerLevel GetControllerLevelForUser(IRoomLogic room, IPlayerLogic player)
     {
         var controllerLevel = RoomControllerLevel.None;
-        
+
         if (room.Room.PlayerRights.FirstOrDefault(x => x.PlayerId == player.Player.Id) != null)
         {
             controllerLevel = RoomControllerLevel.Rights;
@@ -94,8 +94,8 @@ public static class RoomHelpers
     }
 
     public static IRoomUser CreateUserForEntry(
-        IRoomUserFactory roomUserFactory, 
-        IRoomLogic room, 
+        IRoomUserFactory roomUserFactory,
+        IRoomLogic room,
         IPlayerLogic player,
         Point spawnPoint,
         HDirection direction)
@@ -110,10 +110,10 @@ public static class RoomHelpers
             player,
             GetControllerLevelForUser(room, player));
     }
-    
+
     public static async Task CreateRoomVisitForPlayerAsync(
-        IPlayerLogic player, 
-        int roomId, 
+        IPlayerLogic player,
+        int roomId,
         IDbContextFactory<AdaDbContext> dbContextFactory,
         IMapper mapper)
     {
@@ -123,9 +123,9 @@ public static class RoomHelpers
             RoomId = roomId,
             CreatedAt = DateTime.Now
         };
-        
+
         player.Player.RoomVisits.Add(roomVisit);
-        
+
         var roomVisitEntity = mapper.Map<PlayerRoomVisit>(roomVisit);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
