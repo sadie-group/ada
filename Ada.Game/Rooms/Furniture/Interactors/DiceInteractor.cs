@@ -2,11 +2,14 @@ using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.Core.Shared.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
 public class DiceInteractor(
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService)
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    ILogger<DiceInteractor> logger)
     : AbstractRoomFurnitureItemInteractor
 {
     private const int _rollDelayMilliseconds = 1500;
@@ -22,7 +25,7 @@ public class DiceInteractor(
 
         using (ExecutionContext.SuppressFlow())
         {
-            _ = Task.Run(async () =>
+            Task.Run(async () =>
             {
                 await Task.Delay(_rollDelayMilliseconds);
 
@@ -31,7 +34,7 @@ public class DiceInteractor(
                         room,
                         item,
                         Random.Shared.Next(1, 6).ToString()));
-            });
+            }).FireAndForget(logger, "dice roll settle");
         }
     }
 }

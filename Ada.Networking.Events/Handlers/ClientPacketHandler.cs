@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Filters;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
+using Ada.Core.Shared.Extensions;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Events.Handlers.Rooms.Users;
 using Ada.Networking.Events.Handlers.Rooms.Users.Chat;
@@ -30,7 +31,8 @@ public class ClientPacketHandler(
             {
                 if (packetOptions.Value.NotifyMissingPacket)
                 {
-                    _ = NotifyMissingPacketAsync(packet.PacketId, client);
+                    NotifyMissingPacketAsync(packet.PacketId, client)
+                        .FireAndForget(logger, "missing-packet notification");
                 }
             
                 logger.LogWarning($"Couldn't resolve packet event handler for header '{packet.PacketId}'");
@@ -41,7 +43,8 @@ public class ClientPacketHandler(
 
             if (!ValidateAttributes(eventHandler, client))
             {
-                _ = RejectAsync(eventHandler, client);
+                RejectAsync(eventHandler, client)
+                    .FireAndForget(logger, "packet rejection notice");
                 return;
             }
             

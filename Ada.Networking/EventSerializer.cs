@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using Ada.API.Interfaces.Networking.Packets;
+using Ada.Networking.Packets;
 using Ada.Networking.Packets.Serialization;
 
 namespace Ada.Networking;
@@ -76,7 +77,7 @@ public static class EventSerializer
 
     private static object ReadList(Type elementType, INetworkPacketReader packetReader)
     {
-        var count = packetReader.ReadInt();
+        var count = ReadElementCount(packetReader, "list");
         var list = (System.Collections.IList) Activator.CreateInstance(
             typeof(List<>).MakeGenericType(elementType))!;
 
@@ -91,7 +92,7 @@ public static class EventSerializer
     private static Dictionary<string, string> ReadAllStringDictionary(INetworkPacketReader packetReader)
     {
         var temp = new Dictionary<string, string>();
-        var amount = packetReader.ReadInt();
+        var amount = ReadElementCount(packetReader, "dictionary");
 
         for (var i = 0; i < amount / 2; i++)
         {
@@ -99,5 +100,18 @@ public static class EventSerializer
         }
 
         return temp;
+    }
+
+    private static int ReadElementCount(INetworkPacketReader packetReader, string kind)
+    {
+        var count = packetReader.ReadInt();
+
+        if (count < 0 || count > packetReader.Remaining)
+        {
+            throw new MalformedPacketException(
+                $"Declared {kind} count of {count} exceeds the {packetReader.Remaining} byte(s) remaining.");
+        }
+
+        return count;
     }
 }
