@@ -45,7 +45,7 @@ namespace Ada.Game
             var sw = new Stopwatch();
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                MaxDegreeOfParallelism = Environment.ProcessorCount * 2,
                 CancellationToken = token
             };
             var pass = 0;
