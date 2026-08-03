@@ -23,12 +23,17 @@ public class CatalogChargeService(IDbContextFactory<AdaDbContext> dbContextFacto
 
     public async Task<bool> TryChargeAsync(INetworkClient client, CatalogItemDto item, int amount)
     {
-        var costCredits = item.CostCredits * amount;
-        var costPoints = item.CostPoints * amount;
+        var costCredits = (long) item.CostCredits * amount;
+        var costPoints = (long) item.CostPoints * amount;
         var player = client.Player;
         var data = player?.Player.Data;
 
         if (player == null || data == null)
+        {
+            return false;
+        }
+
+        if (amount < 1 || costCredits < 0 || costPoints < 0)
         {
             return false;
         }
@@ -42,7 +47,7 @@ public class CatalogChargeService(IDbContextFactory<AdaDbContext> dbContextFacto
 
         if (costCredits > 0)
         {
-            data.CreditBalance -= costCredits;
+            data.CreditBalance -= (int) costCredits;
 
             await client.WriteToStreamAsync(new PlayerCreditsBalanceWriter
             {
@@ -54,11 +59,11 @@ public class CatalogChargeService(IDbContextFactory<AdaDbContext> dbContextFacto
         {
             if (item.CostPointsType == 0)
             {
-                data.PixelBalance -= costPoints;
+                data.PixelBalance -= (int) costPoints;
             }
             else
             {
-                data.SeasonalBalance -= costPoints;
+                data.SeasonalBalance -= (int) costPoints;
             }
 
             await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
