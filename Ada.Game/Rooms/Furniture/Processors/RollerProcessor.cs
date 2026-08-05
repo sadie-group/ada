@@ -120,7 +120,11 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
                     furnitureItem.TileSpanY,
                     item.Direction);
 
-                tileMapHelperService.MoveItemInIndex(room.Room.FurnitureItems, item, oldPoints, newPoints);
+                if (!tileMapHelperService.TryMoveItemInIndex(
+                        room.Room.FurnitureItems, item, oldPoints, newPoints))
+                {
+                    tileMapHelperService.InvalidateItemIndex(room.Room.FurnitureItems);
+                }
 
                 tileMapHelperService.UpdateTileMapsForPoints(oldPoints,
                     room.TileMap,
