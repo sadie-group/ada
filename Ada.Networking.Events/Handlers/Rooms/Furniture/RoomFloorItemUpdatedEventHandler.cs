@@ -26,7 +26,7 @@ public class RoomFloorItemUpdatedEventHandler(
     public int Y { get; init; }
     public int Direction { get; init; }
 
-    private PlayerFurnitureItemPlacementDataDto? _itemToPersist;
+    private ItemPlacement? _placementToPersist;
 
     public async Task HandleAsync(INetworkClient client)
     {
@@ -77,10 +77,8 @@ public class RoomFloorItemUpdatedEventHandler(
 
         tileMapHelperService.UpdateTileMapsForPoints(oldPoints,
             room.TileMap,
-            room
-                .Room.FurnitureItems
-                .Except([roomFurnitureItem])
-                .ToList());
+            room.Room.FurnitureItems,
+            excludeItem: roomFurnitureItem);
 
         var rotatingSingleTileItem = newPoints.Count == 1 &&
              newPoints[0].X == roomFurnitureItem.PositionX &&
@@ -102,11 +100,8 @@ public class RoomFloorItemUpdatedEventHandler(
         var z = tileMapHelperService.GetItemPlacementHeight(
             room.TileMap,
             newPoints,
-            room
-                .Room
-                .FurnitureItems
-                .Except([roomFurnitureItem])
-                .ToList());
+            room.Room.FurnitureItems,
+            excludeItem: roomFurnitureItem);
 
         roomFurnitureItem.PositionX = X;
         roomFurnitureItem.PositionY = Y;
@@ -144,26 +139,31 @@ public class RoomFloorItemUpdatedEventHandler(
 
         await roomFurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, roomFurnitureItem);
 
-        _itemToPersist = roomFurnitureItem;
+        _placementToPersist = new ItemPlacement(
+            roomFurnitureItem.Id,
+            roomFurnitureItem.PositionX,
+            roomFurnitureItem.PositionY,
+            roomFurnitureItem.PositionZ,
+            roomFurnitureItem.Direction);
     }
+
+    private readonly record struct ItemPlacement(int Id, int X, int Y, double Z, HDirection Direction);
 
     public async Task PersistAsync()
     {
-        if (_itemToPersist == null)
+        if (_placementToPersist is not { } placement)
         {
             return;
         }
 
-        var item = _itemToPersist;
-
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         await dbContext.RoomFurnitureItems
-            .Where(x => x.Id == item.Id)
+            .Where(x => x.Id == placement.Id)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(x => x.PositionX, item.PositionX)
-                .SetProperty(x => x.PositionY, item.PositionY)
-                .SetProperty(x => x.PositionZ, item.PositionZ)
-                .SetProperty(x => x.Direction, item.Direction));
+                .SetProperty(x => x.PositionX, placement.X)
+                .SetProperty(x => x.PositionY, placement.Y)
+                .SetProperty(x => x.PositionZ, placement.Z)
+                .SetProperty(x => x.Direction, placement.Direction));
     }
 }

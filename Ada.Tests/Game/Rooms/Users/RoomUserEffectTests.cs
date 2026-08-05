@@ -50,7 +50,7 @@ public class RoomUserEffectTests
     {
         var roomDto = new RoomDto
         {
-            FurnitureItems = furniture,
+            FurnitureItems = [..furniture],
             Settings = new RoomSettingsDto()
         };
 
