@@ -21,11 +21,11 @@ public class NavigatorSearchEventHandler(
     IRoomRepository roomRepository,
     IPlayerRepository playerRepository,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TabName { get; set; }
     public string? SearchQuery { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (client.Player == null)
@@ -34,7 +34,7 @@ public class NavigatorSearchEventHandler(
         }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var tab = await dbContext.Set<NavigatorTab>()
             .Include(x => x.Categories)
             .FirstOrDefaultAsync(x => x.Name == TabName);
@@ -65,17 +65,16 @@ public class NavigatorSearchEventHandler(
                 categoryRoomMap.Add(category, await navigatorRoomProvider.GetRoomsForCategoryNameAsync(client.Player, category.CodeName));
             }
         }
-        
-        var ownerUsernames = new Dictionary<long, string>();
 
-        foreach (var room in categoryRoomMap.Values.SelectMany(x => x))
-        {
-            if (!ownerUsernames.ContainsKey(room.OwnerId))
-            {
-                ownerUsernames[room.OwnerId] =
-                    await playerRepository.GetPlayerUsernameByIdAsync(room.OwnerId) ?? "Unknown User";
-            }
-        }
+        var ownerIds = categoryRoomMap.Values
+            .SelectMany(x => x)
+            .Select(x => x.OwnerId)
+            .Distinct()
+            .ToList();
+
+        var resolved = await playerRepository.GetPlayerUsernamesByIdsAsync(ownerIds);
+        var ownerUsernames = ownerIds.ToDictionary(id => id,
+            id => resolved.GetValueOrDefault(id, "Unknown User"));
 
         var searchResultPagesWriter = new NavigatorSearchResultPagesWriter
         {
