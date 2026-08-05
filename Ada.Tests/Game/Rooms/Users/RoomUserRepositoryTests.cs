@@ -300,7 +300,7 @@ public class RoomUserRepositoryTests
     }
 
     [Test]
-    public async Task ProcessNewWalkRequestsAsync_WalkStarted_QueuesDataAndStatusToAllUsers()
+    public async Task ProcessNewWalkRequestsAsync_WalkStarted_QueuesStatusToAllUsers()
     {
         var (repository, _, _, _) = MakeRepository();
 
@@ -316,8 +316,8 @@ public class RoomUserRepositoryTests
 
         await repository.ProcessNewWalkRequestsAsync();
 
-        walker.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
-        bystander.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
+        walker.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
+        bystander.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
         Assert.That(walker.User.Object.NeedsUpdate, Is.False);
     }
 
@@ -389,9 +389,12 @@ public class RoomUserRepositoryTests
         room.Verify(x => x.BroadcastDataAsync(
             It.Is<AbstractPacketWriter>(w => w is RoomBotStatusWriter),
             It.IsAny<IReadOnlyCollection<long>?>()), Times.Once);
+
+        // NeedsUpdate marks movement and posture, which the status payload carries; the full bot
+        // data payload goes out on room entry and on placement instead.
         room.Verify(x => x.BroadcastDataAsync(
             It.Is<AbstractPacketWriter>(w => w is RoomBotDataWriter),
-            It.IsAny<IReadOnlyCollection<long>?>()), Times.Once);
+            It.IsAny<IReadOnlyCollection<long>?>()), Times.Never);
         Assert.That(bot.Object.NeedsUpdate, Is.False);
     }
 
@@ -417,7 +420,7 @@ public class RoomUserRepositoryTests
     }
 
     [Test]
-    public async Task RunPeriodicCheckAsync_UsersNeedUpdate_QueuesDataAndStatus()
+    public async Task RunPeriodicCheckAsync_UsersNeedUpdate_QueuesStatus()
     {
         var (repository, room, _, _) = MakeRepository();
 
@@ -431,7 +434,7 @@ public class RoomUserRepositoryTests
 
         await repository.RunPeriodicCheckAsync();
 
-        user.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
+        user.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
         Assert.That(user.User.Object.NeedsUpdate, Is.False);
     }
 

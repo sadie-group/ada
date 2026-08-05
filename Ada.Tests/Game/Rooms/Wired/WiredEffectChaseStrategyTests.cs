@@ -38,7 +38,7 @@ public class WiredEffectChaseStrategyTests : MockHelpers
         List<PlayerFurnitureItemPlacementDataDto> furnitureItems,
         List<IRoomUser>? users = null)
     {
-        var roomDto = new RoomDto { FurnitureItems = furnitureItems };
+        var roomDto = new RoomDto { FurnitureItems = [..furnitureItems] };
 
         var room = new Mock<IRoomLogic>();
         room.SetupGet(x => x.Room).Returns(roomDto);

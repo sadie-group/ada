@@ -103,7 +103,7 @@ public class RoomUserTests
 
         var roomDto = new RoomDto
         {
-            FurnitureItems = furniture,
+            FurnitureItems = [..furniture],
             Settings = new RoomSettingsDto()
         };
 
@@ -123,6 +123,12 @@ public class RoomUserTests
         player.SetupGet(x => x.Player).Returns(CreatePlayerDto());
 
         var wired = new Mock<IRoomWiredService>();
+
+        wired.Setup(x => x.HasTriggers(
+                It.IsAny<string>(),
+                It.IsAny<ICollection<PlayerFurnitureItemPlacementDataDto>>()))
+            .Returns(true);
+
         var interactors = new Mock<IRoomFurnitureItemInteractorRepository>();
         var networkObject = new Mock<INetworkObject>();
         var roomHelper = new Mock<IRoomHelperService>();
@@ -362,10 +368,13 @@ public class RoomUserTests
         await h.User.SendWhisperAsync("hello");
 
         var whisper = (RoomUserWhisperWriter)writers.Single();
-        Assert.That(whisper.SenderId, Is.EqualTo(1L));
-        Assert.That(whisper.Message, Is.EqualTo("hello"));
-        Assert.That(whisper.EmotionId, Is.EqualTo((int)RoomUserEmotion.Smile));
-        Assert.That(whisper.MessageLength, Is.EqualTo(5));
+        Assert.Multiple(() =>
+        {
+            Assert.That(whisper.SenderId, Is.EqualTo(1L));
+            Assert.That(whisper.Message, Is.EqualTo("hello"));
+            Assert.That(whisper.EmotionId, Is.EqualTo((int)RoomUserEmotion.Smile));
+            Assert.That(whisper.MessageLength, Is.EqualTo(5));
+        });
     }
 
     [Test]

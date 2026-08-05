@@ -1,3 +1,4 @@
+using Ada.Game.Rooms.Mapping;
 using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
@@ -65,6 +66,7 @@ public class RoomWiredServiceConditionTests : MockHelpers
         var wiredService = new RoomWiredService(
             dbFactory,
             helperService,
+            new RoomTileMapHelperService(),
             [effectStrategy],
             [new FixedConditionStrategy(conditionSatisfied)],
             new WiredTimerService(),

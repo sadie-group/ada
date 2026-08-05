@@ -141,7 +141,8 @@ public class CatalogTeleportPurchaseServiceTests
         var (client, written) = PurchaseTestHelpers.MakeClient(player);
         var confirmation = new Mock<ICatalogPurchaseConfirmationService>();
         var item = new CatalogItemDto { Id = 3, Name = "tele", FurnitureItems = [Teleport] };
-        var service = new CatalogTeleportPurchaseService(factory, confirmation.Object, CreateMapper(created));
+        var service = new CatalogTeleportPurchaseService(factory, confirmation.Object, CreateMapper(created),
+            NullLogger<CatalogTeleportPurchaseService>.Instance);
 
         await service.ProcessAsync(client.Object, item, "42", 1);
 
@@ -174,7 +175,8 @@ public class CatalogTeleportPurchaseServiceTests
         var player = PurchaseTestHelpers.MakePlayer(7, [], []);
         var (client, _) = PurchaseTestHelpers.MakeClient(player);
         var service = new CatalogTeleportPurchaseService(
-            factory, Mock.Of<ICatalogPurchaseConfirmationService>(), CreateMapper(created));
+            factory, Mock.Of<ICatalogPurchaseConfirmationService>(), CreateMapper(created),
+            NullLogger<CatalogTeleportPurchaseService>.Instance);
 
         await service.ProcessAsync(client.Object, new CatalogItemDto { Id = 3, FurnitureItems = [Teleport] }, null, 1);
 
@@ -263,7 +265,8 @@ public class CatalogBotPurchaseServiceTests
         var factory = TestDbFactory.CreateDbFactory();
         var confirmation = new Mock<ICatalogPurchaseConfirmationService>();
         var (client, written) = PurchaseTestHelpers.MakeClient(PurchaseTestHelpers.MakePlayer(1, [], []));
-        var service = new CatalogBotPurchaseService(factory, confirmation.Object);
+        var service = new CatalogBotPurchaseService(factory, confirmation.Object,
+            NullLogger<CatalogBotPurchaseService>.Instance);
 
         await service.ProcessAsync(client.Object, new CatalogItemDto { Id = 1, MetaData = metaData });
 
@@ -279,7 +282,8 @@ public class CatalogBotPurchaseServiceTests
         var factory = TestDbFactory.CreateDbFactory();
         var confirmation = new Mock<ICatalogPurchaseConfirmationService>();
         var (client, written) = PurchaseTestHelpers.MakeClient(null);
-        var service = new CatalogBotPurchaseService(factory, confirmation.Object);
+        var service = new CatalogBotPurchaseService(factory, confirmation.Object,
+            NullLogger<CatalogBotPurchaseService>.Instance);
 
         await service.ProcessAsync(client.Object, new CatalogItemDto { Id = 1, MetaData = BotData });
 
@@ -295,7 +299,8 @@ public class CatalogBotPurchaseServiceTests
     {
         var factory = TestDbFactory.CreateDbFactory();
         var (client, written) = PurchaseTestHelpers.MakeClient(PurchaseTestHelpers.MakePlayer(1, [], []));
-        var service = new CatalogBotPurchaseService(factory, Mock.Of<ICatalogPurchaseConfirmationService>());
+        var service = new CatalogBotPurchaseService(factory, Mock.Of<ICatalogPurchaseConfirmationService>(),
+            NullLogger<CatalogBotPurchaseService>.Instance);
         var item = new CatalogItemDto { Id = 1, MetaData = $"name:Bobba;figure:hr-100;motto:beep;{gender}" };
 
         Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(client.Object, item));
