@@ -6,16 +6,18 @@ using Ada.Db;
 using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Rooms.Users.Trading;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events;
 
 public class RoomUserTrade(
     IPlayerHelperService playerHelperService,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : IRoomUserTrade
+    IDbContextFactory<AdaDbContext> dbContextFactory,
+    ILogger<RoomUserTrade> logger) : IRoomUserTrade
 {
     public required List<IRoomUser> Users { get; init; }
     public required List<PlayerFurnitureItemDto> Items { get; init; }
-    
+
     public async Task OfferItemsAsync(List<PlayerFurnitureItemDto> playerItems)
     {
         foreach (var item in playerItems.Where(item => !Items.Contains(item)))
@@ -33,18 +35,31 @@ public class RoomUserTrade(
             Trade = this
         });
     }
-    
+
     public Task BroadcastToUsersAsync(AbstractPacketWriter writer)
     {
         return PacketBroadcast.SendAsync(writer, Users.Select(user => user.NetworkObject));
     }
-    
-    public async Task SwapItemsAsync()
+
+    public async Task<bool> SwapItemsAsync()
     {
         var map = new Dictionary<long, List<PlayerFurnitureItemDto>>();
-        
+
+        var userOne = Users[0].Player;
+        var userTwo = Users[1].Player;
+
         foreach (var item in Items)
         {
+            var owner = item.PlayerId == userOne.Player.Id ? userOne :
+                item.PlayerId == userTwo.Player.Id ? userTwo : null;
+
+            if (owner == null ||
+                item.PlacementData != null ||
+                !owner.Player.FurnitureItems.Contains(item))
+            {
+                return false;
+            }
+
             if (!map.TryGetValue(item.PlayerId, out var value))
             {
                 value = [];
@@ -54,19 +69,27 @@ public class RoomUserTrade(
             value.Add(item);
         }
 
-        var userOne = Users[0].Player;
-        var userTwo = Users[1].Player;
-
-        var userOneItems = map.TryGetValue(userOne.Player.Id, out var oneItems) ? 
+        var userOneItems = map.TryGetValue(userOne.Player.Id, out var oneItems) ?
             oneItems : [];
-        
-        var userTwoItems = map.TryGetValue(userTwo.Player.Id, out var twoItems) ? 
+
+        var userTwoItems = map.TryGetValue(userTwo.Player.Id, out var twoItems) ?
             twoItems : [];
-        
+
         var updateMap = new Dictionary<IPlayerLogic, List<PlayerFurnitureItemDto>>();
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+
+        if (!await TryTransferOwnershipAsync(dbContext, userOneItems, userOne.Player.Id, userTwo.Player.Id) ||
+            !await TryTransferOwnershipAsync(dbContext, userTwoItems, userTwo.Player.Id, userOne.Player.Id))
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        await transaction.CommitAsync();
+
         foreach (var userOneItem in userOneItems)
         {
             userOneItem.PlayerId = userTwo.Player.Id;
@@ -81,7 +104,7 @@ public class RoomUserTrade(
 
             updateMap[userTwo].Add(userOneItem);
         }
-        
+
         foreach (var userTwoItem in userTwoItems)
         {
             userTwoItem.PlayerId = userOne.Player.Id;
@@ -99,27 +122,39 @@ public class RoomUserTrade(
 
         foreach (var (updatePlayer, updatedItems) in updateMap)
         {
-            await playerHelperService.SendUnseenInventoryItemsAsync(updatePlayer, updatedItems);
-            await playerHelperService.RefreshInventoryAsync(updatePlayer);
+            try
+            {
+                await playerHelperService.SendUnseenInventoryItemsAsync(updatePlayer, updatedItems);
+                await playerHelperService.RefreshInventoryAsync(updatePlayer);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Failed to refresh inventory for player {PlayerId} after a completed trade",
+                    updatePlayer.Player.Id);
+            }
         }
 
-        if (userOneItems.Count > 0)
+        return true;
+    }
+
+    private static async Task<bool> TryTransferOwnershipAsync(
+        AdaDbContext dbContext,
+        List<PlayerFurnitureItemDto> items,
+        long fromPlayerId,
+        long toPlayerId)
+    {
+        if (items.Count == 0)
         {
-            var itemIds = userOneItems.Select(x => x.Id).ToList();
-
-            await dbContext.PlayerFurnitureItems
-                .Where(x => itemIds.Contains(x.Id))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlayerId, userTwo.Player.Id));
+            return true;
         }
 
-        if (userTwoItems.Count > 0)
-        {
-            var itemIds = userTwoItems.Select(x => x.Id).ToList();
+        var itemIds = items.Select(x => x.Id).Distinct().ToList();
 
-            await dbContext.PlayerFurnitureItems
-                .Where(x => itemIds.Contains(x.Id))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlayerId, userOne.Player.Id));
-        }
+        var updated = await dbContext.PlayerFurnitureItems
+            .Where(x => itemIds.Contains(x.Id) && x.PlayerId == fromPlayerId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PlayerId, toPlayerId));
+
+        return updated == itemIds.Count;
     }
 
     public void RemoveOfferedItem(PlayerFurnitureItemDto item)
