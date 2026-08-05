@@ -8,13 +8,15 @@ using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Players;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Catalog.Purchase;
 
 public class CatalogTeleportPurchaseService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     ICatalogPurchaseConfirmationService confirmationService,
-    IMapper mapper) : ICatalogTeleportPurchaseService
+    IMapper mapper,
+    ILogger<CatalogTeleportPurchaseService> logger) : ICatalogTeleportPurchaseService
 {
     public async Task ProcessAsync(INetworkClient client, CatalogItemDto item, string? metaData, int amount)
     {
@@ -46,14 +48,22 @@ public class CatalogTeleportPurchaseService(
         client.Player!.Player.FurnitureItems.Add(parent);
         client.Player.Player.FurnitureItems.Add(child);
 
-        await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
+        try
         {
-            Count = 2,
-            Category = 1,
-            FurnitureItems = [parent, child]
-        });
+            await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
+            {
+                Count = 2,
+                Category = 1,
+                FurnitureItems = [parent, child]
+            });
 
-        await confirmationService.ConfirmAsync(client, item, amount);
+            await confirmationService.ConfirmAsync(client, item, amount);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to notify player {PlayerId} of delivered teleport purchase",
+                client.Player.Player.Id);
+        }
     }
 
     private static PlayerFurnitureItemDto CreateItem(
