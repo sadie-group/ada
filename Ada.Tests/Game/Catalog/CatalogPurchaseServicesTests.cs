@@ -134,7 +134,7 @@ public class CatalogChargeServiceTests
     [Test]
     public void HasRequiredMembership_NoClubRequired_ReturnsTrue()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var (client, _) = CatalogClientFactory.MakeClient(null);
 
         Assert.That(service.HasRequiredMembership(client.Object, MakeItem()), Is.True);
@@ -143,7 +143,7 @@ public class CatalogChargeServiceTests
     [Test]
     public void HasRequiredMembership_ClubRequiredWithoutPlayer_ReturnsFalse()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var (client, _) = CatalogClientFactory.MakeClient(null);
 
         Assert.That(service.HasRequiredMembership(client.Object, MakeItem(requiresClub: true)), Is.False);
@@ -152,7 +152,7 @@ public class CatalogChargeServiceTests
     [Test]
     public void HasRequiredMembership_WithHabboClub_ReturnsTrue()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var player = CatalogClientFactory.MakePlayerDto(1, "buyer", subscriptions:
         [
             new PlayerSubscriptionDto { Subscription = new SubscriptionDto { Name = "HABBO_CLUB" } }
@@ -165,7 +165,7 @@ public class CatalogChargeServiceTests
     [Test]
     public void HasRequiredMembership_WithoutHabboClub_ReturnsFalse()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var player = CatalogClientFactory.MakePlayerDto(1, "buyer", subscriptions:
         [
             new PlayerSubscriptionDto(),
@@ -179,7 +179,7 @@ public class CatalogChargeServiceTests
     [Test]
     public async Task TryChargeAsync_InsufficientCredits_ReturnsFalse()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -193,7 +193,7 @@ public class CatalogChargeServiceTests
     [Test]
     public async Task TryChargeAsync_InsufficientPixels_ReturnsFalse()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -207,7 +207,7 @@ public class CatalogChargeServiceTests
     [Test]
     public async Task TryChargeAsync_InsufficientSeasonal_ReturnsFalse()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -221,7 +221,7 @@ public class CatalogChargeServiceTests
     [Test]
     public async Task TryChargeAsync_FreeItem_ReturnsTrueWithoutWrites()
     {
-        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory());
+        var service = new CatalogChargeService(TestDbFactory.CreateDbFactory(), NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -236,7 +236,7 @@ public class CatalogChargeServiceTests
     public async Task TryChargeAsync_Credits_DeductsWritesAndPersists()
     {
         using var factory = await SeedAsync();
-        var service = new CatalogChargeService(factory);
+        var service = new CatalogChargeService(factory, NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -258,7 +258,7 @@ public class CatalogChargeServiceTests
     public async Task TryChargeAsync_PixelPoints_DeductsWritesAndPersists()
     {
         using var factory = await SeedAsync();
-        var service = new CatalogChargeService(factory);
+        var service = new CatalogChargeService(factory, NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -281,7 +281,7 @@ public class CatalogChargeServiceTests
     public async Task TryChargeAsync_SeasonalPoints_DeductsWritesAndPersists()
     {
         using var factory = await SeedAsync();
-        var service = new CatalogChargeService(factory);
+        var service = new CatalogChargeService(factory, NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -300,7 +300,7 @@ public class CatalogChargeServiceTests
     public async Task TryChargeAsync_CreditsAndPoints_WritesBoth()
     {
         using var factory = await SeedAsync();
-        var service = new CatalogChargeService(factory);
+        var service = new CatalogChargeService(factory, NullLogger<CatalogChargeService>.Instance);
         var data = MakeData();
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
@@ -376,7 +376,8 @@ public class CatalogFurniturePurchaseServiceTests
                 MetaData = ""
             });
 
-        var service = new CatalogFurniturePurchaseService(factory, confirmation.Object, wordFilter.Object, mapper.Object);
+        var service = new CatalogFurniturePurchaseService(factory, confirmation.Object, wordFilter.Object, mapper.Object,
+            NullLogger<CatalogFurniturePurchaseService>.Instance);
         return (service, confirmation, wordFilter, factory);
     }
 
@@ -411,17 +412,59 @@ public class CatalogFurniturePurchaseServiceTests
     }
 
     [Test]
-    public async Task ProcessAsync_NonTrophy_KeepsMetaData()
+    public async Task ProcessAsync_NonTrophy_FiltersMetaData()
     {
         var furniture = MakeFurniture();
-        var (service, _, _, _) = MakeService(furniture);
+        var (service, _, wordFilter, _) = MakeService(furniture);
         var inventory = new List<PlayerFurnitureItemDto>();
         var (client, _) = CatalogClientFactory.MakeClient(
             CatalogClientFactory.MakePlayerDto(1, "buyer", furnitureItems: inventory));
 
         await service.ProcessAsync(client.Object, MakeItem(furniture), "hello", 1);
 
-        Assert.That(inventory.Single().MetaData, Is.EqualTo("hello"));
+        Assert.That(inventory.Single().MetaData, Is.EqualTo("filtered"));
+        wordFilter.Verify(x => x.Filter("hello", WordFilterContext.Chat), Times.Once);
+    }
+
+    [Test]
+    public async Task ProcessAsync_NonTrophy_CapsMetaDataLength()
+    {
+        var furniture = MakeFurniture();
+        var (service, _, wordFilter, _) = MakeService(furniture);
+        var inventory = new List<PlayerFurnitureItemDto>();
+        var (client, _) = CatalogClientFactory.MakeClient(
+            CatalogClientFactory.MakePlayerDto(1, "buyer", furnitureItems: inventory));
+
+        await service.ProcessAsync(client.Object, MakeItem(furniture), new string('a', 5_000), 1);
+
+        wordFilter.Verify(x => x.Filter(It.Is<string>(s => s.Length == 300), WordFilterContext.Chat), Times.Once);
+    }
+
+    [Test]
+    public async Task ProcessAsync_NonTrophy_EmptyMetaData_SkipsTheFilter()
+    {
+        var furniture = MakeFurniture();
+        var (service, _, wordFilter, _) = MakeService(furniture);
+        var inventory = new List<PlayerFurnitureItemDto>();
+        var (client, _) = CatalogClientFactory.MakeClient(
+            CatalogClientFactory.MakePlayerDto(1, "buyer", furnitureItems: inventory));
+
+        await service.ProcessAsync(client.Object, MakeItem(furniture), null, 1);
+
+        Assert.That(inventory.Single().MetaData, Is.EqualTo(""));
+        wordFilter.Verify(x => x.Filter(It.IsAny<string>(), It.IsAny<WordFilterContext>()), Times.Never);
+    }
+
+    [Test]
+    public void ProcessAsync_AmountOutsideTheCap_Throws()
+    {
+        var furniture = MakeFurniture();
+        var (service, _, _, _) = MakeService(furniture);
+        var (client, _) = CatalogClientFactory.MakeClient(
+            CatalogClientFactory.MakePlayerDto(1, "buyer", furnitureItems: []));
+
+        Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => service.ProcessAsync(client.Object, MakeItem(furniture), null, 10_000));
     }
 
     [Test]
@@ -507,21 +550,23 @@ public class CatalogPurchaseConfirmationServiceTests
         Assert.That(written, Has.Count.EqualTo(2));
 
         var ok = (CatalogPurchaseOkWriter)written[0];
-        Assert.That(ok.Id, Is.EqualTo(3));
-        Assert.That(ok.Name, Is.EqualTo("deal"));
-        Assert.That(ok.Rented, Is.False);
-        Assert.That(ok.CostCredits, Is.EqualTo(10));
-        Assert.That(ok.CostPoints, Is.EqualTo(5));
-        Assert.That(ok.CostPointsType, Is.EqualTo(1));
-        Assert.That(ok.CanGift, Is.True);
-        Assert.That(ok.FurnitureItems, Is.EqualTo(mapped));
-        Assert.That(ok.Amount, Is.EqualTo(2));
-        Assert.That(ok.ClubLevel, Is.EqualTo(1));
-        Assert.That(ok.CanPurchaseBundles, Is.False);
-        Assert.That(ok.Metadata, Is.EqualTo("meta"));
-        Assert.That(ok.IsLimited, Is.False);
-
-        Assert.That(written[1], Is.TypeOf<PlayerInventoryRefreshWriter>());
+        Assert.Multiple(() =>
+        {
+            Assert.That(ok.Id, Is.EqualTo(3));
+            Assert.That(ok.Name, Is.EqualTo("deal"));
+            Assert.That(ok.Rented, Is.False);
+            Assert.That(ok.CostCredits, Is.EqualTo(10));
+            Assert.That(ok.CostPoints, Is.EqualTo(5));
+            Assert.That(ok.CostPointsType, Is.EqualTo(1));
+            Assert.That(ok.CanGift, Is.True);
+            Assert.That(ok.FurnitureItems, Is.EqualTo(mapped));
+            Assert.That(ok.Amount, Is.EqualTo(2));
+            Assert.That(ok.ClubLevel, Is.EqualTo(1));
+            Assert.That(ok.CanPurchaseBundles, Is.False);
+            Assert.That(ok.Metadata, Is.EqualTo("meta"));
+            Assert.That(ok.IsLimited, Is.False);
+            Assert.That(written[1], Is.TypeOf<PlayerInventoryRefreshWriter>());
+        });
     }
 
     [Test]

@@ -283,4 +283,52 @@ public class PlayerRepositoryTests
 
         Assert.That(await repository.GetPlayerUsernameByIdAsync(404), Is.Null);
     }
+
+    [Test]
+    public async Task GetPlayerUsernamesByIdsAsync_ResolvesKnownIdsAndOmitsUnknownOnes()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 1, Username = "one", Email = "e1", Password = "p" });
+            context.Players.Add(new Player { Id = 2, Username = "two", Email = "e2", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+
+        var resolved = await repository.GetPlayerUsernamesByIdsAsync([1, 2, 404, 1]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolved, Has.Count.EqualTo(2));
+            Assert.That(resolved[1], Is.EqualTo("one"));
+            Assert.That(resolved[2], Is.EqualTo("two"));
+            Assert.That(resolved.ContainsKey(404), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task GetPlayerUsernamesByIdsAsync_ServesCachedNamesWithoutHittingTheDatabase()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 7, Username = "seven", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        await repository.GetPlayerUsernameByIdAsync(7);
+
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Remove(context.Players.Single(p => p.Id == 7));
+            await context.SaveChangesAsync();
+        }
+
+        var resolved = await repository.GetPlayerUsernamesByIdsAsync([7]);
+
+        Assert.That(resolved[7], Is.EqualTo("seven"));
+    }
 }
