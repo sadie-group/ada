@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Runtime.CompilerServices;
+using Ada.API.Collections;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Users;
@@ -27,16 +28,16 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
             _ => throw new ArgumentOutOfRangeException(nameof(direction))
         };
     }
-    
+
     public List<Point> GetPointsForPlacement(
-        int x, 
-        int y, 
-        int width, 
-        int length, 
+        int x,
+        int y,
+        int width,
+        int length,
         HDirection direction)
     {
         var points = new List<Point>();
-        
+
         switch (direction)
         {
             case HDirection.North or HDirection.South:
@@ -69,30 +70,49 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     }
 
     public RoomTileState GetTileState(
-        int x, 
-        int y, 
-        IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems)
+        int x,
+        int y,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
-        var item = GetItemsForPosition(x, y, furnitureItems).MaxBy(x => x.PositionZ);
+        var itemsOnTile = GetItemsOnTile(x, y, furnitureItems);
+
+        PlayerFurnitureItemPlacementDataDto? item = null;
+
+        for (var i = 0; i < itemsOnTile.Count; i++)
+        {
+            var candidate = itemsOnTile[i];
+
+            if (excludeItem != null && EqualityComparer<PlayerFurnitureItemPlacementDataDto>.Default
+                    .Equals(candidate, excludeItem))
+            {
+                continue;
+            }
+
+            if (item == null || candidate.PositionZ > item.PositionZ)
+            {
+                item = candidate;
+            }
+        }
 
         if (item == null)
         {
             return RoomTileState.Open;
         }
-        
+
         var furnitureItem = item.PlayerFurnitureItem.FurnitureItem;
 
         if (furnitureItem.CanWalk)
         {
             return RoomTileState.Open;
         }
-        
+
         if (furnitureItem.CanSit)
         {
             return RoomTileState.Sit;
         }
 
-        if (furnitureItem.InteractionType == FurnitureItemInteractionType.Gate && 
+        if (furnitureItem.InteractionType == FurnitureItemInteractionType.Gate &&
             item.PlayerFurnitureItem.MetaData == "1")
         {
             return RoomTileState.Open;
@@ -103,15 +123,114 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
     private sealed class TileItemIndex
     {
-        public int SourceCount;
-        public readonly Dictionary<Point, List<PlayerFurnitureItemPlacementDataDto>> ItemsByTile = new();
+        public required int Revision { get; init; }
+        public required IReadOnlyDictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>> ItemsByTile
+        {
+            get;
+            init;
+        }
     }
 
-    private static readonly ConditionalWeakTable<object, TileItemIndex> ItemIndexCache = new();
+    private sealed class TileItemIndexSlot
+    {
+        public volatile TileItemIndex? Current;
+    }
+
+    private static readonly ConditionalWeakTable<object, TileItemIndexSlot> ItemIndexCache = new();
 
     public void InvalidateItemIndex(IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
     {
-        ItemIndexCache.Remove(items);
+        if (ItemIndexCache.TryGetValue(items, out var slot))
+        {
+            slot.Current = null;
+        }
+    }
+
+    private static TileItemIndex GetItemIndex(ICollection<PlayerFurnitureItemPlacementDataDto> items)
+    {
+        var slot = ItemIndexCache.GetValue(items, static _ => new TileItemIndexSlot());
+        var current = slot.Current;
+
+        var (revision, snapshot) = CollectionRevision.SnapshotOf(items);
+
+        if (current != null && current.Revision == revision)
+        {
+            return current;
+        }
+
+        var rebuilt = BuildItemIndex(snapshot, revision);
+        slot.Current = rebuilt;
+        return rebuilt;
+    }
+
+    public bool TryMoveItemInIndex(
+        ICollection<PlayerFurnitureItemPlacementDataDto> items,
+        PlayerFurnitureItemPlacementDataDto item,
+        List<Point> oldPoints,
+        List<Point> newPoints)
+    {
+        if (item.PlayerFurnitureItem.FurnitureItem.Type != FurnitureItemType.Floor)
+        {
+            return true;
+        }
+
+        if (!ItemIndexCache.TryGetValue(items, out var slot))
+        {
+            return false;
+        }
+
+        var index = slot.Current;
+
+        if (index == null || !CollectionRevision.IsCurrent(items, index.Revision))
+        {
+            slot.Current = null;
+            return false;
+        }
+
+        var itemsByTile = new Dictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>>(index.ItemsByTile);
+
+        foreach (var point in oldPoints)
+        {
+            if (!itemsByTile.TryGetValue(point, out var tileItems) || !tileItems.Contains(item))
+            {
+                continue;
+            }
+
+            var replacement = tileItems.Where(x => !ReferenceEquals(x, item)).ToArray();
+
+            if (replacement.Length == 0)
+            {
+                itemsByTile.Remove(point);
+            }
+            else
+            {
+                itemsByTile[point] = replacement;
+            }
+        }
+
+        foreach (var point in newPoints)
+        {
+            if (!itemsByTile.TryGetValue(point, out var tileItems))
+            {
+                itemsByTile[point] = new[] { item };
+                continue;
+            }
+
+            if (tileItems.Contains(item))
+            {
+                continue;
+            }
+
+            itemsByTile[point] = [..tileItems, item];
+        }
+
+        slot.Current = new TileItemIndex
+        {
+            Revision = index.Revision,
+            ItemsByTile = itemsByTile
+        };
+
+        return true;
     }
 
     private static (int Width, int Length) GetItemFootprint(PlayerFurnitureItemPlacementDataDto item)
@@ -130,9 +249,11 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         };
     }
 
-    private static TileItemIndex BuildItemIndex(ICollection<PlayerFurnitureItemPlacementDataDto> items)
+    private static TileItemIndex BuildItemIndex(
+        IReadOnlyList<PlayerFurnitureItemPlacementDataDto> items,
+        int revision)
     {
-        var index = new TileItemIndex { SourceCount = items.Count };
+        var itemsByTile = new Dictionary<Point, List<PlayerFurnitureItemPlacementDataDto>>();
 
         foreach (var item in items)
         {
@@ -149,9 +270,9 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
                 {
                     var point = new Point(x, y);
 
-                    if (!index.ItemsByTile.TryGetValue(point, out var tileItems))
+                    if (!itemsByTile.TryGetValue(point, out var tileItems))
                     {
-                        index.ItemsByTile[point] = tileItems = [];
+                        itemsByTile[point] = tileItems = [];
                     }
 
                     tileItems.Add(item);
@@ -159,7 +280,28 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
             }
         }
 
-        return index;
+        return new TileItemIndex
+        {
+            Revision = revision,
+            ItemsByTile = itemsByTile.ToDictionary(
+                x => x.Key,
+                x => (IReadOnlyList<PlayerFurnitureItemPlacementDataDto>) x.Value.ToArray())
+        };
+    }
+
+    private IReadOnlyList<PlayerFurnitureItemPlacementDataDto> GetItemsOnTile(
+        int x,
+        int y,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
+    {
+        if (items is not ICollection<PlayerFurnitureItemPlacementDataDto> collection)
+        {
+            return GetItemsForPosition(x, y, items);
+        }
+
+        return GetItemIndex(collection).ItemsByTile.TryGetValue(new Point(x, y), out var tileItems)
+            ? tileItems
+            : [];
     }
 
     public List<PlayerFurnitureItemPlacementDataDto> GetItemsForPosition(int x,
@@ -168,15 +310,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     {
         if (items is ICollection<PlayerFurnitureItemPlacementDataDto> collection)
         {
-            var index = ItemIndexCache.GetValue(collection,
-                static c => BuildItemIndex((ICollection<PlayerFurnitureItemPlacementDataDto>) c));
-
-            if (index.SourceCount != collection.Count)
-            {
-                ItemIndexCache.Remove(collection);
-                index = ItemIndexCache.GetValue(collection,
-                    static c => BuildItemIndex((ICollection<PlayerFurnitureItemPlacementDataDto>) c));
-            }
+            var index = GetItemIndex(collection);
 
             return index.ItemsByTile.TryGetValue(new Point(x, y), out var tileItems)
                 ? [..tileItems]
@@ -205,7 +339,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
         return result;
     }
-    
+
     public short[,] GetWorldArrayFromTileMap(IRoomTileMap map,
         Point goalPoint,
         List<Point> overridePoints)
@@ -222,15 +356,15 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
                     tmp[y, x] = 1;
                     continue;
                 }
-                
+
                 // If it's a sit or lay tile, don't include it unless it's our goal
-                
+
                 if ((map.Map[y, x] == 2 || map.Map[y, x] == 3) && (goalPoint.X != x || goalPoint.Y != y))
                 {
                     tmp[y, x] = 0;
                     continue;
                 }
-                
+
                 // If the tile has other users on it skip it
 
                 if (map.UnitMap.TryGetValue(new Point(x, y), out var users) && users.Count > 0)
@@ -238,7 +372,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
                     tmp[y, x] = 0;
                     continue;
                 }
-                
+
                 tmp[y, x] = map.Map[y, x];
             }
         }
@@ -247,16 +381,21 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     }
 
     public void UpdateTileMapsForPoints(
-        List<Point> points, 
-        IRoomTileMap tileMap, 
-        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
+        List<Point> points,
+        IRoomTileMap tileMap,
+        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null,
+        bool invalidateIndex = true)
     {
-        InvalidateItemIndex(furnitureItems);
+        if (invalidateIndex)
+        {
+            InvalidateItemIndex(furnitureItems);
+        }
 
         foreach (var point in points)
         {
-            tileMap.Map[point.Y, point.X] = (short) GetTileState(point.X, point.Y, furnitureItems);
-            tileMap.UpdateEffectMapForTile(point.X, point.Y, furnitureItems);
+            tileMap.Map[point.Y, point.X] = (short) GetTileState(point.X, point.Y, furnitureItems, excludeItem);
+            tileMap.UpdateEffectMapForTile(point.X, point.Y, furnitureItems, excludeItem);
         }
     }
 
@@ -287,7 +426,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         {
             var topItem = GetItemsForPosition(point.X, point.Y, furnitureItems)
                 .MaxBy(x => x.PositionZ);
-            
+
             if (tileMap.Map[point.Y, point.X] == 0 && topItem is { PlayerFurnitureItem.FurnitureItem.CanStack: false })
             {
                 return false;
@@ -301,7 +440,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
         return true;
     }
-    
+
     public List<IRoomUser> GetUsersAtPoints(IEnumerable<Point> points, IEnumerable<IRoomUser> users)
     {
         return users
@@ -313,7 +452,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     {
         var offsetX = 0;
         var offsetY = 0;
-        
+
         switch ((int) direction % 8) {
             case 0:
                 offsetY--;
@@ -345,7 +484,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
                 break;
         }
 
-        for (var i = 0; i <= offset; i++) 
+        for (var i = 0; i <= offset; i++)
         {
             x += offsetX;
             y += offsetY;
@@ -356,34 +495,47 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
     public double GetItemPlacementHeight(
         IRoomTileMap roomTileMap,
-        IEnumerable<Point> pointsForPlacement, 
-        ICollection<PlayerFurnitureItemPlacementDataDto> roomFurnitureItems)
+        IEnumerable<Point> pointsForPlacement,
+        ICollection<PlayerFurnitureItemPlacementDataDto> roomFurnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
         if (!pointsForPlacement.Any())
         {
-            return default;
+            return 0;
         }
-        
-        var i = new List<PlayerFurnitureItemPlacementDataDto>();
-        
+
+        PlayerFurnitureItemPlacementDataDto? highestItem = null;
+
         foreach (var p in pointsForPlacement)
         {
-            i.AddRange(GetItemsForPosition(p.X, p.Y, roomFurnitureItems));
+            var itemsOnTile = GetItemsOnTile(p.X, p.Y, roomFurnitureItems);
+
+            for (var index = 0; index < itemsOnTile.Count; index++)
+            {
+                var candidate = itemsOnTile[index];
+
+                if (excludeItem != null && EqualityComparer<PlayerFurnitureItemPlacementDataDto>.Default
+                        .Equals(candidate, excludeItem))
+                {
+                    continue;
+                }
+
+                if (highestItem == null || candidate.PositionZ > highestItem.PositionZ)
+                {
+                    highestItem = candidate;
+                }
+            }
         }
-        
-        if (i.Count == 0)
+
+        if (highestItem == null)
         {
             return pointsForPlacement.Select(x => roomTileMap.ZMap[x.Y, x.X]).Max();
         }
 
-        var highestItem = i.MaxBy(x => x.PositionZ)!;
         return highestItem.PositionZ + highestItem.PlayerFurnitureItem.FurnitureItem.StackHeight;
     }
 
-    public int GetSquaresBetweenPoints(Point a, Point b)
-    {
-        return Math.Abs(a.X + a.Y - (b.X + b.Y));
-    }
+    public int GetSquaresBetweenPoints(Point a, Point b) => Math.Abs(a.X + a.Y - (b.X + b.Y));
 
     public RoomUserEffect GetEffectFromInteractionType(string interactionType)
     {
