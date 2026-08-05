@@ -87,13 +87,15 @@ public class MockHelpers
     {
         var roomDto = new RoomDto
         {
-            FurnitureItems = furnitureItems
+            FurnitureItems = [..furnitureItems]
         };
 
         var mockRoomLogic = new Mock<IRoomLogic>();
         mockRoomLogic.SetupGet(x => x.Room).Returns(roomDto);
+        mockRoomLogic.Setup(x => x.RunLockedAsync(It.IsAny<Func<Task>>()))
+            .Returns((Func<Task> action) => action());
 
-        
+
         var roomUserRepo = new Mock<IRoomUserRepository>();
         roomUserRepo.Setup(x => x.GetAll()).Returns(users ?? []);
         

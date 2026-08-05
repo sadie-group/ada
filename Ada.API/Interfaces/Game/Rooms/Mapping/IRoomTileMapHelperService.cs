@@ -30,7 +30,7 @@ public interface IRoomTileMapHelperService
 
     void InvalidateItemIndex(IEnumerable<PlayerFurnitureItemPlacementDataDto> items);
 
-    void MoveItemInIndex(
+    bool TryMoveItemInIndex(
         ICollection<PlayerFurnitureItemPlacementDataDto> items,
         PlayerFurnitureItemPlacementDataDto item,
         List<Point> oldPoints,
@@ -64,7 +64,8 @@ public interface IRoomTileMapHelperService
     double GetItemPlacementHeight(
         IRoomTileMap roomTileMap,
         IEnumerable<Point> pointsForPlacement,
-        ICollection<PlayerFurnitureItemPlacementDataDto> roomFurnitureItems);
+        ICollection<PlayerFurnitureItemPlacementDataDto> roomFurnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null);
 
     int GetSquaresBetweenPoints(Point a, Point b);
     RoomUserEffect GetEffectFromInteractionType(string interactionType);
