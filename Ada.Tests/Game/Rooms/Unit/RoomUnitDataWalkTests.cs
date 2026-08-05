@@ -67,7 +67,7 @@ public class RoomUnitDataWalkTests
         var tileMap = new RoomTileMap(heightmap, furniture);
         var roomDto = new RoomDto
         {
-            FurnitureItems = furniture
+            FurnitureItems = [..furniture]
         };
 
         var room = new Mock<IRoomLogic>();

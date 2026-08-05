@@ -172,6 +172,53 @@ public class RoomLogicTests
     }
 
     [Test]
+    public async Task RunLockedAsync_ReentrantWhileHoldingAnotherRoom_DoesNotDeadlock()
+    {
+        var first = CreateLogic();
+        var second = CreateLogic();
+        var innerRan = false;
+
+        var nested = first.RunLockedAsync(async () =>
+            await second.RunLockedAsync(async () =>
+                await first.RunLockedAsync(() =>
+                {
+                    innerRan = true;
+                    return Task.CompletedTask;
+                })));
+
+        var finished = await Task.WhenAny(nested, Task.Delay(TimeSpan.FromSeconds(5)));
+
+        Assert.That(finished, Is.SameAs(nested), "re-entering an outer room while holding an inner one deadlocked");
+        await nested;
+        Assert.That(innerRan, Is.True);
+    }
+
+    [Test]
+    public async Task RunLockedAsync_AfterNestedRoomUnwinds_OuterRoomStaysReentrant()
+    {
+        var first = CreateLogic();
+        var second = CreateLogic();
+        var innerRan = false;
+
+        var nested = first.RunLockedAsync(async () =>
+        {
+            await second.RunLockedAsync(() => Task.CompletedTask);
+
+            await first.RunLockedAsync(() =>
+            {
+                innerRan = true;
+                return Task.CompletedTask;
+            });
+        });
+
+        var finished = await Task.WhenAny(nested, Task.Delay(TimeSpan.FromSeconds(5)));
+
+        Assert.That(finished, Is.SameAs(nested), "re-entry after an inner room unwound deadlocked");
+        await nested;
+        Assert.That(innerRan, Is.True);
+    }
+
+    [Test]
     public void DisposeAsync_Completes()
     {
         var logic = CreateLogic();

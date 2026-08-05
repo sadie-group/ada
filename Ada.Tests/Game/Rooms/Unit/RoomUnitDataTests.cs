@@ -68,7 +68,7 @@ public class RoomUnitDataTests
         var tileMap = new RoomTileMap(heightmap, furniture);
         var roomDto = new RoomDto
         {
-            FurnitureItems = furniture,
+            FurnitureItems = [..furniture],
             Settings = new RoomSettingsDto { CanUsersOverlap = canUsersOverlap },
         };
 
