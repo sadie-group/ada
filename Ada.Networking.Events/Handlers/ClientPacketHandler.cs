@@ -34,7 +34,7 @@ public class ClientPacketHandler(
                     NotifyMissingPacketAsync(packet.PacketId, client)
                         .FireAndForget(logger, "missing-packet notification");
                 }
-            
+
                 logger.LogWarning($"Couldn't resolve packet event handler for header '{packet.PacketId}'");
                 return;
             }
@@ -47,7 +47,7 @@ public class ClientPacketHandler(
                     .FireAndForget(logger, "packet rejection notice");
                 return;
             }
-            
+
             var packetReader = client.Codec.CreateReader(packet.Data);
 
             try
@@ -81,7 +81,7 @@ public class ClientPacketHandler(
                 {
                     continue;
                 }
-                
+
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
                     logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
@@ -187,10 +187,29 @@ public class ClientPacketHandler(
             {
                 await eventHandler.HandleAsync(client);
             }
+
+            if (eventHandler is IDefersPersistence deferred)
+            {
+                await PersistAsync(deferred);
+            }
         }
         catch (Exception e)
         {
             logger.LogError(e.ToString());
+        }
+    }
+
+    private async Task PersistAsync(IDefersPersistence deferred)
+    {
+        try
+        {
+            await deferred.PersistAsync();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e,
+                "Deferred persistence failed for packet '{Handler}'; the change is live in memory but was not stored",
+                deferred.GetType().Name);
         }
     }
 }
