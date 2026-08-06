@@ -29,7 +29,7 @@ public class RoomItemPlacedEventHandler(
     IPlayerRepository playerRepository) : INetworkPacketEventHandler
 {
     public required string PlacementData { get; init; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (client.Player == null || client.RoomUser == null)
@@ -43,19 +43,21 @@ public class RoomItemPlacedEventHandler(
             await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.MissingRights);
             return;
         }
-        
+
         var room = roomRepository.TryGetRoomById(client.Player.State.CurrentRoomId);
-        
+
         if (room == null)
         {
             await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
             return;
         }
-        
+
         var player = client.Player;
         var placementData = PlacementData.Split(" ");
-        
-        if (!int.TryParse(placementData[0], out var itemId) || itemId == 0)
+
+        if (placementData.Length < 4 ||
+            !int.TryParse(placementData[0], out var itemId) ||
+            itemId == 0)
         {
             await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
             return;
@@ -72,18 +74,18 @@ public class RoomItemPlacedEventHandler(
         if (playerItem.FurnitureItem.Type == FurnitureItemType.Floor)
         {
             if (!int.TryParse(placementData[1], out var x) ||
-                !int.TryParse(placementData[2], out var y) || 
+                !int.TryParse(placementData[2], out var y) ||
                 !int.TryParse(placementData[3], out var direction))
             {
                 await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
                 return;
             }
-            
+
             var pointsForPlacement = tileMapHelperService.GetPointsForPlacement(
-                x, 
-                y, 
+                x,
+                y,
                 playerItem.FurnitureItem.TileSpanX,
-                playerItem.FurnitureItem.TileSpanY, 
+                playerItem.FurnitureItem.TileSpanY,
                 (HDirection) direction);
 
             if (!pointsForPlacement.All(p => tileMapHelperService.CanPlaceAt([p], room.TileMap)))
@@ -91,12 +93,12 @@ public class RoomItemPlacedEventHandler(
                 await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
                 return;
             }
-            
+
             var z = tileMapHelperService.GetItemPlacementHeight(
                 room.TileMap,
                 pointsForPlacement,
                 room.Room.FurnitureItems);
-        
+
             var roomFurniturePlacementData = new PlayerFurnitureItemPlacementDataDto
             {
                 RoomId = room.Room.Id,
@@ -114,7 +116,7 @@ public class RoomItemPlacedEventHandler(
             room.Room.FurnitureItems.Add(roomFurniturePlacementData);
 
             tileMapHelperService.UpdateTileMapsForPoints(pointsForPlacement, room.TileMap, room.Room.FurnitureItems);
-        
+
             foreach (var user in tileMapHelperService.GetUsersAtPoints(pointsForPlacement, room.UserRepository.GetAll()))
             {
                 user.CheckStatusForCurrentTile();
@@ -124,7 +126,7 @@ public class RoomItemPlacedEventHandler(
             {
                 ItemId = playerItem.Id
             });
-        
+
             var interactors = interactorRepository
                 .GetInteractorsForType(roomFurniturePlacementData
                     .PlayerFurnitureItem
@@ -138,16 +140,16 @@ public class RoomItemPlacedEventHandler(
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
             var roomFurnitureItemEntity = await dbContext.PlayerFurnitureItems
                 .FirstAsync(x => x.Id == roomFurniturePlacementData.PlayerFurnitureItem.Id);
-            
+
             dbContext.Entry(roomFurnitureItemEntity).State = EntityState.Unchanged;
-            
-            roomFurnitureItemEntity.PlacementData = 
+
+            roomFurnitureItemEntity.PlacementData =
                 mapper.Map<PlayerFurnitureItemPlacementData>(roomFurniturePlacementData);
-        
+
             await dbContext.SaveChangesAsync();
 
             var roomFurnitureItem = roomFurniturePlacementData.PlayerFurnitureItem.FurnitureItem;
-            
+
             await room.BroadcastDataAsync(new RoomFloorItemPlacedWriter
             {
                 Id = roomFurniturePlacementData.PlayerFurnitureItemId,
@@ -169,13 +171,13 @@ public class RoomItemPlacedEventHandler(
         }
         else if (playerItem.FurnitureItem.Type == FurnitureItemType.Wall)
         {
-            if (playerItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Dimmer && 
+            if (playerItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Dimmer &&
                 room.Room.FurnitureItems.Any(x => x.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Dimmer))
             {
                 await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.MaxDimmers);
                 return;
             }
-        
+
             var wallPosition = $"{placementData[1]} {placementData[2]} {placementData[3]}";
 
             var roomFurnitureItem = new PlayerFurnitureItemPlacementDataDto
@@ -190,24 +192,25 @@ public class RoomItemPlacedEventHandler(
                 Direction = 0,
                 CreatedAt = DateTime.Now
             };
-        
+
+            playerItem.PlacementData = roomFurnitureItem;
             room.Room.FurnitureItems.Add(roomFurnitureItem);
-        
+
             await client.WriteToStreamAsync(new PlayerInventoryRemoveItemWriter
             {
                 ItemId = itemId
             });
-        
+
             var interactors = interactorRepository
                 .GetInteractorsForType(roomFurnitureItem
                     .PlayerFurnitureItem
                     .FurnitureItem.InteractionType ?? "");
-        
+
             foreach (var interactor in interactors)
             {
                 await interactor.OnPlaceAsync(client.RoomUser.Room, roomFurnitureItem, client.RoomUser);
             }
-        
+
             var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(
                 roomFurnitureItem.PlayerFurnitureItem.PlayerId);
 
@@ -228,4 +231,3 @@ public class RoomItemPlacedEventHandler(
         }
     }
 }
-    

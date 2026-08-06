@@ -8,6 +8,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Writers.Rooms.Users.Trading;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;
 
@@ -15,7 +16,8 @@ namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;
 public class RoomUserTradeEventHandler(
     IRoomRepository roomRepository,
     IPlayerHelperService playerHelperService,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory,
+    ILogger<RoomUserTrade> tradeLogger) : INetworkPacketEventHandler
 {
     public required int TargetUserId { get; init; }
     
@@ -71,7 +73,7 @@ public class RoomUserTradeEventHandler(
             State = 1
         });
 
-        var trade = new RoomUserTrade(playerHelperService, dbContextFactory)
+        var trade = new RoomUserTrade(playerHelperService, dbContextFactory, tradeLogger)
         {
             Users = [roomUser, targetUser],
             Items = []

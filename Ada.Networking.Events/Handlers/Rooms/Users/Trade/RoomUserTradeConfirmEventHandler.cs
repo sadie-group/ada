@@ -34,10 +34,15 @@ public class RoomUserTradeConfirmEventHandler(IRoomRepository roomRepository,
 
         if (roomUser.Trade.Users.All(x => x.TradeStatus == 2))
         {
+            var swapped = await roomUser.Trade.SwapItemsAsync();
+
             await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCloseWindowWriter());
-            await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCompletedWriter());
-            await roomUser.Trade.SwapItemsAsync();
-            
+
+            if (swapped)
+            {
+                await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCompletedWriter());
+            }
+
             foreach (var user in roomUser.Trade.Users)
             {
                 user.Trade = null;
