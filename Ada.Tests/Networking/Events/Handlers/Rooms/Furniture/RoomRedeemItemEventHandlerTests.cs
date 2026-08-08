@@ -9,6 +9,9 @@ using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Events.Handlers.Rooms.Furniture;
+using Ada.Db.Models.Furniture;
+using Ada.Db.Models.Players;
+using Ada.Db.Models.Players.Furniture;
 using Ada.Tests.Common;
 using Moq;
 
@@ -83,10 +86,12 @@ public class RoomRedeemItemEventHandlerTests
     {
         var item = ExchangeableItem(itemOwnerId: _ownerId, assetName: "DF_5");
         var harness = Create(item, callerId: _ownerId);
+        Assert.Multiple(() =>
+        {
+            Assert.DoesNotThrowAsync(() => harness.Handler.HandleAsync(harness.Client));
 
-        Assert.DoesNotThrowAsync(() => harness.Handler.HandleAsync(harness.Client));
-
-        Assert.That(harness.RoomItems, Does.Contain(item));
+            Assert.That(harness.RoomItems, Does.Contain(item));
+        });
         await Task.CompletedTask;
     }
 
@@ -114,6 +119,8 @@ public class RoomRedeemItemEventHandlerTests
 
     private Harness Create(PlayerFurnitureItemPlacementDataDto item, long callerId)
     {
+        Seed(item, callerId);
+
         var callerData = new PlayerDataDto();
         var caller = PlayerDto(callerId, callerData);
         var roomDto = new RoomDto { Id = 10, OwnerId = _ownerId, FurnitureItems = [item] };
@@ -141,6 +148,46 @@ public class RoomRedeemItemEventHandlerTests
         };
 
         return new Harness(handler, client.Object, callerData, roomItems, caller.FurnitureItems);
+    }
+
+    private void Seed(PlayerFurnitureItemPlacementDataDto item, long callerId)
+    {
+        using var dbContext = _dbFactory.CreateDbContext();
+
+        var owner = new Player { Id = callerId, Username = $"player{callerId}", Email = "", Password = "" };
+        var itemOwnerId = item.PlayerFurnitureItem.PlayerId;
+
+        dbContext.Players.Add(owner);
+
+        if (itemOwnerId != callerId)
+        {
+            dbContext.Players.Add(new Player
+            {
+                Id = itemOwnerId,
+                Username = $"player{itemOwnerId}",
+                Email = "",
+                Password = ""
+            });
+        }
+
+        var furnitureItem = new FurnitureItem { Name = "", AssetName = "", InteractionType = "" };
+        dbContext.FurnitureItems.Add(furnitureItem);
+        dbContext.SaveChanges();
+
+        dbContext.PlayerData.Add(new PlayerData { PlayerId = callerId, Player = null! });
+
+        dbContext.PlayerFurnitureItems.Add(new PlayerFurnitureItem
+        {
+            Id = item.PlayerFurnitureItem.Id,
+            PlayerId = itemOwnerId,
+            FurnitureItemId = furnitureItem.Id,
+            LimitedData = item.PlayerFurnitureItem.LimitedData,
+            MetaData = item.PlayerFurnitureItem.MetaData,
+            Player = null!,
+            FurnitureItem = null!
+        });
+
+        dbContext.SaveChanges();
     }
 
     private static PlayerFurnitureItemPlacementDataDto ExchangeableItem(long itemOwnerId, string assetName) => new()

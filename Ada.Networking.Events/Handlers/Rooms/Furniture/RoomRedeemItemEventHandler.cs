@@ -59,6 +59,18 @@ public class RoomRedeemItemEventHandler(
             return;
         }
 
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var consumed = await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id &&
+                        x.PlayerId == player.Player.Id)
+            .ExecuteDeleteAsync();
+
+        if (consumed == 0)
+        {
+            return;
+        }
+
         await room.BroadcastDataAsync(new RoomFloorFurnitureItemRemovedWriter
         {
             Id = roomFurnitureItem.PlayerFurnitureItemId.ToString(),
@@ -66,8 +78,6 @@ public class RoomRedeemItemEventHandler(
             OwnerId = 0,
             Delay = 0
         });
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         room.Room.FurnitureItems.Remove(roomFurnitureItem);
 
@@ -83,9 +93,7 @@ public class RoomRedeemItemEventHandler(
             .Where(x => x.Id == roomFurnitureItem.Id)
             .ExecuteDeleteAsync();
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
-            .ExecuteDeleteAsync();
+        await CreditBalanceAsync(dbContext, player.Player.Id, currency, value);
 
         switch (currency)
         {
@@ -113,14 +121,40 @@ public class RoomRedeemItemEventHandler(
                 await WriteActivityPointsAsync(client, data);
                 break;
         }
+    }
 
-        await dbContext.PlayerData
-            .Where(x => x.PlayerId == player.Player.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.PixelBalance, data.PixelBalance)
-                .SetProperty(x => x.CreditBalance, data.CreditBalance)
-                .SetProperty(x => x.SeasonalBalance, data.SeasonalBalance)
-                .SetProperty(x => x.GotwPoints, data.GotwPoints));
+    /// <summary>
+    /// Applies the payout as a relative increment. Writing the in-memory balances back as absolute
+    /// values clobbered anything that changed in between — a catalog purchase that had already
+    /// debited the stored balance was undone by the redemption, handing back the spent credits.
+    /// </summary>
+    private static async Task CreditBalanceAsync(
+        AdaDbContext dbContext,
+        long playerId,
+        RedemptionCurrency currency,
+        int value)
+    {
+        var query = dbContext.PlayerData.Where(x => x.PlayerId == playerId);
+
+        switch (currency)
+        {
+            case RedemptionCurrency.Credits:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.CreditBalance, x => x.CreditBalance + value));
+                break;
+            case RedemptionCurrency.Pixels:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.PixelBalance, x => x.PixelBalance + value));
+                break;
+            case RedemptionCurrency.Seasonal:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.SeasonalBalance, x => x.SeasonalBalance + value));
+                break;
+            case RedemptionCurrency.Gotw:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.GotwPoints, x => x.GotwPoints + value));
+                break;
+        }
     }
 
     private enum RedemptionCurrency
