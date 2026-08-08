@@ -11,14 +11,29 @@ namespace Ada.Networking.Events.Handlers.Handshake;
 public class UniqueIdEventHandler : INetworkPacketEventHandler
 {
     public required string Fingerprint { get; set; }
-    
+
+    private const int _maxFingerprintLength = 64;
+
     public async Task HandleAsync(INetworkClient client)
     {
-        client.MachineId = Fingerprint;
+        var fingerprint = Fingerprint.Trim();
+
+        if (fingerprint.Length is 0 or > _maxFingerprintLength ||
+            !fingerprint.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+        {
+            return;
+        }
+
+        if (client.MachineId != null)
+        {
+            return;
+        }
+
+        client.MachineId = fingerprint;
 
         await client.WriteToStreamAsync(new UniqueIdWriter
         {
-            MachineId = Fingerprint
+            MachineId = fingerprint
         });
     }
 }

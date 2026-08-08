@@ -4,7 +4,6 @@ using Ada.API.Interfaces.Server.Tasks;
 using Ada.Db;
 using Ada.Db.Models.Rooms.Chat;
 using AutoMapper;
-using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Server.Tasks.Game.Rooms;
@@ -41,7 +40,9 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
 
         var entitiesToSave = mapper.Map<List<RoomChatMessage>>(messagesToSave);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.BulkInsertAsync(entitiesToSave, new BulkConfig { SetOutputIdentity = true });
+
+        dbContext.RoomChatMessages.AddRange(entitiesToSave);
+        await dbContext.SaveChangesAsync();
 
         for (var i = 0; i < messagesToSave.Count; i++)
         {

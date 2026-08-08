@@ -10,8 +10,8 @@ using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Server;
 using Ada.Networking.Events.Attributes;
+using Ada.Networking.Options;
 using Ada.Networking.Writers.Handshake;
-using Ada.Options.Options;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +24,8 @@ namespace Ada.Networking.Events.Handlers.Handshake;
 [AllowUnauthenticated]
 public class SecureLoginEventHandler(
     ILogger<SecureLoginEventHandler> logger,
-    IOptions<EncryptionOptions> encryptionOptions,
+    IOptions<NetworkOptions> networkOptions,
+    ILoginAttemptThrottle loginThrottle,
     IPlayerRepository playerRepository,
     ServerPlayerConstants constants,
     INetworkClientRepository networkClientRepository,
@@ -40,14 +41,21 @@ public class SecureLoginEventHandler(
     : INetworkPacketEventHandler
 {
     public string? Token { get; set; }
+
     public int DelayMs { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         var sw = Stopwatch.StartNew();
 
-        if (DelayMs >= config.GetValue("PlayerOptions:MaxSsoDelayMs", 300_000))
+        if (!client.EncryptionEnabled && !networkOptions.Value.AllowInsecureTransport)
         {
+            logger.LogWarning(
+                "Rejected login from {Ip}: the listener is plaintext, so the SSO token would cross the " +
+                "wire in the clear. Set NetworkOptions:UseWss, or NetworkOptions:AllowInsecureTransport " +
+                "to accept the risk on a trusted network.",
+                client.IpAddress);
+
             await client.DisposeAsync();
             return;
         }
@@ -58,23 +66,23 @@ public class SecureLoginEventHandler(
             await client.DisposeAsync();
             return;
         }
-        
-        if (encryptionOptions.Value.Enabled && !client.EncryptionEnabled)
+
+        if (!loginThrottle.TryConsume(client.IpAddress))
         {
-            logger.LogWarning("Encryption is enabled and TLS Handshake isn't finished.");
+            logger.LogWarning("Rejected login from {Ip}: too many recent attempts", client.IpAddress);
             await client.DisposeAsync();
             return;
         }
 
-        var tokenRecord = await playerLoaderService.GetTokenAsync(Token, DelayMs);
-        
+        var tokenRecord = await playerLoaderService.GetTokenAsync(Token);
+
         if (tokenRecord == null)
         {
             logger.LogWarning("Failed to find token record for provided sso.");
             await client.DisposeAsync();
             return;
         }
-        
+
         var player = await playerRepository.GetPlayerByIdAsync(tokenRecord.PlayerId);
 
         if (player?.Data == null ||
@@ -86,7 +94,7 @@ public class SecureLoginEventHandler(
             await client.DisposeAsync();
             return;
         }
-        
+
         if (player.Bans.Any(x => x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now))
         {
             logger.LogWarning("Disconnected banned player {@PlayerUsername}", player.Username);
@@ -97,7 +105,7 @@ public class SecureLoginEventHandler(
         var ipAddress = client.IpAddress.ToString();
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         if (await dbContext.BannedIpAddresses.AnyAsync(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
         {
             logger.LogWarning("Disconnected banned IP {@Ip}", ipAddress);
@@ -133,7 +141,7 @@ public class SecureLoginEventHandler(
             await client.DisposeAsync();
             return;
         }
-        
+
         var playerLogic = mapper.Map<IPlayerLogic>(player);
 
         playerLogic.NetworkObject = client;
@@ -159,15 +167,15 @@ public class SecureLoginEventHandler(
             await client.DisposeAsync();
             return;
         }
-        
+
         await client.WriteToStreamAsync(new SecureLoginWriter());
-        
+
         if (playerLogic.Player.Data != null)
         {
             playerLogic.Player.Data.IsOnline = true;
             playerLogic.Player.Data.LastOnline = DateTime.Now;
         }
-        
+
         playerLogic.Authenticated = true;
 
         client.Player = playerLogic;

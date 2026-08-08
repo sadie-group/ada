@@ -46,9 +46,9 @@ public class RoomUserGiveHandItemEventHandler : INetworkPacketEventHandler
         });
 
         fromUser.HandItemId = handItemId;
-        fromUser.HandItemSet = DateTime.Now;
+        fromUser.HandItemSet = DateTime.UtcNow;
         
         toUser.HandItemId = handItemId;
-        toUser.HandItemSet = DateTime.Now;
+        toUser.HandItemSet = DateTime.UtcNow;
     }
 }
