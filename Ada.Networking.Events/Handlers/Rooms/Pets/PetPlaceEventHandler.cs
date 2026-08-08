@@ -21,7 +21,7 @@ public class PetPlaceEventHandler(
     IRoomPetFactory roomPetFactory,
     IMapper mapper) : INetworkPacketEventHandler
 {
-    private const int MaximumPetsPerRoom = 30;
+    private const int _maximumPetsPerRoom = 30;
 
     public required int Id { get; init; }
     public required int X { get; init; }
@@ -43,7 +43,7 @@ public class PetPlaceEventHandler(
             return;
         }
 
-        if (room.PetRepository.Count >= MaximumPetsPerRoom)
+        if (room.PetRepository.Count >= _maximumPetsPerRoom)
         {
             await client.WriteToStreamAsync(new PetErrorWriter { ErrorCode = PetErrorWriter.MaxPets });
             return;
@@ -61,8 +61,7 @@ public class PetPlaceEventHandler(
 
         var placePoint = new Point(X, Y);
 
-        if (X >= room.TileMap.SizeX || Y >= room.TileMap.SizeY ||
-            room.TileMap.TileExistenceMap[Y, X] == 0 ||
+        if (!room.TileMap.TileExists(placePoint) ||
             room.TileMap.UsersAtPoint(placePoint))
         {
             await client.WriteToStreamAsync(new PetErrorWriter { ErrorCode = PetErrorWriter.SelectedTileNotFree });
