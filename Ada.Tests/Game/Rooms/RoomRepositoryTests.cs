@@ -35,6 +35,44 @@ public class RoomRepositoryTests
     }
 
     [Test]
+    public void GetOrAddRoom_AlreadyLoaded_KeepsTheLiveInstance()
+    {
+        var repository = new RoomRepository();
+        var first = CreateRoom(1);
+        var second = CreateRoom(1);
+
+        var winner = repository.GetOrAddRoom(first.Object);
+        var loser = repository.GetOrAddRoom(second.Object);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(winner, Is.SameAs(first.Object));
+            Assert.That(loser, Is.SameAs(first.Object),
+                "the second loader must be handed the live instance, not its own copy");
+            Assert.That(repository.TryGetRoomById(1), Is.SameAs(first.Object));
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void GetOrAddRoom_ConcurrentLoaders_AllSeeOneInstance()
+    {
+        var repository = new RoomRepository();
+        var candidates = Enumerable.Range(0, 32).Select(_ => CreateRoom(1).Object).ToList();
+
+        var results = new IRoomLogic[candidates.Count];
+
+        Parallel.For(0, candidates.Count, i => results[i] = repository.GetOrAddRoom(candidates[i]));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.Count, Is.EqualTo(1));
+            Assert.That(results.Distinct(), Has.Exactly(1).Items,
+                "every loader must end up on the same room, or their players are in different worlds");
+        });
+    }
+
+    [Test]
     public void AddRoom_SameId_Replaces()
     {
         var repository = new RoomRepository();
@@ -88,19 +126,23 @@ public class RoomRepositoryTests
         var repository = new RoomRepository();
         var room = CreateRoom(1);
         repository.AddRoom(room.Object);
-
-        Assert.That(repository.TryRemove(1, out var removed), Is.True);
-        Assert.That(removed, Is.SameAs(room.Object));
-        Assert.That(repository.Count, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryRemove(1, out var removed), Is.True);
+            Assert.That(removed, Is.SameAs(room.Object));
+            Assert.That(repository.Count, Is.Zero);
+        });
     }
 
     [Test]
     public void TryRemove_Absent_ReturnsFalse()
     {
         var repository = new RoomRepository();
-
-        Assert.That(repository.TryRemove(404, out var removed), Is.False);
-        Assert.That(removed, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryRemove(404, out var removed), Is.False);
+            Assert.That(removed, Is.Null);
+        });
     }
 
     [Test]

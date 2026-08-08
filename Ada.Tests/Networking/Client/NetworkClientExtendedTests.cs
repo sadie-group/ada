@@ -13,8 +13,6 @@ using Ada.Db;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -92,7 +90,10 @@ public class NetworkClientExtendedTests
         public override void OnSerialize(INetworkPacketWriter writer) => writer.WriteByte(7);
     }
 
-    private static NetworkClient CreateClient(WebSocket socket, IPacketCodecRegistry? registry = null)
+    private static NetworkClient CreateClient(
+        WebSocket socket,
+        IPacketCodecRegistry? registry = null,
+        bool useWss = false)
     {
         if (registry == null)
         {
@@ -104,6 +105,7 @@ public class NetworkClientExtendedTests
         return new NetworkClient(
             NullLogger<NetworkClient>.Instance,
             registry,
+            Microsoft.Extensions.Options.Options.Create(new Ada.Networking.Options.NetworkOptions { UseWss = useWss }),
             IPAddress.Loopback,
             Guid.NewGuid(),
             socket);
@@ -125,13 +127,21 @@ public class NetworkClientExtendedTests
     }
 
     [Test]
-    public void EnableEncryption_SetsFlag()
+    public void EncryptionEnabled_PlaintextTransport_StaysFalseAfterHandshake()
     {
         var client = CreateClient(new FakeWebSocket());
 
         Assert.That(client.EncryptionEnabled, Is.False);
 
         client.EnableEncryption([1, 2, 3]);
+
+        Assert.That(client.EncryptionEnabled, Is.False);
+    }
+
+    [Test]
+    public void EncryptionEnabled_SecureTransport_IsTrue()
+    {
+        var client = CreateClient(new FakeWebSocket(), useWss: true);
 
         Assert.That(client.EncryptionEnabled, Is.True);
     }
@@ -241,9 +251,11 @@ public class NetworkClientExtendedTests
     {
         var socket = new FakeWebSocket { ThrowOnClose = true };
         var client = CreateClient(socket);
-
-        Assert.DoesNotThrowAsync(async () => await client.DisposeAsync());
-        Assert.That(socket.CloseCalls, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.DoesNotThrowAsync(async () => await client.DisposeAsync());
+            Assert.That(socket.CloseCalls, Is.EqualTo(1));
+        });
     }
 
     [Test]

@@ -22,7 +22,7 @@ public class PlayerSendFriendRequestEventHandler(
     : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TargetUsername { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
@@ -39,19 +39,19 @@ public class PlayerSendFriendRequestEventHandler(
                 ClientMessageId = 0,
                 Error = (int) PlayerFriendshipError.TooManyFriends
             });
-            
+
             return;
         }
-        
+
         if (TargetUsername == player.Player.Username)
         {
             return;
         }
-        
+
         PlayerDto? targetPlayer;
         var targetOnline = false;
         var onlineTarget = playerRepository.GetPlayerLogicByUsername(TargetUsername);
-        
+
         if (onlineTarget != null)
         {
             targetPlayer = mapper.Map<PlayerDto>(onlineTarget);
@@ -61,7 +61,7 @@ public class PlayerSendFriendRequestEventHandler(
         {
             targetPlayer = await playerRepository.GetPlayerByUsernameAsync(TargetUsername);
         }
-        
+
         if (targetPlayer == null)
         {
             await client.WriteToStreamAsync(new PlayerFriendshipErrorWriter
@@ -72,9 +72,7 @@ public class PlayerSendFriendRequestEventHandler(
             return;
         }
 
-        var incomingAccepted = targetPlayer.IncomingFriendships.Count(x => x.Status == PlayerFriendshipStatus.Accepted);
-        var outgoingAccepted = targetPlayer.OutgoingFriendships.Count(x => x.Status == PlayerFriendshipStatus.Accepted);
-        var acceptedFriends = incomingAccepted + outgoingAccepted;
+        var acceptedFriends = await playerRepository.GetAcceptedFriendshipCountAsync(targetPlayer.Id);
 
         if (acceptedFriends >= playerConstants.MaxFriendships)
         {
@@ -85,7 +83,7 @@ public class PlayerSendFriendRequestEventHandler(
             });
             return;
         }
-        
+
         if (targetPlayer.Data is not { AllowFriendRequests: true })
         {
             await client.WriteToStreamAsync(new PlayerFriendshipErrorWriter
@@ -103,11 +101,11 @@ public class PlayerSendFriendRequestEventHandler(
         if (existingRequest is { Status: PlayerFriendshipStatus.Pending })
         {
             await AcceptPendingAsync(
-                existingRequest, 
-                targetOnline, 
+                existingRequest,
+                targetOnline,
                 onlineTarget,
                 player.Player.Id);
-            
+
             return;
         }
 
@@ -119,8 +117,8 @@ public class PlayerSendFriendRequestEventHandler(
     }
 
     private async Task AcceptPendingAsync(
-        PlayerFriendshipDto incomingRequest, 
-        bool targetOnline, 
+        PlayerFriendshipDto incomingRequest,
+        bool targetOnline,
         IPlayerLogic? onlineTarget,
         long playerId)
     {
@@ -128,7 +126,7 @@ public class PlayerSendFriendRequestEventHandler(
         {
             return;
         }
-            
+
         incomingRequest.Status = PlayerFriendshipStatus.Accepted;
 
         if (targetOnline && onlineTarget != null)
@@ -161,9 +159,9 @@ public class PlayerSendFriendRequestEventHandler(
             Status = PlayerFriendshipStatus.Pending,
             CreatedAt = DateTime.Now
         };
-            
+
         player.OutgoingFriendships.Add(playerFriendship);
-            
+
         if (targetOnline && onlineTarget != null)
         {
             var friendRequestWriter = new PlayerFriendRequestWriter
@@ -180,7 +178,7 @@ public class PlayerSendFriendRequestEventHandler(
                 await onlineTarget.NetworkObject.WriteToStreamAsync(friendRequestWriter);
             }
         }
-        
+
         var entity = mapper.Map<PlayerFriendship>(playerFriendship);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();

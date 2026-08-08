@@ -131,6 +131,29 @@ public class RoomTileMapHelperServiceExtendedTests
         });
     }
 
+    [TestCase(-1, 0)]
+    [TestCase(0, -1)]
+    [TestCase(99, 0)]
+    [TestCase(0, 99)]
+    public void CanPlaceAt_PointOutsideMap_ReturnsFalseRatherThanThrowing(int x, int y)
+    {
+        var map = new RoomTileMap("00", []);
+
+        Assert.That(_service.CanPlaceAt([new Point(x, y)], map), Is.False);
+    }
+
+    [TestCase(-1, 0)]
+    [TestCase(0, -1)]
+    [TestCase(99, 0)]
+    [TestCase(0, 99)]
+    public void CanPlaceAtWithItems_PointOutsideMap_ReturnsFalseRatherThanThrowing(int x, int y)
+    {
+        var map = new RoomTileMap("00", []);
+        var items = new List<PlayerFurnitureItemPlacementDataDto>();
+
+        Assert.That(_service.CanPlaceAt([new Point(x, y)], map, items), Is.False);
+    }
+
     [Test]
     public void CanPlaceAt_UserOnPoint_ReturnsFalse()
     {

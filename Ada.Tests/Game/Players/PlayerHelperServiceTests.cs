@@ -5,9 +5,11 @@ using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
 using Ada.API.DTOs.Server;
 using Ada.API.Interfaces.Game.Players;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.API.Interfaces.Game.Players.Friendships;
 using Ada.Core.Enums.Game.Players;
 using Ada.Game.Players;
+using Ada.Networking.Packets;
 using Ada.Game.Players.Packets.Writers;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Friendships;
@@ -31,12 +33,39 @@ public class PlayerHelperServiceTests
         _player = new Mock<IPlayerLogic>();
         _repo = new Mock<IPlayerRepository>();
         _net = new Mock<INetworkObject>();
+        _net.SetupGet(x => x.Codec).Returns(TestCodec.Instance);
 
         _player.Setup(x => x.NetworkObject).Returns(_net.Object);
 
         var state = new Mock<IPlayerState>();
         state.Setup(x => x.UnseenItems).Returns(new PlayerUnseenItems());
         _player.Setup(x => x.State).Returns(state.Object);
+    }
+
+    private sealed class TestCodec : IPacketCodec
+    {
+        public static readonly TestCodec Instance = new();
+
+        private sealed class AlwaysMappedIdMap : IPacketIdMap
+        {
+            public bool TryGetHandlerType(short packetId, out Type? handlerType)
+            {
+                handlerType = null;
+                return false;
+            }
+
+            public bool TryGetOutgoingId(Type writerType, out short packetId)
+            {
+                packetId = 1;
+                return true;
+            }
+        }
+
+        public string Revision => "PRODUCTION";
+        public IPacketIdMap IdMap { get; } = new AlwaysMappedIdMap();
+        public INetworkPacketDecoder Decoder { get; } = new NetworkPacketDecoder();
+        public INetworkPacketWriter CreateWriter() => new NetworkPacketWriter();
+        public INetworkPacketReader CreateReader(ReadOnlyMemory<byte> body) => new NetworkPacketReader(body);
     }
 
     private static PlayerDto MakePlayerDto(long id)
@@ -118,7 +147,7 @@ public class PlayerHelperServiceTests
         _player.Setup(x => x.State).Returns(new Mock<IPlayerState>().Object);
 
         var result = _service.GetSubscriptionWriterAsync(_player.Object, "VIP");
-        
+
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Name, Is.EqualTo("vip"));
     }
@@ -149,7 +178,8 @@ public class PlayerHelperServiceTests
 
         await _service.UpdatePlayerStatusForFriendsAsync(_player.Object, friends, true, false, _repo.Object);
 
-        _net.Verify(x => x.WriteToStreamAsync(It.IsAny<PlayerUpdateFriendWriter>()), Times.Once);
+        _net.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
+        _net.Verify(x => x.FlushAsync(), Times.Once);
     }
 
     [Test]

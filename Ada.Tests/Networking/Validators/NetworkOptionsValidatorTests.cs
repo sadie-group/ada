@@ -15,6 +15,62 @@ public class NetworkOptionsValidatorTests
         Assert.That(result.Succeeded, Is.True);
     }
 
+    [Test]
+    public void Validate_DefaultConnectionCaps_Succeed()
+    {
+        var options = new NetworkOptions { Host = "127.0.0.1", Port = 30000 };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(options.MaxConnections, Is.GreaterThan(0), "the cap must be on by default");
+            Assert.That(options.MaxConnectionsPerAddress, Is.GreaterThan(0));
+            Assert.That(_validator.Validate(null, options).Succeeded, Is.True);
+        });
+    }
+
+    [Test]
+    public void Validate_NegativeMaxConnections_Fails()
+    {
+        var options = new NetworkOptions { Host = "127.0.0.1", MaxConnections = -1 };
+
+        Assert.That(_validator.Validate(null, options).Failed, Is.True);
+    }
+
+    [Test]
+    public void Validate_NegativeMaxConnectionsPerAddress_Fails()
+    {
+        var options = new NetworkOptions { Host = "127.0.0.1", MaxConnectionsPerAddress = -1 };
+
+        Assert.That(_validator.Validate(null, options).Failed, Is.True);
+    }
+
+    [Test]
+    public void Validate_PerAddressCapAboveGlobalCap_Fails()
+    {
+        var options = new NetworkOptions
+        {
+            Host = "127.0.0.1",
+            MaxConnections = 10,
+            MaxConnectionsPerAddress = 50
+        };
+
+        Assert.That(_validator.Validate(null, options).Failed, Is.True,
+            "a per-address cap that can never be reached is a misconfiguration worth reporting");
+    }
+
+    [Test]
+    public void Validate_CapsExplicitlyDisabled_Succeeds()
+    {
+        var options = new NetworkOptions
+        {
+            Host = "127.0.0.1",
+            MaxConnections = 0,
+            MaxConnectionsPerAddress = 0
+        };
+
+        Assert.That(_validator.Validate(null, options).Succeeded, Is.True);
+    }
+
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]
