@@ -187,26 +187,40 @@ public class ModerationTicketService(IDbContextFactory<AdaDbContext> dbContextFa
         long moderatorId,
         ModerationTicketResolution resolution)
     {
-        if (!_tickets.TryGetValue(ticketId, out var ticket) || ticket.State == ModerationTicketState.Closed)
+        if (!_tickets.TryGetValue(ticketId, out var ticket) ||
+            ticket.State == ModerationTicketState.Closed)
+        {
+            return null;
+        }
+
+        if (ticket.State == ModerationTicketState.Picked && ticket.PickedByPlayerId != moderatorId)
         {
             return null;
         }
 
         var closedAt = DateTimeOffset.UtcNow;
+        var attributedTo = ticket.PickedByPlayerId ?? moderatorId;
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.ModerationTickets
-            .Where(x => x.Id == ticketId)
+        var updated = await dbContext.ModerationTickets
+            .Where(x => x.Id == ticketId &&
+                        x.State != ModerationTicketState.Closed &&
+                        (x.PickedByPlayerId == null || x.PickedByPlayerId == moderatorId))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.State, ModerationTicketState.Closed)
                 .SetProperty(x => x.Resolution, resolution)
-                .SetProperty(x => x.PickedByPlayerId, moderatorId)
+                .SetProperty(x => x.PickedByPlayerId, attributedTo)
                 .SetProperty(x => x.ClosedAt, closedAt));
+
+        if (updated == 0)
+        {
+            return null;
+        }
 
         ticket.State = ModerationTicketState.Closed;
         ticket.Resolution = resolution;
-        ticket.PickedByPlayerId = moderatorId;
+        ticket.PickedByPlayerId = attributedTo;
         ticket.ClosedAt = closedAt;
 
         _tickets.TryRemove(ticketId, out _);
