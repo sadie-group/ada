@@ -68,13 +68,40 @@ public static class ServiceCollectionHelpers
             Log.Warning($"Plugin folder not found: {pluginFolder}");
             return;
         }
-        
-        foreach (var plugin in Directory.GetFiles(pluginFolder, "*.dll", SearchOption.AllDirectories))
+
+        var allowed = config.GetSection("PluginAssemblies").Get<string[]>() ?? [];
+
+        if (allowed.Length == 0)
         {
-            var assembly = Assembly.LoadFile(plugin);
+            Log.Warning(
+                "Plugin folder '{Folder}' is configured but PluginAssemblies is empty, so no plugins " +
+                "will be loaded. List the assembly file names you trust.", pluginFolder);
+
+            return;
+        }
+
+        foreach (var name in allowed)
+        {
+            var fileName = Path.GetFileName(name);
+
+            if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Warning("Ignoring plugin entry '{Entry}': expected a bare '.dll' file name", name);
+                continue;
+            }
+
+            var path = Path.Combine(pluginFolder, fileName);
+
+            if (!File.Exists(path))
+            {
+                Log.Warning("Plugin '{Plugin}' is listed in PluginAssemblies but was not found", fileName);
+                continue;
+            }
+
+            var assembly = Assembly.LoadFile(Path.GetFullPath(path));
             var version = assembly.GetName().Version;
-            
-            Console.WriteLine($"Loaded plugin: {Path.GetFileNameWithoutExtension(plugin)} {version}");
+
+            Console.WriteLine($"Loaded plugin: {Path.GetFileNameWithoutExtension(path)} {version}");
         }
     }
 }

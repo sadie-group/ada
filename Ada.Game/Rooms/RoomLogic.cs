@@ -19,7 +19,8 @@ public class RoomLogic(
     IRoomPathFinder pathFinder,
     IRoomUserRepository userRepository,
     IRoomBotRepository botRepository,
-    IRoomPetRepository petRepository)
+    IRoomPetRepository petRepository,
+    IRoomLock roomLock)
     : Room, IRoomLogic
 {
     public RoomDto Room { get; } = room;
@@ -29,7 +30,6 @@ public class RoomLogic(
     public IRoomBotRepository BotRepository { get; } = botRepository;
     public IRoomPetRepository PetRepository { get; } = petRepository;
 
-    private readonly SemaphoreSlim _writerLock = new(1, 1);
     private static readonly AsyncLocal<ImmutableHashSet<RoomLogic>?> HeldRooms = new();
 
     public async Task RunLockedAsync(Func<Task> action)
@@ -42,7 +42,7 @@ public class RoomLogic(
             return;
         }
 
-        await _writerLock.WaitAsync();
+        await roomLock.AcquireAsync();
 
         HeldRooms.Value = held.Add(this);
 
@@ -53,7 +53,7 @@ public class RoomLogic(
         finally
         {
             HeldRooms.Value = held;
-            _writerLock.Release();
+            roomLock.Release();
         }
     }
 
@@ -63,11 +63,41 @@ public class RoomLogic(
 
     public Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
     {
+        var recipients = ResolveRecipients(excludedIds);
+
+        if (recipients != null)
+        {
+            PacketBroadcast.SendAndFlush(writer, recipients);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public void QueueBroadcast(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
+    {
+        var recipients = ResolveRecipients(excludedIds);
+
+        if (recipients != null)
+        {
+            PacketBroadcast.Queue(writer, recipients);
+        }
+    }
+
+    public void FlushQueuedBroadcasts()
+    {
+        foreach (var user in UserRepository.GetAll())
+        {
+            user.NetworkObject.FlushAsync();
+        }
+    }
+
+    private List<INetworkObject>? ResolveRecipients(IReadOnlyCollection<long>? excludedIds)
+    {
         var users = UserRepository.GetAll();
 
         if (users.Count == 0)
         {
-            return Task.CompletedTask;
+            return null;
         }
 
         var excluded = excludedIds is { Count: > 0 }
@@ -86,8 +116,6 @@ public class RoomLogic(
             recipients.Add(user.NetworkObject);
         }
 
-        PacketBroadcast.SendAndFlush(writer, recipients);
-
-        return Task.CompletedTask;
+        return recipients.Count == 0 ? null : recipients;
     }
 }

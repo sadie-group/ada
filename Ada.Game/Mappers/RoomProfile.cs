@@ -37,7 +37,8 @@ public class RoomProfile : Profile
                         pathFinder,
                         provider.GetRequiredService<IRoomUserRepository>(),
                         provider.GetRequiredService<IRoomBotRepository>(),
-                        provider.GetRequiredService<IRoomPetRepository>())
+                        provider.GetRequiredService<IRoomPetRepository>(),
+                        provider.GetRequiredService<IRoomLockFactory>().Create(x.Id))
                     {
                         Name = x.Name,
                         Description = x.Description

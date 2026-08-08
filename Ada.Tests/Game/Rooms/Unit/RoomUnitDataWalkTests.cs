@@ -75,7 +75,7 @@ public class RoomUnitDataWalkTests
         room.SetupGet(x => x.TileMap).Returns(tileMap);
         room.SetupGet(x => x.PathFinder).Returns(new RoomPathFinder(tileMap.SizeY, tileMap.SizeX));
 
-        var unit = new TestableUnit(room.Object, start, tileMap, pathHelper ?? new RoomPathFinderHelperService());
+        var unit = new TestableUnit(room.Object, start, new RoomTileMapHelperService(), pathHelper ?? new RoomPathFinderHelperService());
         tileMap.AddUnitToMap(start, unit);
 
         return (unit, tileMap);

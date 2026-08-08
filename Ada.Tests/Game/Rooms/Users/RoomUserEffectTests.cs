@@ -109,7 +109,7 @@ public class RoomUserEffectTests
             player.Object,
             new ServerRoomConstants { SecondsTillUserIdle = 3600 },
             RoomControllerLevel.None,
-            tileMap,
+            new RoomTileMapHelperService(),
             new Mock<IRoomHelperService>().Object,
             new Mock<IRoomWiredService>().Object,
             new RoomPathFinderHelperService(),
