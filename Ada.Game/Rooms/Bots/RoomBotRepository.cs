@@ -15,18 +15,16 @@ public class RoomBotRepository : IRoomBotRepository
     
     public async Task RunPeriodicCheckAsync()
     {
-        try
+        foreach (var bot in _bots.Values)
         {
-            var bots = _bots.Values;
-
-            foreach (var bot in bots)
+            try
             {
                 await bot.RunPeriodicCheckAsync();
             }
-        }
-        catch (Exception e)
-        {
-            Log.Logger.Error(e.ToString());
+            catch (Exception e)
+            {
+                Log.Logger.Error(e, "Periodic check failed for a bot");
+            }
         }
     }
 

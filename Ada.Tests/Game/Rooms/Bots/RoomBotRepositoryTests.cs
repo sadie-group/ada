@@ -21,9 +21,11 @@ public class RoomBotRepositoryTests
     {
         var repository = new RoomBotRepository();
         var bot = CreateBot(1);
-
-        Assert.That(repository.TryAdd(bot.Object), Is.True);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(bot.Object), Is.True);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
         Assert.That(repository.GetAll().Single(), Is.SameAs(bot.Object));
     }
 
@@ -32,9 +34,11 @@ public class RoomBotRepositoryTests
     {
         var repository = new RoomBotRepository();
         repository.TryAdd(CreateBot(1).Object);
-
-        Assert.That(repository.TryAdd(CreateBot(1).Object), Is.False);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(CreateBot(1).Object), Is.False);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -43,18 +47,22 @@ public class RoomBotRepositoryTests
         var repository = new RoomBotRepository();
         var bot = CreateBot(7);
         repository.TryAdd(bot.Object);
-
-        Assert.That(repository.TryGetById(7, out var found), Is.True);
-        Assert.That(found, Is.SameAs(bot.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(7, out var found), Is.True);
+            Assert.That(found, Is.SameAs(bot.Object));
+        });
     }
 
     [Test]
     public void TryGetById_Absent_ReturnsFalse()
     {
         var repository = new RoomBotRepository();
-
-        Assert.That(repository.TryGetById(404, out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(404, out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]
