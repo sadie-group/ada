@@ -45,15 +45,9 @@ public class CatalogPurchaseEventHandler(
 
         var page = pageRepository.Pages.FirstOrDefault(x => x.Id == PageId);
 
-        if (page == null)
+        if (page == null || !CatalogPageAccess.CanAccess(page, player))
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
-            return;
-        }
-
-        if (page.Layout == CatalogPageLayout.VipBuy)
-        {
-            await vipPurchaseProcessor.ProcessAsync(client, ItemId);
             return;
         }
 
@@ -68,6 +62,31 @@ public class CatalogPurchaseEventHandler(
         if (!catalogChargeService.HasRequiredMembership(client, item))
         {
             await purchaseConfirmationService.WriteUnavailableAsync(client);
+            return;
+        }
+
+        if (page.Layout == CatalogPageLayout.VipBuy)
+        {
+            if (!await catalogChargeService.TryChargeAsync(client, item, 1))
+            {
+                await purchaseConfirmationService.WriteFailureAsync(client);
+                return;
+            }
+
+            try
+            {
+                await vipPurchaseProcessor.ProcessAsync(client, item);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Club purchase delivery failed for player {PlayerId}, item {ItemId}; refunding",
+                    player.Player.Id, item.Id);
+
+                await catalogChargeService.RefundAsync(client, item, 1);
+                await purchaseConfirmationService.WriteFailureAsync(client);
+            }
+
             return;
         }
 

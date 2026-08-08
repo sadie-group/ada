@@ -24,7 +24,28 @@ public class RoomDimmerSaveEventHandler(
     public required string Color { get; init; }
     public required int Intensity { get; init; }
     public required bool Apply { get; init; }
-    
+
+    private const int _minIntensity = 0;
+    private const int _maxIntensity = 255;
+
+    private static bool IsValidColor(string color)
+    {
+        if (color.Length != 7 || color[0] != '#')
+        {
+            return false;
+        }
+
+        for (var i = 1; i < color.Length; i++)
+        {
+            if (!Uri.IsHexDigit(color[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (client.RoomUser == null)
@@ -42,6 +63,11 @@ public class RoomDimmerSaveEventHandler(
             return;
         }
 
+        if (!IsValidColor(Color) || Intensity is < _minIntensity or > _maxIntensity)
+        {
+            return;
+        }
+
         var dimmer = room
             .Room
             .FurnitureItems
@@ -53,12 +79,12 @@ public class RoomDimmerSaveEventHandler(
         }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var presets = dbContext
             .RoomDimmerPresets
             .Where(x => x.RoomId == room.Room.Id)
             .ToList();
-        
+
         var preset = presets.FirstOrDefault(x => x.PresetId == PresetId);
 
         if (preset == null)
@@ -82,9 +108,9 @@ public class RoomDimmerSaveEventHandler(
         var enabled = dimmerSettings.Enabled ? 2 : 0;
         var bgOnly = preset.BackgroundOnly ? 2 : 0;
         var meta = $"{enabled},{preset.PresetId},{bgOnly},{preset.Color},{preset.Intensity}";
-        
+
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(
-            room, 
+            room,
             dimmer,
             meta);
 
@@ -93,7 +119,7 @@ public class RoomDimmerSaveEventHandler(
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, dimmerSettings.Enabled));
 
         await dbContext.SaveChangesAsync();
-        
+
         await room.BroadcastDataAsync(new RoomDimmerSettingsWriter
         {
             DimmerSettings = dimmerSettings,

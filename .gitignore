@@ -7,3 +7,4 @@ appsettings.json
 *.sln.iml
 plugins/
 TestResults/
+errors*.log

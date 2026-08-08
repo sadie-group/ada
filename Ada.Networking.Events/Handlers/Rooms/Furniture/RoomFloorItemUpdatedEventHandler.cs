@@ -1,4 +1,3 @@
-using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -47,6 +46,12 @@ public class RoomFloorItemUpdatedEventHandler(
         if (!client.RoomUser.HasRights())
         {
             await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.MissingRights);
+            return;
+        }
+
+        if (!Enum.IsDefined(typeof(HDirection), Direction))
+        {
+            await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
             return;
         }
 

@@ -1,4 +1,5 @@
 using Ada.API.DTOs.Rooms.Rights;
+using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -17,6 +18,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Rights;
 public class RoomGiveUserRightsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
+    IPlayerRepository playerRepository,
     IMapper mapper) : INetworkPacketEventHandler
 {
     public int PlayerId { get; init; }
@@ -43,16 +45,20 @@ public class RoomGiveUserRightsEventHandler(
             return;
         }
 
-        await room.BroadcastDataAsync(new RoomGiveUserRightsWriter 
+        room.UserRepository.TryGetById(playerId, out var targetRoomUser);
+
+        await room.BroadcastDataAsync(new RoomGiveUserRightsWriter
         {
             RoomId = room.Room.Id,
             PlayerId = playerId,
-            PlayerUsername = player.Player.Username
+            PlayerUsername = targetRoomUser?.Player.Player.Username
+                             ?? await playerRepository.GetPlayerUsernameByIdAsync(playerId)
+                             ?? string.Empty
         });
 
-        if (room.UserRepository.TryGetById(playerId, out var targetRoomUser))
+        if (targetRoomUser != null)
         {
-            targetRoomUser!.ControllerLevel = RoomControllerLevel.Rights;
+            targetRoomUser.ControllerLevel = RoomControllerLevel.Rights;
             targetRoomUser.ApplyFlatCtrlStatus();
             
             await targetRoomUser.NetworkObject.WriteToStreamAsync(new RoomRightsWriter

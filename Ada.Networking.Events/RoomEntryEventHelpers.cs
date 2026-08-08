@@ -41,15 +41,45 @@ public static class RoomEntryEventHelpers
         }
 
         var entryPoint = new Point(layout.DoorX, layout.DoorY);
+
+        if (!room.TileMap.TileExists(entryPoint))
+        {
+            var fallback = room.TileMap.FirstExistingTile();
+
+            if (fallback == null)
+            {
+                Log.Error(
+                    "Room {RoomId} has no usable tile to spawn into; refusing entry for player {PlayerId}",
+                    room.Room.Id, player.Player.Id);
+
+                return;
+            }
+
+            Log.Warning(
+                "Room {RoomId} door ({DoorX},{DoorY}) is outside its layout; spawning at {Fallback}",
+                room.Room.Id, layout.DoorX, layout.DoorY, fallback.Value);
+
+            entryPoint = fallback.Value;
+        }
+
         var entryDirection = layout.DoorDirection;
         var teleport = player.State.Teleport;
 
         if (teleport != null)
         {
-            entryPoint = new Point(teleport.PositionX, teleport.PositionY);
-            entryDirection = (int) teleport.Direction;
-            
             player.State.Teleport = null;
+
+            var teleportPoint = new Point(teleport.PositionX, teleport.PositionY);
+
+            if (teleport.RoomId == room.Room.Id && room.TileMap.TileExists(teleportPoint))
+            {
+                entryPoint = teleportPoint;
+                entryDirection = (int) teleport.Direction;
+            }
+            else
+            {
+                teleport = null;
+            }
         }
 
         var entryOverride = player.State.RoomEntryOverride;
@@ -100,6 +130,7 @@ public static class RoomEntryEventHelpers
 
             added = true;
             player.State.CurrentRoomId = room.Room.Id;
+            player.State.PendingDoorbellRoomId = 0;
 
             room.TileMap.AddUnitToMap(entryPoint, roomUser);
 

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -29,6 +30,15 @@ public class RoomItemPlacedEventHandler(
     IPlayerRepository playerRepository) : INetworkPacketEventHandler
 {
     public required string PlacementData { get; init; }
+
+    private const int _maxWallPositionLength = 64;
+
+    private static bool IsValidWallPosition(string wallPosition)
+        => wallPosition.Length <= _maxWallPositionLength &&
+           _wallPositionPattern.IsMatch(wallPosition);
+
+    private static readonly Regex _wallPositionPattern =
+        new(@"\A:w=-?\d{1,4},-?\d{1,4} l=-?\d{1,4},-?\d{1,4} [lr]\z", RegexOptions.Compiled);
 
     public async Task HandleAsync(INetworkClient client)
     {
@@ -75,7 +85,8 @@ public class RoomItemPlacedEventHandler(
         {
             if (!int.TryParse(placementData[1], out var x) ||
                 !int.TryParse(placementData[2], out var y) ||
-                !int.TryParse(placementData[3], out var direction))
+                !int.TryParse(placementData[3], out var direction) ||
+                !Enum.IsDefined(typeof(HDirection), direction))
             {
                 await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
                 return;
@@ -179,6 +190,12 @@ public class RoomItemPlacedEventHandler(
             }
 
             var wallPosition = $"{placementData[1]} {placementData[2]} {placementData[3]}";
+
+            if (!IsValidWallPosition(wallPosition))
+            {
+                await FurniturePlacementErrorSender.SendAsync(client, RoomFurniturePlacementError.CantSetItem);
+                return;
+            }
 
             var roomFurnitureItem = new PlayerFurnitureItemPlacementDataDto
             {
