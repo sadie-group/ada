@@ -14,8 +14,8 @@ public class PetScratchEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository) : INetworkPacketEventHandler
 {
-    private const int ScratchExperience = 10;
-    private const int ScratchHappiness = 10;
+    private const int _scratchExperience = 10;
+    private const int _scratchHappiness = 10;
 
     public required int Id { get; init; }
 
@@ -34,8 +34,8 @@ public class PetScratchEventHandler(
         var pet = roomPet.Pet;
 
         pet.Respect++;
-        pet.Happiness = Math.Min(100, pet.Happiness + ScratchHappiness);
-        pet.Experience += ScratchExperience;
+        pet.Happiness = Math.Min(100, pet.Happiness + _scratchHappiness);
+        pet.Experience += _scratchExperience;
 
         var leveledUp = pet.Level < PetHelpers.MaximumLevel &&
                         pet.Experience >= PetHelpers.ExperienceGoalForLevel(pet.Level, int.MaxValue);
@@ -65,7 +65,7 @@ public class PetScratchEventHandler(
         {
             PetId = pet.Id,
             RoomUnitId = pet.Id,
-            Amount = ScratchExperience,
+            Amount = _scratchExperience,
         });
 
         if (leveledUp)

@@ -23,7 +23,7 @@ public partial class PetPackageNameEventHandler(
     IRoomPetFactory roomPetFactory,
     IMapper mapper) : INetworkPacketEventHandler
 {
-    private static readonly Dictionary<string, int> PackagePetTypes = new()
+    private static readonly Dictionary<string, int> _packagePetTypes = new()
     {
         ["val11_present"] = 11,
         ["gnome_box"] = 26,
@@ -64,7 +64,7 @@ public partial class PetPackageNameEventHandler(
 
         var assetName = (item.PlayerFurnitureItem.FurnitureItem.AssetName ?? "").ToLower();
 
-        if (!PackagePetTypes.TryGetValue(assetName, out var petType))
+        if (!_packagePetTypes.TryGetValue(assetName, out var petType))
         {
             return;
         }
