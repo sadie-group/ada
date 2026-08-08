@@ -21,9 +21,11 @@ public class RoomPetRepositoryTests
     {
         var repository = new RoomPetRepository();
         var pet = CreatePet(1);
-
-        Assert.That(repository.TryAdd(pet.Object), Is.True);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(pet.Object), Is.True);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
         Assert.That(repository.GetAll().Single(), Is.SameAs(pet.Object));
     }
 
@@ -32,9 +34,11 @@ public class RoomPetRepositoryTests
     {
         var repository = new RoomPetRepository();
         repository.TryAdd(CreatePet(1).Object);
-
-        Assert.That(repository.TryAdd(CreatePet(1).Object), Is.False);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(CreatePet(1).Object), Is.False);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -43,18 +47,22 @@ public class RoomPetRepositoryTests
         var repository = new RoomPetRepository();
         var pet = CreatePet(7);
         repository.TryAdd(pet.Object);
-
-        Assert.That(repository.TryGetById(7, out var found), Is.True);
-        Assert.That(found, Is.SameAs(pet.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(7, out var found), Is.True);
+            Assert.That(found, Is.SameAs(pet.Object));
+        });
     }
 
     [Test]
     public void TryGetById_Absent_ReturnsFalse()
     {
         var repository = new RoomPetRepository();
-
-        Assert.That(repository.TryGetById(404, out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(404, out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]
@@ -63,10 +71,12 @@ public class RoomPetRepositoryTests
         var repository = new RoomPetRepository();
         var pet = CreatePet(1);
         repository.TryAdd(pet.Object);
-
-        Assert.That(repository.TryRemove(1, out var removed), Is.True);
-        Assert.That(removed, Is.SameAs(pet.Object));
-        Assert.That(repository.Count, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryRemove(1, out var removed), Is.True);
+            Assert.That(removed, Is.SameAs(pet.Object));
+            Assert.That(repository.Count, Is.Zero);
+        });
     }
 
     [Test]
@@ -91,10 +101,12 @@ public class RoomPetRepositoryTests
     public void TryStartBreeding_NewNest_Starts()
     {
         var repository = new RoomPetRepository();
-
-        Assert.That(repository.TryStartBreeding(1, 10, 11), Is.True);
-        Assert.That(repository.TryGetBreeding(1, out var pets), Is.True);
-        Assert.That(pets, Is.EqualTo((10, 11)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryStartBreeding(1, 10, 11), Is.True);
+            Assert.That(repository.TryGetBreeding(1, out var pets), Is.True);
+            Assert.That(pets, Is.EqualTo((10, 11)));
+        });
     }
 
     [Test]

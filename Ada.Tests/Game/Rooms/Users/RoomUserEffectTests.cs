@@ -128,9 +128,11 @@ public class RoomUserEffectTests
         await user.RunPeriodicCheckAsync();
         await user.RunPeriodicCheckAsync();
         await user.RunPeriodicCheckAsync();
-
-        Assert.That(broadcasts.OfType<RoomUserEffectWriter>().Count(), Is.EqualTo(1));
-        Assert.That(user.ActiveEffectId, Is.EqualTo(29));
+        Assert.Multiple(() =>
+        {
+            Assert.That(broadcasts.OfType<RoomUserEffectWriter>().Count(), Is.EqualTo(1));
+            Assert.That(user.ActiveEffectId, Is.EqualTo(29));
+        });
     }
 
     [Test]
@@ -140,9 +142,11 @@ public class RoomUserEffectTests
 
         await user.RunPeriodicCheckAsync();
         await user.RunPeriodicCheckAsync();
-
-        Assert.That(broadcasts.OfType<RoomUserEffectWriter>(), Is.Empty);
-        Assert.That(user.ActiveEffectId, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(broadcasts.OfType<RoomUserEffectWriter>(), Is.Empty);
+            Assert.That(user.ActiveEffectId, Is.Zero);
+        });
     }
 
     [Test]
@@ -161,7 +165,10 @@ public class RoomUserEffectTests
         var effects = broadcasts.OfType<RoomUserEffectWriter>().ToList();
 
         Assert.That(effects, Has.Count.EqualTo(2));
-        Assert.That(effects[1].EffectId, Is.Zero);
-        Assert.That(user.ActiveEffectId, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(effects[1].EffectId, Is.Zero);
+            Assert.That(user.ActiveEffectId, Is.Zero);
+        });
     }
 }

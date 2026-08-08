@@ -24,7 +24,7 @@ public class RoomUnitData(
     public double PointZ { get; set; } = pointZ;
     public bool IsWalking { get; set; }
     protected bool NeedsPathCalculated { get; set; }
-    
+
     public bool NeedsUpdate { get; set; }
     public Point? NextPoint { get; set; }
     protected int StepsWalked { get; set; }
@@ -64,8 +64,8 @@ public class RoomUnitData(
         {
             return;
         }
-        
-        var tileItems = tileMapHelperService.GetItemsForPosition(Point.X, Point.Y, room.Room.FurnitureItems);
+
+        var tileItems = tileMapHelperService.GetItemsOnTilePosition(Point.X, Point.Y, room.Room.FurnitureItems);
 
         if (tileItems.Count == 0)
         {
@@ -79,24 +79,24 @@ public class RoomUnitData(
         {
             return;
         }
-        
+
         var topFurnitureItem = topItem.PlayerFurnitureItem.FurnitureItem;
 
         if (topFurnitureItem.CanSit)
         {
             AddStatus(
-                RoomUserStatus.Sit, 
+                RoomUserStatus.Sit,
                 (topFurnitureItem.StackHeight * 1.0D).ToString());
-            
+
             Direction = topItem.Direction;
             DirectionHead = topItem.Direction;
         }
         else if (topFurnitureItem.CanLay)
         {
             AddStatus(
-                RoomUserStatus.Lay, 
+                RoomUserStatus.Lay,
                 (topFurnitureItem.StackHeight + 0.1).ToString());
-            
+
             Direction = topItem.Direction;
             DirectionHead = topItem.Direction;
         }
@@ -104,10 +104,10 @@ public class RoomUnitData(
         {
             RemoveStatuses(RoomUserStatus.Sit, RoomUserStatus.Lay);
         }
-        
+
         var topItemSitOrLay = topFurnitureItem is { CanSit: false, CanLay: false };
         var zHeightNextStep = topItem.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
-        
+
         PointZ = zHeightNextStep;
         NeedsUpdate = true;
     }
@@ -134,7 +134,6 @@ public class RoomUnitData(
         }
         else
         {
-            // No route to the goal; stop instead of re-running the search every tick.
             NeedsPathCalculated = false;
 
             if (IsWalking)
@@ -143,7 +142,7 @@ public class RoomUnitData(
             }
         }
     }
-    
+
     public void WalkToPoint(Point point, Action? onReachedGoal = null)
     {
         if (room.TileMap.UsersAtPoint(point) &&
@@ -157,8 +156,6 @@ public class RoomUnitData(
         OnReachedGoal = onReachedGoal;
     }
 
-    // Lets the fast game-loop passes start a freshly requested walk between full
-    // ticks; mid-walk recalculations stay on the tick so the step rhythm holds.
     public async Task<bool> TryStartPendingWalkAsync()
     {
         if (!NeedsPathCalculated || IsWalking)
@@ -183,7 +180,7 @@ public class RoomUnitData(
         {
             room.TileMap.UnitMap[Point].Remove(this);
             room.TileMap.AddUnitToMap(NextPoint.Value, this);
-            
+
             PointZ = NextZ;
 
             await SetPositionAsync(NextPoint.Value);
@@ -195,7 +192,7 @@ public class RoomUnitData(
                 return;
             }
         }
-        
+
         if (NeedsPathCalculated)
         {
             CalculatePath();
@@ -216,27 +213,30 @@ public class RoomUnitData(
             ClearWalking();
             return;
         }
-        
+
         var nextStep = PathPoints[StepsWalked];
         var lastStep = PathPoints.Count == StepsWalked + 1;
-        
-        if (room.TileMap.Map[nextStep.Y, nextStep.X] == 0 && !OverridePoints.Contains(nextStep) || 
-            (room.TileMap.Map[nextStep.Y, nextStep.X] == 2 && !lastStep) || 
-            room.TileMap.UnitMap.GetValueOrDefault(nextStep, []).Count > 0)
+
+        var occupied = room.TileMap.UnitMap.TryGetValue(nextStep, out var unitsOnStep) &&
+                       unitsOnStep.Count > 0;
+
+        if (room.TileMap.Map[nextStep.Y, nextStep.X] == 0 && !OverridePoints.Contains(nextStep) ||
+            (room.TileMap.Map[nextStep.Y, nextStep.X] == 2 && !lastStep) ||
+            occupied)
         {
             NeedsPathCalculated = true;
             return;
         }
-        
+
         var topItemNextStep = tileMapHelperService
-            .GetItemsForPosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
+            .GetItemsOnTilePosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
             .MaxBy(x => x.PositionZ);
 
         var topFurnitureItem = topItemNextStep?.PlayerFurnitureItem.FurnitureItem;
         var topItemSitOrLay = topFurnitureItem is { CanSit: false, CanLay: false };
-        
+
         var zHeightNextStep = topItemNextStep == null || topFurnitureItem == null ?
-            room.TileMap.ZMap[nextStep.Y, nextStep.X] : 
+            room.TileMap.ZMap[nextStep.Y, nextStep.X] :
             topItemNextStep.PositionZ + (topItemSitOrLay ? topFurnitureItem.StackHeight : 0);
 
         ClearStatuses();
@@ -244,7 +244,7 @@ public class RoomUnitData(
         AddStatus(RoomUserStatus.Move, $"{nextStep.X},{nextStep.Y},{zHeightNextStep}");
 
         var newDirection = pathFinderHelperService.GetDirectionForNextStep(Point, nextStep);
-                
+
         Direction = newDirection;
         DirectionHead = newDirection;
         NextZ = zHeightNextStep;
@@ -254,7 +254,7 @@ public class RoomUnitData(
     public double NextZ { get; set; }
     public int HandItemId { get; set; }
     public DateTime HandItemSet { get; set; }
-    
+
     public async Task SetPositionAsync(Point point)
     {
         Point = point;

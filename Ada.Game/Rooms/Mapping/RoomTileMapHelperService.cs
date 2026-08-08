@@ -75,7 +75,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems,
         PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
-        var itemsOnTile = GetItemsOnTile(x, y, furnitureItems);
+        var itemsOnTile = GetItemsOnTilePosition(x, y, furnitureItems);
 
         PlayerFurnitureItemPlacementDataDto? item = null;
 
@@ -289,7 +289,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         };
     }
 
-    private IReadOnlyList<PlayerFurnitureItemPlacementDataDto> GetItemsOnTile(
+    public IReadOnlyList<PlayerFurnitureItemPlacementDataDto> GetItemsOnTilePosition(
         int x,
         int y,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> items)
@@ -399,6 +399,10 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         }
     }
 
+    private static bool IsInsideMap(Point point, IRoomTileMap tileMap)
+        => point.X >= 0 && point.X < tileMap.SizeX &&
+           point.Y >= 0 && point.Y < tileMap.SizeY;
+
     public bool CanPlaceAt(
         IEnumerable<Point> points,
         IRoomTileMap tileMap,
@@ -406,11 +410,12 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     {
         foreach (var point in points)
         {
-            if (tileMap.Map[point.Y, point.X] == 0)
+            if (!IsInsideMap(point, tileMap) ||
+                tileMap.Map[point.Y, point.X] == 0 ||
+                (checkForUsers && tileMap.UsersAtPoint(point)))
+            {
                 return false;
-
-            if (checkForUsers && tileMap.UsersAtPoint(point))
-                return false;
+            }
         }
 
         return true;
@@ -424,6 +429,11 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     {
         foreach (var point in points)
         {
+            if (!IsInsideMap(point, tileMap))
+            {
+                return false;
+            }
+
             var topItem = GetItemsForPosition(point.X, point.Y, furnitureItems)
                 .MaxBy(x => x.PositionZ);
 
@@ -508,7 +518,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
         foreach (var p in pointsForPlacement)
         {
-            var itemsOnTile = GetItemsOnTile(p.X, p.Y, roomFurnitureItems);
+            var itemsOnTile = GetItemsOnTilePosition(p.X, p.Y, roomFurnitureItems);
 
             for (var index = 0; index < itemsOnTile.Count; index++)
             {

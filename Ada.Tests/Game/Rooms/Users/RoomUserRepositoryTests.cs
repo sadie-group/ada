@@ -11,6 +11,7 @@ using Ada.Networking.Packets;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Users;
+ using Ada.Networking.Writers.Rooms.Users.Trading;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -145,9 +146,11 @@ public class RoomUserRepositoryTests
     {
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(1);
-
-        Assert.That(repository.TryAdd(user.User.Object), Is.True);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(user.User.Object), Is.True);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
         Assert.That(repository.GetAll(), Does.Contain(user.User.Object));
     }
 
@@ -157,8 +160,45 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
 
         Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.True);
-        Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.False);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.False);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task TryRemoveAsync_UserInTrade_TearsDownTradeForBothParties()
+    {
+        var (repository, room, _, _) = MakeRepository();
+
+        var leaver = MakeUser(1, "Leaver");
+        var partner = MakeUser(2, "Partner");
+
+        repository.TryAdd(leaver.User.Object);
+        repository.TryAdd(partner.User.Object);
+
+        room.Setup(x => x.BroadcastDataAsync(It.IsAny<AbstractPacketWriter>(), It.IsAny<IReadOnlyCollection<long>>()))
+            .Returns(Task.CompletedTask);
+
+        var trade = new Mock<IRoomUserTrade>();
+        trade.SetupGet(x => x.Users).Returns([leaver.User.Object, partner.User.Object]);
+
+        leaver.User.Object.Trade = trade.Object;
+        partner.User.Object.Trade = trade.Object;
+        partner.User.Object.TradeStatus = 2;
+
+        await repository.TryRemoveAsync(1, false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(leaver.User.Object.Trade, Is.Null);
+            Assert.That(partner.User.Object.Trade, Is.Null);
+            Assert.That(partner.User.Object.TradeStatus, Is.Zero);
+        });
+
+        partner.NetworkObject.Verify(
+            x => x.WriteToStreamAsync(It.IsAny<RoomUserTradeCloseWindowWriter>()), Times.Once);
     }
 
     [Test]
@@ -167,18 +207,22 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(7);
         repository.TryAdd(user.User.Object);
-
-        Assert.That(repository.TryGetById(7, out var found), Is.True);
-        Assert.That(found, Is.SameAs(user.User.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(7, out var found), Is.True);
+            Assert.That(found, Is.SameAs(user.User.Object));
+        });
     }
 
     [Test]
     public void TryGetById_Absent_ReturnsFalse()
     {
         var (repository, _, _, _) = MakeRepository();
-
-        Assert.That(repository.TryGetById(42, out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(42, out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]
@@ -187,9 +231,11 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(1, "Alice");
         repository.TryAdd(user.User.Object);
-
-        Assert.That(repository.TryGetByUsername("Alice", out var found), Is.True);
-        Assert.That(found, Is.SameAs(user.User.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetByUsername("Alice", out var found), Is.True);
+            Assert.That(found, Is.SameAs(user.User.Object));
+        });
     }
 
     [Test]
@@ -197,9 +243,11 @@ public class RoomUserRepositoryTests
     {
         var (repository, _, _, _) = MakeRepository();
         repository.TryAdd(MakeUser(1, "Alice").User.Object);
-
-        Assert.That(repository.TryGetByUsername("Bob", out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetByUsername("Bob", out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]

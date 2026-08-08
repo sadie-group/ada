@@ -7,7 +7,7 @@ using Ada.Core.Shared.Attributes;
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserWalk)]
-public class RoomUserWalkEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserWalkEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int X { get; init; }
     public int Y { get; init; }

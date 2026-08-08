@@ -160,9 +160,11 @@ public class RoomUserTests
         var h = Create(point: new Point(1, 1), direction: HDirection.South, directionHead: HDirection.South);
 
         h.User.LookAtPoint(new Point(2, 2));
-
-        Assert.That(h.User.Direction, Is.EqualTo(HDirection.SouthEast));
-        Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.SouthEast));
+        Assert.Multiple(() =>
+        {
+            Assert.That(h.User.Direction, Is.EqualTo(HDirection.SouthEast));
+            Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.SouthEast));
+        });
     }
 
     [Test]
@@ -172,9 +174,11 @@ public class RoomUserTests
         h.User.AddStatus(RoomUserStatus.Sit, "1.0");
 
         h.User.LookAtPoint(new Point(2, 2));
-
-        Assert.That(h.User.Direction, Is.EqualTo(HDirection.North));
-        Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.North));
+        Assert.Multiple(() =>
+        {
+            Assert.That(h.User.Direction, Is.EqualTo(HDirection.North));
+            Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.North));
+        });
     }
 
     [Test]
@@ -184,9 +188,11 @@ public class RoomUserTests
         h.User.AddStatus(RoomUserStatus.Sit, "1.0");
 
         h.User.LookAtPoint(new Point(1, 0));
-
-        Assert.That(h.User.Direction, Is.EqualTo(HDirection.North));
-        Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.North));
+        Assert.Multiple(() =>
+        {
+            Assert.That(h.User.Direction, Is.EqualTo(HDirection.North));
+            Assert.That(h.User.DirectionHead, Is.EqualTo(HDirection.North));
+        });
     }
 
     [Test]
@@ -195,9 +201,11 @@ public class RoomUserTests
         var h = Create(controllerLevel: RoomControllerLevel.Owner);
 
         h.User.ApplyFlatCtrlStatus();
-
-        Assert.That(h.User.StatusMap[RoomUserStatus.FlatCtrl], Is.EqualTo("4"));
-        Assert.That(h.User.NeedsUpdate, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(h.User.StatusMap[RoomUserStatus.FlatCtrl], Is.EqualTo("4"));
+            Assert.That(h.User.NeedsUpdate, Is.True);
+        });
     }
 
     [TestCase(RoomControllerLevel.None, false)]
@@ -224,8 +232,11 @@ public class RoomUserTests
 
         Assert.That(h.User.HandItemId, Is.Zero);
         var writer = h.Broadcasts.OfType<RoomUserHandItemWriter>().Single();
-        Assert.That(writer.UserId, Is.EqualTo(1L));
-        Assert.That(writer.ItemId, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.UserId, Is.EqualTo(1L));
+            Assert.That(writer.ItemId, Is.Zero);
+        });
     }
 
     [Test]
@@ -236,9 +247,11 @@ public class RoomUserTests
         h.User.HandItemSet = DateTime.Now;
 
         await h.User.RunPeriodicCheckAsync();
-
-        Assert.That(h.User.HandItemId, Is.EqualTo(5));
-        Assert.That(h.Broadcasts.OfType<RoomUserHandItemWriter>(), Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(h.User.HandItemId, Is.EqualTo(5));
+            Assert.That(h.Broadcasts.OfType<RoomUserHandItemWriter>(), Is.Empty);
+        });
     }
 
     [Test]
@@ -283,8 +296,11 @@ public class RoomUserTests
         Assert.That(h.User.IsIdle, Is.False);
         var idleWriters = h.Broadcasts.OfType<RoomUserIdleWriter>().ToList();
         Assert.That(idleWriters, Has.Count.EqualTo(2));
-        Assert.That(idleWriters[0].IsIdle, Is.True);
-        Assert.That(idleWriters[1].IsIdle, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(idleWriters[0].IsIdle, Is.True);
+            Assert.That(idleWriters[1].IsIdle, Is.False);
+        });
     }
 
     [Test]

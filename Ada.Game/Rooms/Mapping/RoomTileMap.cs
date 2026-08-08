@@ -19,7 +19,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
     public short[,] EffectMap { get; }
 
     public RoomTileMap(
-        string heightmap, 
+        string heightmap,
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
     {
         var heightmapLines = heightmap
@@ -28,15 +28,15 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
             .Split('\n')
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
-        
-        SizeX = heightmapLines[0].Length;
+
+        SizeX = heightmapLines.Count == 0 ? 0 : heightmapLines.Min(x => x.Length);
         SizeY = heightmapLines.Count;
         Size = 0;
         Map = new short[SizeY, SizeX];
         ZMap = new short[SizeY, SizeX];
         TileExistenceMap = new short[SizeY, SizeX];
         EffectMap = new short[SizeY, SizeX];
-        
+
         for (var y = 0; y < SizeY; y++)
         {
             for (var x = 0; x < SizeX; x++)
@@ -44,7 +44,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
                 Size++;
 
                 var square = heightmapLines[y][x].ToString().ToUpper();
-                
+
                 if (square == "X")
                 {
                     TileExistenceMap[y, x] = 0;
@@ -82,18 +82,34 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
             EffectMap[y, x] = 0;
             return;
         }
-        
+
         var topItemOnSquare = itemsOnSquare.MaxBy(x => x.PositionZ);
         var effect = GetEffectFromInteractionType(topItemOnSquare?.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "");
-                    
+
         EffectMap[y, x] = (short) effect;
     }
 
-    public void AddUnitToMap(Point point, IRoomUnitData unit) => 
+    public void AddUnitToMap(Point point, IRoomUnitData unit) =>
         UnitMap.GetOrInsert(point, () => []).Add(unit);
 
     public bool UsersAtPoint(Point point) =>
         UnitMap.ContainsKey(point) && UnitMap[point].Count > 0;
+
+    public Point? FirstExistingTile()
+    {
+        for (var y = 0; y < SizeY; y++)
+        {
+            for (var x = 0; x < SizeX; x++)
+            {
+                if (TileExistenceMap[y, x] == 1)
+                {
+                    return new Point(x, y);
+                }
+            }
+        }
+
+        return null;
+    }
 
     public bool TileExists(Point point)
     {

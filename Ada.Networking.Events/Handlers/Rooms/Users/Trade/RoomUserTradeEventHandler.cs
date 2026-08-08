@@ -20,7 +20,7 @@ public class RoomUserTradeEventHandler(
     ILogger<RoomUserTrade> tradeLogger) : INetworkPacketEventHandler
 {
     public required int TargetUserId { get; init; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
@@ -42,8 +42,14 @@ public class RoomUserTradeEventHandler(
             return;
         }
 
-        if ((roomSettings.TradeOption == RoomTradeOption.RequiresRights && !roomUser.HasRights()) || 
-            roomSettings.TradeOption != RoomTradeOption.Allowed)
+        var tradingPermitted = roomSettings.TradeOption switch
+        {
+            RoomTradeOption.Allowed => true,
+            RoomTradeOption.RequiresRights => roomUser.HasRights(),
+            _ => false
+        };
+
+        if (!tradingPermitted)
         {
             await client.WriteToStreamAsync(new RoomUserTradeErrorWriter { Code = RoomUserTradeError.RoomTradingNotAllowed });
             return;
@@ -60,13 +66,13 @@ public class RoomUserTradeEventHandler(
             await client.WriteToStreamAsync(new RoomUserTradeErrorWriter { Code = RoomUserTradeError.TargetAlreadyTrading });
             return;
         }
-        
+
         await roomUser.NetworkObject.WriteToStreamAsync(writer: new RoomUserTradeStartedWriter
         {
             UserIds = [roomUser.Player.Player.Id, targetUser.Player.Player.Id],
             State = 1
         });
-        
+
         await targetUser.NetworkObject.WriteToStreamAsync(new RoomUserTradeStartedWriter
         {
             UserIds = [roomUser.Player.Player.Id, targetUser.Player.Player.Id],

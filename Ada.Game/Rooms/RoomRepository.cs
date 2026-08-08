@@ -15,6 +15,9 @@ public class RoomRepository : IRoomRepository
 
     public void AddRoom(IRoomLogic roomLogic) => _rooms[roomLogic.Room.Id] = roomLogic;
 
+    public IRoomLogic GetOrAddRoom(IRoomLogic roomLogic) =>
+        _rooms.GetOrAdd(roomLogic.Room.Id, roomLogic);
+
     public List<RoomDto> GetPopularRooms(int amount)
     {
         return _rooms

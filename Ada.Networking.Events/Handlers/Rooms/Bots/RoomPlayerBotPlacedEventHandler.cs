@@ -21,7 +21,7 @@ public class RoomPlayerBotPlacedEventHandler(
     public required int Id { get; init; }
     public required int X { get; init; }
     public required int Y { get; init; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository,
@@ -48,21 +48,31 @@ public class RoomPlayerBotPlacedEventHandler(
         }
 
         var placePoint = new Point(X, Y);
-        
+
+        if (!room.TileMap.TileExists(placePoint))
+        {
+            await client.WriteToStreamAsync(new RoomBotErrorWriter
+            {
+                ErrorCode = 3
+            });
+
+            return;
+        }
+
         if (room.TileMap.UsersAtPoint(placePoint) && room.Room.Settings?.CanUsersOverlap == false)
         {
             await client.WriteToStreamAsync(new RoomBotErrorWriter
             {
                 ErrorCode = 3
             });
-            
+
             return;
         }
 
         var roomBot = roomBotFactory.Create(
-            room, 
-            room.Room.MaxUsersAllowed + bot.Id, 
-            new Point(X, Y), 
+            room,
+            room.Room.MaxUsersAllowed + bot.Id,
+            new Point(X, Y),
             room.TileMap.ZMap[Y, X]);
 
         if (!room.BotRepository.TryAdd(roomBot))
@@ -79,7 +89,7 @@ public class RoomPlayerBotPlacedEventHandler(
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.RoomId, room.Room.Id));
 
         room.TileMap.AddUnitToMap(new Point(X, Y), roomBot);
-        
+
         await room.BroadcastDataAsync(new RoomBotDataWriter
         {
             Bots = [roomBot]
@@ -89,7 +99,7 @@ public class RoomPlayerBotPlacedEventHandler(
         {
             Bots = [roomBot]
         });
-        
+
         await client.WriteToStreamAsync(new PlayerInventoryRemoveBotWriter
         {
             Id = bot.Id

@@ -38,7 +38,9 @@ public class RoomUserTrade(
 
     public Task BroadcastToUsersAsync(AbstractPacketWriter writer)
     {
-        return PacketBroadcast.SendAsync(writer, Users.Select(user => user.NetworkObject));
+        PacketBroadcast.SendAndFlush(writer, Users.Select(user => user.NetworkObject));
+
+        return Task.CompletedTask;
     }
 
     public async Task<bool> SwapItemsAsync()
