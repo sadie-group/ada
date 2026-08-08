@@ -1,37 +1,17 @@
+using Ada.API.DTOs.Catalog.Items;
 using Ada.API.Interfaces.Game.Catalog;
 using Ada.API.Interfaces.Networking.Client;
-using Ada.Core.Enums.Game.Catalog;
-using Ada.Db;
-using Ada.Db.Models.Catalog.Items;
 using Ada.Networking.Writers.Catalog;
 using Ada.Networking.Writers.Players.Inventory;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Catalog.Purchase;
 
-public class CatalogVipPurchaseService(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : ICatalogVipPurchaseService
+public class CatalogVipPurchaseService : ICatalogVipPurchaseService
 {
-    public async Task ProcessAsync(INetworkClient client, int itemId)
+    public async Task ProcessAsync(INetworkClient client, CatalogItemDto item)
     {
         if (client.Player == null)
         {
-            return;
-        }
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        var item = await dbContext
-            .Set<CatalogItem>()
-            .FirstOrDefaultAsync(x => x.Id == itemId);
-
-        if (item == null)
-        {
-            await client.WriteToStreamAsync(new CatalogPurchaseFailedWriter
-            {
-                Error = (int)CatalogPurchaseError.Server
-            });
-
             return;
         }
 

@@ -184,10 +184,12 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costCredits: 60), 2);
-
-        Assert.That(result, Is.False);
-        Assert.That(data.CreditBalance, Is.EqualTo(100));
-        Assert.That(written, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.False);
+            Assert.That(data.CreditBalance, Is.EqualTo(100));
+            Assert.That(written, Is.Empty);
+        });
     }
 
     [Test]
@@ -198,10 +200,12 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costPoints: 60), 1);
-
-        Assert.That(result, Is.False);
-        Assert.That(data.PixelBalance, Is.EqualTo(50));
-        Assert.That(written, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.False);
+            Assert.That(data.PixelBalance, Is.EqualTo(50));
+            Assert.That(written, Is.Empty);
+        });
     }
 
     [Test]
@@ -212,10 +216,12 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costPoints: 30, costPointsType: 1), 1);
-
-        Assert.That(result, Is.False);
-        Assert.That(data.SeasonalBalance, Is.EqualTo(25));
-        Assert.That(written, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.False);
+            Assert.That(data.SeasonalBalance, Is.EqualTo(25));
+            Assert.That(written, Is.Empty);
+        });
     }
 
     [Test]
@@ -226,10 +232,12 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(), 1);
-
-        Assert.That(result, Is.True);
-        Assert.That(written, Is.Empty);
-        Assert.That(data.CreditBalance, Is.EqualTo(100));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.True);
+            Assert.That(written, Is.Empty);
+            Assert.That(data.CreditBalance, Is.EqualTo(100));
+        });
     }
 
     [Test]
@@ -241,17 +249,21 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costCredits: 30), 2);
-
-        Assert.That(result, Is.True);
-        Assert.That(data.CreditBalance, Is.EqualTo(40));
-        Assert.That(written, Has.Count.EqualTo(1));
-        Assert.That(((PlayerCreditsBalanceWriter)written[0]).Credits, Is.EqualTo(40));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.True);
+            Assert.That(data.CreditBalance, Is.EqualTo(40));
+            Assert.That(written, Has.Count.EqualTo(1));
+            Assert.That(((PlayerCreditsBalanceWriter)written[0]).Credits, Is.EqualTo(40));
+        });
         await using var db = factory.CreateDbContext();
         var row = db.PlayerData.Single(x => x.PlayerId == 1);
-        Assert.That(row.CreditBalance, Is.EqualTo(40));
-        Assert.That(row.PixelBalance, Is.EqualTo(50));
-        Assert.That(row.SeasonalBalance, Is.EqualTo(25));
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.CreditBalance, Is.EqualTo(40));
+            Assert.That(row.PixelBalance, Is.EqualTo(50));
+            Assert.That(row.SeasonalBalance, Is.EqualTo(25));
+        });
     }
 
     [Test]
@@ -263,16 +275,19 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costPoints: 10), 1);
-
-        Assert.That(result, Is.True);
-        Assert.That(data.PixelBalance, Is.EqualTo(40));
-        Assert.That(written, Has.Count.EqualTo(1));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.True);
+            Assert.That(data.PixelBalance, Is.EqualTo(40));
+            Assert.That(written, Has.Count.EqualTo(1));
+        });
         var currencies = ((PlayerActivityPointsBalanceWriter)written[0]).Currencies;
-        Assert.That(currencies[0], Is.EqualTo(40));
-        Assert.That(currencies[5], Is.EqualTo(25));
-        Assert.That(currencies[103], Is.EqualTo(5));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(currencies[0], Is.EqualTo(40));
+            Assert.That(currencies[5], Is.EqualTo(25));
+            Assert.That(currencies[103], Is.EqualTo(5));
+        });
         await using var db = factory.CreateDbContext();
         Assert.That(db.PlayerData.Single(x => x.PlayerId == 1).PixelBalance, Is.EqualTo(40));
     }
@@ -286,12 +301,13 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costPoints: 10, costPointsType: 5), 1);
-
-        Assert.That(result, Is.True);
-        Assert.That(data.SeasonalBalance, Is.EqualTo(15));
-        Assert.That(data.PixelBalance, Is.EqualTo(50));
-        Assert.That(((PlayerActivityPointsBalanceWriter)written[0]).Currencies[5], Is.EqualTo(15));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.True);
+            Assert.That(data.SeasonalBalance, Is.EqualTo(15));
+            Assert.That(data.PixelBalance, Is.EqualTo(50));
+            Assert.That(((PlayerActivityPointsBalanceWriter)written[0]).Currencies[5], Is.EqualTo(15));
+        });
         await using var db = factory.CreateDbContext();
         Assert.That(db.PlayerData.Single(x => x.PlayerId == 1).SeasonalBalance, Is.EqualTo(15));
     }
@@ -305,16 +321,23 @@ public class CatalogChargeServiceTests
         var (client, written) = CatalogClientFactory.MakeClient(CatalogClientFactory.MakePlayerDto(1, "buyer", data));
 
         var result = await service.TryChargeAsync(client.Object, MakeItem(costCredits: 10, costPoints: 5), 1);
-
-        Assert.That(result, Is.True);
-        Assert.That(written, Has.Count.EqualTo(2));
-        Assert.That(written[0], Is.TypeOf<PlayerCreditsBalanceWriter>());
-        Assert.That(written[1], Is.TypeOf<PlayerActivityPointsBalanceWriter>());
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.True);
+            Assert.That(written, Has.Count.EqualTo(2));
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(written[0], Is.TypeOf<PlayerCreditsBalanceWriter>());
+            Assert.That(written[1], Is.TypeOf<PlayerActivityPointsBalanceWriter>());
+        });
         await using var db = factory.CreateDbContext();
         var row = db.PlayerData.Single(x => x.PlayerId == 1);
-        Assert.That(row.CreditBalance, Is.EqualTo(90));
-        Assert.That(row.PixelBalance, Is.EqualTo(45));
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.CreditBalance, Is.EqualTo(90));
+            Assert.That(row.PixelBalance, Is.EqualTo(45));
+        });
     }
 }
 
@@ -394,19 +417,23 @@ public class CatalogFurniturePurchaseServiceTests
         await service.ProcessAsync(client.Object, item, null, 3);
 
         Assert.That(inventory, Has.Count.EqualTo(3));
-        Assert.That(inventory[0].PlayerId, Is.EqualTo(1));
-        Assert.That(inventory[0].FurnitureItemId, Is.EqualTo(7));
-        Assert.That(inventory[0].LimitedData, Is.EqualTo("1:1"));
-        Assert.That(inventory[0].MetaData, Is.EqualTo(""));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(inventory[0].PlayerId, Is.EqualTo(1));
+            Assert.That(inventory[0].FurnitureItemId, Is.EqualTo(7));
+            Assert.That(inventory[0].LimitedData, Is.EqualTo("1:1"));
+            Assert.That(inventory[0].MetaData, Is.EqualTo(""));
+        });
         await using var db = await factory.CreateDbContextAsync();
         Assert.That(db.PlayerFurnitureItems.Count(), Is.EqualTo(3));
 
         var unseen = (PlayerInventoryUnseenItemsWriter)written.Single();
         Assert.That(unseen.Count, Is.EqualTo(3));
-        Assert.That(unseen.Category, Is.EqualTo(1));
-        Assert.That(unseen.FurnitureItems, Is.EqualTo(inventory));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(unseen.Category, Is.EqualTo(1));
+            Assert.That(unseen.FurnitureItems, Is.EqualTo(inventory));
+        });
         confirmation.Verify(x => x.ConfirmAsync(client.Object, item, 3), Times.Once);
         wordFilter.Verify(x => x.Filter(It.IsAny<string>(), It.IsAny<WordFilterContext>()), Times.Never);
     }
@@ -490,8 +517,11 @@ public class CatalogFurniturePurchaseServiceTests
 
         Assert.That(filterInput, Has.Length.EqualTo(300));
         Assert.That(filterInput, Does.Not.Contain("\t"));
-        Assert.That(filterInput, Does.EndWith("bbbbb"));
-        Assert.That(inventory.Single().MetaData, Is.EqualTo($"buyer\t{DateTime.Now:d-M-yyyy}\tfiltered"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(filterInput, Does.EndWith("bbbbb"));
+            Assert.That(inventory.Single().MetaData, Is.EqualTo($"buyer\t{DateTime.Now:d-M-yyyy}\tfiltered"));
+        });
     }
 
     [Test]
@@ -578,8 +608,11 @@ public class CatalogPurchaseConfirmationServiceTests
         await service.ConfirmAsync(client.Object, MakeItem(requiresClub: false, amount: 5), 1);
 
         var ok = (CatalogPurchaseOkWriter)written[0];
-        Assert.That(ok.ClubLevel, Is.EqualTo(0));
-        Assert.That(ok.CanPurchaseBundles, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(ok.ClubLevel, Is.EqualTo(0));
+            Assert.That(ok.CanPurchaseBundles, Is.True);
+        });
     }
 
     [Test]

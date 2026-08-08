@@ -23,4 +23,9 @@
     <ItemGroup>
       <ProjectReference Include="..\Ada.Db\Ada.Db.csproj" />
     </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ada.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -84,6 +84,47 @@ public class CatalogPurchaseEventHandlerTests
     }
 
     [Test]
+    public async Task Handle_ClubPurchase_IsChargedBeforeItIsDelivered()
+    {
+        var vipService = new Mock<ICatalogVipPurchaseService>();
+        var (client, handler) = Create(VipPage(), amount: 1, vipService: vipService);
+
+        await handler.HandleAsync(client);
+
+        _chargeService.Verify(x => x.TryChargeAsync(client, It.IsAny<CatalogItemDto>(), 1), Times.Once);
+        vipService.Verify(x => x.ProcessAsync(client, It.IsAny<CatalogItemDto>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_ClubPurchaseChargeRejected_DeliversNothing()
+    {
+        _chargeService
+            .Setup(x => x.TryChargeAsync(It.IsAny<INetworkClient>(), It.IsAny<CatalogItemDto>(), It.IsAny<int>()))
+            .ReturnsAsync(false);
+
+        var vipService = new Mock<ICatalogVipPurchaseService>();
+        var (client, handler) = Create(VipPage(), amount: 1, vipService: vipService);
+
+        await handler.HandleAsync(client);
+
+        vipService.Verify(
+            x => x.ProcessAsync(It.IsAny<INetworkClient>(), It.IsAny<CatalogItemDto>()), Times.Never);
+        _confirmationService.Verify(x => x.WriteFailureAsync(client), Times.Once);
+    }
+
+    private static CatalogPageDto VipPage() => new()
+    {
+        Id = _pageId,
+        Enabled = true,
+        Visible = true,
+        Layout = CatalogPageLayout.VipBuy,
+        Items =
+        [
+            new CatalogItemDto { Id = _itemId, Name = "club", CostCredits = 25 }
+        ]
+    };
+
+    [Test]
     public async Task Handle_ChargeRejected_TellsTheClientThePurchaseFailed()
     {
         _chargeService
@@ -130,6 +171,8 @@ public class CatalogPurchaseEventHandlerTests
     private static CatalogPageDto BotPage() => new()
     {
         Id = _pageId,
+        Enabled = true,
+        Visible = true,
         Layout = CatalogPageLayout.Bots,
         Items =
         [
@@ -146,6 +189,8 @@ public class CatalogPurchaseEventHandlerTests
     private static CatalogPageDto TeleportPage() => new()
     {
         Id = _pageId,
+        Enabled = true,
+        Visible = true,
         Layout = "default",
         Items =
         [
@@ -170,6 +215,8 @@ public class CatalogPurchaseEventHandlerTests
     private static CatalogPageDto FurniturePage() => new()
     {
         Id = _pageId,
+        Enabled = true,
+        Visible = true,
         Layout = "default",
         Items =
         [
@@ -186,7 +233,10 @@ public class CatalogPurchaseEventHandlerTests
         ]
     };
 
-    private (INetworkClient Client, CatalogPurchaseEventHandler Handler) Create(CatalogPageDto page, int amount)
+    private (INetworkClient Client, CatalogPurchaseEventHandler Handler) Create(
+        CatalogPageDto page,
+        int amount,
+        Mock<ICatalogVipPurchaseService>? vipService = null)
     {
         var pageRepository = new Mock<ICatalogPageRepository>();
         pageRepository.SetupGet(x => x.Pages).Returns([page]);
@@ -212,7 +262,7 @@ public class CatalogPurchaseEventHandlerTests
             _botService.Object,
             _teleportService.Object,
             _confirmationService.Object,
-            Mock.Of<ICatalogVipPurchaseService>(),
+            (vipService ?? new Mock<ICatalogVipPurchaseService>()).Object,
             NullLogger<CatalogPurchaseEventHandler>.Instance)
         {
             PageId = _pageId,

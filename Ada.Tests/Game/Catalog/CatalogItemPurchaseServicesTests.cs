@@ -1,4 +1,3 @@
-using Ada.API;
 using Ada.API.DTOs.Catalog.Items;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players;
@@ -7,8 +6,6 @@ using Ada.API.Interfaces.Game.Catalog;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
-using Ada.Core.Enums.Game.Catalog;
-using Ada.Db.Models.Catalog.Items;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Game.Catalog.Purchase;
 using Ada.Networking.Writers.Catalog;
@@ -153,17 +150,21 @@ public class CatalogTeleportPurchaseServiceTests
         Assert.That(db.PlayerFurnitureItems.Count(), Is.EqualTo(2));
 
         var link = db.PlayerFurnitureItemLinks.Single();
-        Assert.That(link.ParentId, Is.EqualTo(created[0].Id));
-        Assert.That(link.ChildId, Is.EqualTo(created[1].Id));
+        Assert.Multiple(() =>
+        {
+            Assert.That(link.ParentId, Is.EqualTo(created[0].Id));
+            Assert.That(link.ChildId, Is.EqualTo(created[1].Id));
 
-        Assert.That(furniture.Select(x => x.Id), Is.EquivalentTo(new[] { created[0].Id, created[1].Id }));
-        Assert.That(furniture.Select(x => x.MetaData), Is.All.EqualTo("42"));
-
+            Assert.That(furniture.Select(x => x.Id), Is.EquivalentTo(new[] { created[0].Id, created[1].Id }));
+            Assert.That(furniture.Select(x => x.MetaData), Is.All.EqualTo("42"));
+        });
         var unseen = (PlayerInventoryUnseenItemsWriter)written.Single();
         Assert.That(unseen.Count, Is.EqualTo(2));
-        Assert.That(unseen.Category, Is.EqualTo(1));
-        Assert.That(unseen.FurnitureItems, Has.Count.EqualTo(2));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(unseen.Category, Is.EqualTo(1));
+            Assert.That(unseen.FurnitureItems, Has.Count.EqualTo(2));
+        });
         confirmation.Verify(x => x.ConfirmAsync(client.Object, item, 1), Times.Once);
     }
 
@@ -188,68 +189,52 @@ public class CatalogTeleportPurchaseServiceTests
 [TestFixture]
 public class CatalogVipPurchaseServiceTests
 {
+    private static CatalogItemDto VipItem() => new()
+    {
+        Id = 9,
+        Name = "vip",
+        CostCredits = 25,
+        CostPoints = 5,
+        CostPointsType = 105,
+        MetaData = "meta"
+    };
+
     [Test]
     public async Task ProcessAsync_NullPlayer_WritesNothing()
     {
-        var factory = TestDbFactory.CreateDbFactory();
         var (client, written) = PurchaseTestHelpers.MakeClient(null);
-        var service = new CatalogVipPurchaseService(factory);
+        var service = new CatalogVipPurchaseService();
 
-        await service.ProcessAsync(client.Object, 1);
+        await service.ProcessAsync(client.Object, VipItem());
 
         Assert.That(written, Is.Empty);
     }
 
     [Test]
-    public async Task ProcessAsync_UnknownItem_WritesFailure()
-    {
-        var factory = TestDbFactory.CreateDbFactory();
-        var (client, written) = PurchaseTestHelpers.MakeClient(PurchaseTestHelpers.MakePlayer(1, [], []));
-        var service = new CatalogVipPurchaseService(factory);
-
-        await service.ProcessAsync(client.Object, 404);
-
-        var failed = (CatalogPurchaseFailedWriter)written.Single();
-        Assert.That(failed.Error, Is.EqualTo((int)CatalogPurchaseError.Server));
-    }
-
-    [Test]
     public async Task ProcessAsync_KnownItem_WritesOkAndRefresh()
     {
-        var factory = TestDbFactory.CreateDbFactory();
-        using (var db = factory.CreateDbContext())
-        {
-            db.CatalogItems.Add(new CatalogItem
-            {
-                Id = 9,
-                Name = "vip",
-                CostCredits = 25,
-                CostPoints = 5,
-                CostPointsType = 105,
-                MetaData = "meta"
-            });
-            db.SaveChanges();
-        }
-
         var (client, written) = PurchaseTestHelpers.MakeClient(PurchaseTestHelpers.MakePlayer(1, [], []));
-        var service = new CatalogVipPurchaseService(factory);
+        var service = new CatalogVipPurchaseService();
 
-        await service.ProcessAsync(client.Object, 9);
+        await service.ProcessAsync(client.Object, VipItem());
 
         Assert.That(written, Has.Count.EqualTo(2));
 
         var ok = (CatalogPurchaseOkWriter)written[0];
-        Assert.That(ok.Id, Is.EqualTo(9));
-        Assert.That(ok.Name, Is.EqualTo("vip"));
-        Assert.That(ok.Rented, Is.False);
-        Assert.That(ok.CostCredits, Is.EqualTo(25));
-        Assert.That(ok.CostPoints, Is.EqualTo(5));
-        Assert.That(ok.CostPointsType, Is.EqualTo(105));
-        Assert.That(ok.ClubLevel, Is.EqualTo(1));
-        Assert.That(ok.Metadata, Is.EqualTo("meta"));
-        Assert.That(ok.IsLimited, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(ok.Id, Is.EqualTo(9));
+            Assert.That(ok.Name, Is.EqualTo("vip"));
+            Assert.That(ok.Rented, Is.False);
+            Assert.That(ok.CostCredits, Is.EqualTo(25));
+            Assert.That(ok.CostPoints, Is.EqualTo(5));
+            Assert.That(ok.CostPointsType, Is.EqualTo(105));
+            Assert.That(ok.ClubLevel, Is.EqualTo(1));
+            Assert.That(ok.Metadata, Is.EqualTo("meta"));
+            Assert.That(ok.IsLimited, Is.False);
 
-        Assert.That(written[1], Is.InstanceOf<PlayerInventoryRefreshWriter>());
+            Assert.That(written[1], Is.InstanceOf<PlayerInventoryRefreshWriter>());
+        });
     }
 }
 
@@ -302,8 +287,10 @@ public class CatalogBotPurchaseServiceTests
         var service = new CatalogBotPurchaseService(factory, Mock.Of<ICatalogPurchaseConfirmationService>(),
             NullLogger<CatalogBotPurchaseService>.Instance);
         var item = new CatalogItemDto { Id = 1, MetaData = $"name:Bobba;figure:hr-100;motto:beep;{gender}" };
-
-        Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(client.Object, item));
-        Assert.That(written, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.ThrowsAsync<InvalidOperationException>(() => service.ProcessAsync(client.Object, item));
+            Assert.That(written, Is.Empty);
+        });
     }
 }

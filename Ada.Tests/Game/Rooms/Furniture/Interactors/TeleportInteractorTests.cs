@@ -181,11 +181,13 @@ public class TeleportInteractorTests
         var user = MakeUser(new Point(1, 1));
 
         await harness.Interactor.OnTriggerAsync(room.Object, item, user.User.Object);
-
-        Assert.That(user.User.Object.CanWalk, Is.False);
-        Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.South));
-        Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.South));
-        Assert.That(user.User.Object.NeedsUpdate, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.User.Object.CanWalk, Is.False);
+            Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.South));
+            Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.South));
+            Assert.That(user.User.Object.NeedsUpdate, Is.True);
+        });
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, item, "1"), Times.Once);
     }
 
@@ -202,10 +204,12 @@ public class TeleportInteractorTests
 
         await harness.Interactor.OnTriggerAsync(room.Object, item, user.User.Object);
         await Task.Delay(1200);
-
-        Assert.That(user.Point, Is.EqualTo(new Point(1, 1)));
-        Assert.That(user.User.Object.CanWalk, Is.False);
-        Assert.That(user.User.Object.OverridePoints, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.Point, Is.EqualTo(new Point(1, 1)));
+            Assert.That(user.User.Object.CanWalk, Is.False);
+            Assert.That(user.User.Object.OverridePoints, Is.Empty);
+        });
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, item, "1"), Times.Once);
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, item, "2"), Times.Once);
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, item, "0"), Times.Once);
@@ -234,9 +238,12 @@ public class TeleportInteractorTests
         Assert.That(unitMap[new Point(1, 1)], Is.Empty);
         tileMap.Verify(x => x.AddUnitToMap(new Point(4, 4), user.User.Object), Times.Once);
         user.User.Verify(x => x.SetPositionAsync(new Point(4, 4)), Times.Once);
-        Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.East));
-        Assert.That(user.User.Object.CanWalk, Is.True);
-        Assert.That(user.Point, Is.EqualTo(new Point(5, 4)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.East));
+            Assert.That(user.User.Object.CanWalk, Is.True);
+            Assert.That(user.Point, Is.EqualTo(new Point(5, 4)));
+        });
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, item, "1"), Times.Once);
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, target, "2"), Times.Once);
         harness.FurniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Object, target, "1"), Times.Once);

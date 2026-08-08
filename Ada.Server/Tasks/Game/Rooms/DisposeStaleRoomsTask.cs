@@ -1,10 +1,14 @@
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Server.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Server.Tasks.Game.Rooms
 {
     public class DisposeStaleRoomsTask(IRoomRepository roomRepository,
+        IWiredTimerService wiredTimerService,
+        ILogger<DisposeStaleRoomsTask> logger,
         IConfiguration configuration) : IServerTask
     {
         public TimeSpan PeriodicInterval => TimeSpan.FromSeconds(10);
@@ -46,6 +50,14 @@ namespace Ada.Server.Tasks.Game.Rooms
             }
 
             await Task.WhenAll(tasks);
+
+            var released = wiredTimerService.RetainOnly(
+                roomRepository.GetAllRooms().Select(x => (long) x.Room.Id).ToHashSet());
+
+            if (released > 0)
+            {
+                logger.LogDebug("Released wired timer state for {Count} unloaded room(s)", released);
+            }
         }
     }
 }

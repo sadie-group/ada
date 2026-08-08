@@ -85,15 +85,20 @@ public class DimmerInteractorTests
         await MakeInteractor(factory).OnPlaceAsync(room.Object, MakeItem(), Mock.Of<IRoomUser>());
 
         Assert.That(dto.DimmerSettings, Is.Not.Null);
-        Assert.That(dto.DimmerSettings!.RoomId, Is.EqualTo(1));
-        Assert.That(dto.DimmerSettings.Enabled, Is.False);
-        Assert.That(dto.DimmerSettings.PresetId, Is.EqualTo(1));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto.DimmerSettings!.RoomId, Is.EqualTo(1));
+            Assert.That(dto.DimmerSettings.Enabled, Is.False);
+            Assert.That(dto.DimmerSettings.PresetId, Is.EqualTo(1));
+        });
         await using var db = factory.CreateDbContext();
         var presets = db.RoomDimmerPresets.Where(x => x.RoomId == 1).OrderBy(x => x.PresetId).ToList();
-        Assert.That(presets.Select(x => x.PresetId), Is.EqualTo(new[] { 1, 2, 3 }));
-        Assert.That(presets.All(x => x is { Intensity: 255, BackgroundOnly: false, Color: "" }), Is.True);
-        Assert.That(db.RoomDimmerSettings.Count(x => x.RoomId == 1), Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(presets.Select(x => x.PresetId), Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(presets.All(x => x is { Intensity: 255, BackgroundOnly: false, Color: "" }), Is.True);
+            Assert.That(db.RoomDimmerSettings.Count(x => x.RoomId == 1), Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -108,8 +113,11 @@ public class DimmerInteractorTests
         Assert.That(dto.DimmerSettings, Is.SameAs(existing));
 
         await using var db = factory.CreateDbContext();
-        Assert.That(db.RoomDimmerPresets.Count(), Is.Zero);
-        Assert.That(db.RoomDimmerSettings.Count(), Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(db.RoomDimmerPresets.Count(), Is.Zero);
+            Assert.That(db.RoomDimmerSettings.Count(), Is.Zero);
+        });
     }
 
     [Test]
@@ -139,8 +147,11 @@ public class DimmerInteractorTests
         Assert.That(dto.DimmerSettings, Is.Null);
 
         await using var check = factory.CreateDbContext();
-        Assert.That(check.RoomDimmerPresets.Count(), Is.Zero);
-        Assert.That(check.RoomDimmerSettings.Count(), Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(check.RoomDimmerPresets.Count(), Is.Zero);
+            Assert.That(check.RoomDimmerSettings.Count(), Is.Zero);
+        });
     }
 
     [Test]

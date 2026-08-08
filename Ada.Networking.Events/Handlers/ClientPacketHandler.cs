@@ -20,7 +20,8 @@ public class ClientPacketHandler(
     ILogger<ClientPacketHandler> logger,
     PacketHandlerFactory handlerFactory,
     IOptions<NetworkPacketOptions> packetOptions,
-    IEnumerable<INetworkPacketEventFilter> packetFilters)
+    IEnumerable<INetworkPacketEventFilter> packetFilters,
+    IEnumerable<IPreDispatchPacketFilter> preDispatchFilters)
     : INetworkPacketHandler
 {
     public async Task HandleAsync(INetworkClient client, INetworkPacket packet)
@@ -37,6 +38,14 @@ public class ClientPacketHandler(
 
                 logger.LogWarning($"Couldn't resolve packet event handler for header '{packet.PacketId}'");
                 return;
+            }
+
+            foreach (var filter in preDispatchFilters)
+            {
+                if (!filter.Allow(client, packet.PacketId, packetEventType))
+                {
+                    return;
+                }
             }
 
             var eventHandler = handlerFactory.Create(packetEventType);
@@ -62,15 +71,7 @@ public class ClientPacketHandler(
                 return;
             }
 
-            if (client.RoomUser != null &&
-                (packetEventType == typeof(RoomUserWalkEventHandler) ||
-                 packetEventType == typeof(RoomUserChatEventHandler) ||
-                 packetEventType == typeof(RoomUserShoutEventHandler) ||
-                 packetEventType == typeof(RoomUserActionEventHandler) ||
-                 packetEventType == typeof(RoomUserDanceEventHandler) ||
-                 packetEventType == typeof(RoomUserSignEventHandler) ||
-                 packetEventType == typeof(RoomUserSitEventHandler) ||
-                 packetEventType == typeof(RoomUserLookAtEventHandler)))
+            if (client.RoomUser != null && eventHandler is ICountsAsRoomActivity)
             {
                 client.RoomUser.LastAction = DateTime.Now;
             }
