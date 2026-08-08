@@ -4,7 +4,6 @@ using Ada.API.Interfaces.Networking;
 using Ada.Db.Models.Players;
 using Ada.Core.Enums.Game.Players;
 using Ada.Game.Players;
-using Microsoft.Extensions.Logging.Abstractions;
 using Ada.Tests.Common;
 using AutoMapper;
 using Moq;

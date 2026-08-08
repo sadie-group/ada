@@ -263,9 +263,11 @@ public class PlayerLogicTests
         logic.NetworkObject = network.Object;
 
         await logic.SendAlertAsync("maintenance soon");
-
-        Assert.That(written, Is.InstanceOf<PlayerAlertWriter>());
-        Assert.That(((PlayerAlertWriter)written!).Message, Is.EqualTo("maintenance soon"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(written, Is.InstanceOf<PlayerAlertWriter>());
+            Assert.That(((PlayerAlertWriter)written!).Message, Is.EqualTo("maintenance soon"));
+        });
     }
 
     [Test]
