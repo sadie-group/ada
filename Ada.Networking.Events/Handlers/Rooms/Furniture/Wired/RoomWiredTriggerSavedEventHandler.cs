@@ -1,10 +1,10 @@
-using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Core.Shared.Helpers;
 using Ada.Db;
+using Ada.Db.Models.Constants;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
 using AutoMapper;
@@ -16,6 +16,8 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture.Wired;
 public class RoomWiredTriggerSavedEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomWiredService wiredService,
+    ServerRoomConstants roomConstants,
+    IWordFilterService wordFilterService,
     IMapper mapper) : INetworkPacketEventHandler
 {
     public required int ItemId { get; init; }
@@ -23,8 +25,8 @@ public class RoomWiredTriggerSavedEventHandler(
     public required string Input { get; init; }
     public required List<int> ItemIds { get; init; }
     public required int SelectionCode { get; init; }
-    
-    [RequiresRoomRights] 
+
+    [RequiresRoomRights]
     public async Task HandleAsync(INetworkClient client)
     {
         var room = client.RoomUser?.Room;
@@ -38,24 +40,17 @@ public class RoomWiredTriggerSavedEventHandler(
             return;
         }
 
-        var roomItems = room!
-            .Room
-            .FurnitureItems
-            .Where(x => ItemIds.Contains(x.Id))
-            .ToList();
-
         await wiredService.SaveSettingsAsync(
             roomItem,
-            new PlayerFurnitureItemWiredDataDto
-            {
-                PlayerFurnitureItemPlacementDataId = roomItem.Id,
-                PlacementData = roomItem,
-                SelectedItems = roomItems,
-                Message = Input,
-                IntParameters = WiredParameterHelpers.Serialize(Parameters),
-                Delay = Parameters.FirstOrDefault()
-            });
-        
+            WiredSettingsHelpers.Build(
+                roomItem,
+                room!.Room.FurnitureItems.Where(x => ItemIds.Contains(x.Id)),
+                Input,
+                Parameters,
+                Parameters.FirstOrDefault(),
+                roomConstants,
+                wordFilterService));
+
         await client.WriteToStreamAsync(new WiredSavedWriter());
     }
 }

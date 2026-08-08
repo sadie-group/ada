@@ -1,5 +1,4 @@
 using Ada.Game.Rooms.Mapping;
-using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -16,7 +15,6 @@ using Ada.Db.Models.Rooms;
 using Ada.Game.Rooms.Services;
 using Ada.Game.Rooms.Wired;
 using Ada.Tests.Common;
-using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace Ada.Tests.Game.Rooms.Wired;
@@ -513,10 +511,13 @@ public class RoomWiredServiceExecutionTests : MockHelpers
                 .ToList();
 
             Assert.That(rows, Has.Count.EqualTo(1));
-            Assert.That(rows[0].Message, Is.EqualTo("new"));
-            Assert.That(rows[0].IntParameters, Is.EqualTo("5,7"));
-            Assert.That(rows[0].Delay, Is.EqualTo(2));
-            Assert.That(rows[0].SelectedItems.Select(x => x.Id), Is.EqualTo(new[] { 11 }));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rows[0].Message, Is.EqualTo("new"));
+                Assert.That(rows[0].IntParameters, Is.EqualTo("5,7"));
+                Assert.That(rows[0].Delay, Is.EqualTo(2));
+                Assert.That(rows[0].SelectedItems.Select(x => x.Id), Is.EqualTo(new[] { 11 }));
+            });
         }
 
         Assert.That(placementDto.WiredData, Is.SameAs(wiredDto));
@@ -543,8 +544,10 @@ public class RoomWiredServiceExecutionTests : MockHelpers
         var row = db.Set<PlayerFurnitureItemWiredData>()
             .Include(x => x.SelectedItems)
             .Single(x => x.PlayerFurnitureItemPlacementDataId == 10);
-
-        Assert.That(row.Message, Is.Empty);
-        Assert.That(row.SelectedItems, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.Message, Is.Empty);
+            Assert.That(row.SelectedItems, Is.Empty);
+        });
     }
 }

@@ -1,5 +1,4 @@
 using Ada.Game.Rooms.Mapping;
-using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Game.Rooms.Furniture;
