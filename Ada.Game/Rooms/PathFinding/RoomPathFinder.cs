@@ -75,6 +75,11 @@ public class RoomPathFinder : IRoomPathFinder
         {
             var q = _graph.GetOpenNodeWithSmallestF();
 
+            if (_graph.IsStale(q))
+            {
+                continue;
+            }
+
             if (q.Position.Equals(end))
             {
                 return Backtrack(q);
