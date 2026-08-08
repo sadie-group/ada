@@ -22,7 +22,6 @@ using Ada.Networking.Writers.Players.Inventory;
 using Ada.Networking.Writers.Players.Purse;
 using Ada.Tests.Common;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace Ada.Tests.Game.Catalog;

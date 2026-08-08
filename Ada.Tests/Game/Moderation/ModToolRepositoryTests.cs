@@ -4,7 +4,6 @@ using Ada.Db.Models.Rooms;
 using Ada.Db.Models.Rooms.Chat;
 using Ada.Game.Moderation;
 using Ada.Tests.Common;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Tests.Game.Moderation;
 
@@ -173,10 +172,11 @@ public class ModToolRepositoryTests
         }
 
         var (username, rooms) = await new ModToolRepository(factory).GetUserChatlogAsync(1, 10);
-
-        Assert.That(username, Is.EqualTo("chatter"));
-        Assert.That(rooms, Has.Count.EqualTo(2));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(username, Is.EqualTo("chatter"));
+            Assert.That(rooms, Has.Count.EqualTo(2));
+        });
         var lobby = rooms.Single(r => r.RoomId == 10);
         Assert.Multiple(() =>
         {

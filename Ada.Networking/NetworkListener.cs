@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Options;
 using Microsoft.AspNetCore.Builder;
@@ -18,6 +19,89 @@ public class NetworkListener(
 {
     private readonly NetworkOptions _options = options.Value;
     private WebApplication? _app;
+
+    private readonly ConcurrentDictionary<IPAddress, int> _connectionsPerAddress = new();
+    private int _connections;
+
+    internal bool TryReserveSlot(IPAddress ip)
+    {
+        var max = _options.MaxConnections;
+
+        if (max > 0 && Interlocked.Increment(ref _connections) > max)
+        {
+            Interlocked.Decrement(ref _connections);
+            return false;
+        }
+
+        var perAddress = _options.MaxConnectionsPerAddress;
+
+        if (perAddress <= 0)
+        {
+            return true;
+        }
+
+        var accepted = false;
+
+        while (true)
+        {
+            if (_connectionsPerAddress.TryGetValue(ip, out var count))
+            {
+                if (count >= perAddress)
+                {
+                    break;
+                }
+
+                if (_connectionsPerAddress.TryUpdate(ip, count + 1, count))
+                {
+                    accepted = true;
+                    break;
+                }
+            }
+            else if (_connectionsPerAddress.TryAdd(ip, 1))
+            {
+                accepted = true;
+                break;
+            }
+        }
+
+        if (!accepted && max > 0)
+        {
+            Interlocked.Decrement(ref _connections);
+        }
+
+        return accepted;
+    }
+
+    internal void ReleaseSlot(IPAddress ip)
+    {
+        if (_options.MaxConnections > 0)
+        {
+            Interlocked.Decrement(ref _connections);
+        }
+
+        if (_options.MaxConnectionsPerAddress <= 0)
+        {
+            return;
+        }
+
+        while (_connectionsPerAddress.TryGetValue(ip, out var count))
+        {
+            if (count <= 1)
+            {
+                if (_connectionsPerAddress.TryRemove(new KeyValuePair<IPAddress, int>(ip, count)))
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (_connectionsPerAddress.TryUpdate(ip, count - 1, count))
+            {
+                return;
+            }
+        }
+    }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
@@ -63,13 +147,29 @@ public class NetworkListener(
                 return;
             }
 
-            var socket = await ctx.WebSockets.AcceptWebSocketAsync();
-            var guid = Guid.NewGuid();
             var ip = ctx.Connection.RemoteIpAddress ?? IPAddress.None;
 
-            var client = clientFactory.CreateClient(ip, guid, socket);
+            if (!TryReserveSlot(ip))
+            {
+                logger.LogWarning("Rejected connection from {Ip}: connection limit reached", ip);
+                ctx.Response.StatusCode = 503;
 
-            await connectionHandler.HandleClientAsync(client, ctx.RequestAborted);
+                return;
+            }
+
+            try
+            {
+                var socket = await ctx.WebSockets.AcceptWebSocketAsync();
+                var guid = Guid.NewGuid();
+
+                var client = clientFactory.CreateClient(ip, guid, socket);
+
+                await connectionHandler.HandleClientAsync(client, ctx.RequestAborted);
+            }
+            finally
+            {
+                ReleaseSlot(ip);
+            }
         });
 
         _app = app;

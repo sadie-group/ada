@@ -123,16 +123,19 @@ public class GroupRepositoryTests
         var group = await _repository.GetByIdAsync(5);
 
         Assert.That(group, Is.Not.Null);
-        Assert.That(group.Id, Is.EqualTo(5));
-        Assert.That(group.PlayerId, Is.EqualTo(1));
-        Assert.That(group.Name, Is.EqualTo("Group5"));
-        Assert.That(group.Description, Is.EqualTo("Desc5"));
-        Assert.That(group.RoomId, Is.EqualTo(9));
-        Assert.That(group.CreatedAt, Is.EqualTo(1000));
-        Assert.That(group.Badge, Is.EqualTo("b1"));
-        Assert.That(group.ColorA, Is.EqualTo(2));
-        Assert.That(group.ColorB, Is.EqualTo(3));
-        Assert.That(group.Type, Is.EqualTo(GroupType.Request));
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.Id, Is.EqualTo(5));
+            Assert.That(group.PlayerId, Is.EqualTo(1));
+            Assert.That(group.Name, Is.EqualTo("Group5"));
+            Assert.That(group.Description, Is.EqualTo("Desc5"));
+            Assert.That(group.RoomId, Is.EqualTo(9));
+            Assert.That(group.CreatedAt, Is.EqualTo(1000));
+            Assert.That(group.Badge, Is.EqualTo("b1"));
+            Assert.That(group.ColorA, Is.EqualTo(2));
+            Assert.That(group.ColorB, Is.EqualTo(3));
+            Assert.That(group.Type, Is.EqualTo(GroupType.Request));
+        });
     }
 
     [Test]
@@ -165,11 +168,14 @@ public class GroupRepositoryTests
         var membership = await _repository.GetMembershipAsync(1, 1);
 
         Assert.That(membership, Is.Not.Null);
-        Assert.That(membership.GroupId, Is.EqualTo(1));
-        Assert.That(membership.PlayerId, Is.EqualTo(1));
-        Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Admin));
-        Assert.That(membership.IsPending, Is.True);
-        Assert.That(membership.CreatedAt, Is.EqualTo(DateTimeOffset.FromUnixTimeSeconds(50)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(membership.GroupId, Is.EqualTo(1));
+            Assert.That(membership.PlayerId, Is.EqualTo(1));
+            Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Admin));
+            Assert.That(membership.IsPending, Is.True);
+            Assert.That(membership.CreatedAt, Is.EqualTo(DateTimeOffset.FromUnixTimeSeconds(50)));
+        });
     }
 
     [Test]
@@ -223,12 +229,14 @@ public class GroupRepositoryTests
         await SeedMembersFixtureAsync();
 
         var (members, total) = await _repository.GetMembersAsync(1, 0, "", 0, 10);
-
-        Assert.That(total, Is.EqualTo(3));
-        Assert.That(members.Select(m => m.Username), Is.EqualTo(new[] { "alice", "bob", "dave" }));
-        Assert.That(members[0].Rank, Is.EqualTo(GroupMemberRank.Admin));
-        Assert.That(members[0].FigureCode, Is.EqualTo("fig"));
-        Assert.That(members[2].FigureCode, Is.EqualTo(""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(3));
+            Assert.That(members.Select(m => m.Username), Is.EqualTo(new[] { "alice", "bob", "dave" }));
+            Assert.That(members[0].Rank, Is.EqualTo(GroupMemberRank.Admin));
+            Assert.That(members[0].FigureCode, Is.EqualTo("fig"));
+            Assert.That(members[2].FigureCode, Is.EqualTo(""));
+        });
     }
 
     [Test]
@@ -237,9 +245,11 @@ public class GroupRepositoryTests
         await SeedMembersFixtureAsync();
 
         var (members, total) = await _repository.GetMembersAsync(1, 0, "", 1, 10);
-
-        Assert.That(total, Is.EqualTo(1));
-        Assert.That(members.Single().Username, Is.EqualTo("alice"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(1));
+            Assert.That(members.Single().Username, Is.EqualTo("alice"));
+        });
     }
 
     [Test]
@@ -248,10 +258,12 @@ public class GroupRepositoryTests
         await SeedMembersFixtureAsync();
 
         var (members, total) = await _repository.GetMembersAsync(1, 0, "", 2, 10);
-
-        Assert.That(total, Is.EqualTo(1));
-        Assert.That(members.Single().Username, Is.EqualTo("carol"));
-        Assert.That(members.Single().IsPending, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(1));
+            Assert.That(members.Single().Username, Is.EqualTo("carol"));
+            Assert.That(members.Single().IsPending, Is.True);
+        });
     }
 
     [Test]
@@ -260,9 +272,11 @@ public class GroupRepositoryTests
         await SeedMembersFixtureAsync();
 
         var (members, total) = await _repository.GetMembersAsync(1, 0, "bo", 0, 10);
-
-        Assert.That(total, Is.EqualTo(1));
-        Assert.That(members.Single().Username, Is.EqualTo("bob"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(1));
+            Assert.That(members.Single().Username, Is.EqualTo("bob"));
+        });
     }
 
     [Test]
@@ -271,9 +285,11 @@ public class GroupRepositoryTests
         await SeedMembersFixtureAsync();
 
         var (members, total) = await _repository.GetMembersAsync(1, 1, "", 0, 2);
-
-        Assert.That(total, Is.EqualTo(3));
-        Assert.That(members.Single().Username, Is.EqualTo("dave"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(3));
+            Assert.That(members.Single().Username, Is.EqualTo("dave"));
+        });
     }
 
     [Test]
@@ -288,10 +304,13 @@ public class GroupRepositoryTests
         var groups = await _repository.GetGroupsForPlayerAsync(1);
 
         Assert.That(groups, Has.Count.EqualTo(1));
-        Assert.That(groups[0].Id, Is.EqualTo(1));
-        Assert.That(groups[0].Name, Is.EqualTo("Group1"));
-        Assert.That(groups[0].Badge, Is.EqualTo("b1"));
-        Assert.That(groups[0].OwnerId, Is.EqualTo(7));
+        Assert.Multiple(() =>
+        {
+            Assert.That(groups[0].Id, Is.EqualTo(1));
+            Assert.That(groups[0].Name, Is.EqualTo("Group1"));
+            Assert.That(groups[0].Badge, Is.EqualTo("b1"));
+            Assert.That(groups[0].OwnerId, Is.EqualTo(7));
+        });
     }
 
     [Test]
@@ -315,9 +334,11 @@ public class GroupRepositoryTests
         await SeedPlayerAsync(1, "a");
         await SeedGroupAsync(1, ownerId: 1);
         var group = (await _repository.GetByIdAsync(1))!;
-
-        Assert.That(_repository.IsOwner(group, 1), Is.True);
-        Assert.That(_repository.IsOwner(group, 2), Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_repository.IsOwner(group, 1), Is.True);
+            Assert.That(_repository.IsOwner(group, 2), Is.False);
+        });
     }
 
     [Test]
@@ -384,9 +405,11 @@ public class GroupRepositoryTests
     public async Task RoomHasGroupAsync_ChecksRoomId()
     {
         await SeedGroupAsync(1, roomId: 5);
-
-        Assert.That(await _repository.RoomHasGroupAsync(5), Is.True);
-        Assert.That(await _repository.RoomHasGroupAsync(6), Is.False);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _repository.RoomHasGroupAsync(5), Is.True);
+            Assert.That(await _repository.RoomHasGroupAsync(6), Is.False);
+        });
     }
 
     [Test]
@@ -394,10 +417,12 @@ public class GroupRepositoryTests
     {
         await SeedPlayerAsync(1, "a");
         await SeedRoomAsync(1, 1, "Room");
-
-        Assert.That(await _repository.PlayerOwnsRoomAsync(1, 1), Is.True);
-        Assert.That(await _repository.PlayerOwnsRoomAsync(1, 2), Is.False);
-        Assert.That(await _repository.PlayerOwnsRoomAsync(2, 1), Is.False);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _repository.PlayerOwnsRoomAsync(1, 1), Is.True);
+            Assert.That(await _repository.PlayerOwnsRoomAsync(1, 2), Is.False);
+            Assert.That(await _repository.PlayerOwnsRoomAsync(2, 1), Is.False);
+        });
     }
 
     [Test]
@@ -411,18 +436,23 @@ public class GroupRepositoryTests
         Assert.That(groupId, Is.GreaterThan(0));
 
         var group = (await _repository.GetByIdAsync(groupId))!;
-        Assert.That(group.PlayerId, Is.EqualTo(1));
-        Assert.That(group.RoomId, Is.EqualTo(4));
-        Assert.That(group.Name, Is.EqualTo("Name"));
-        Assert.That(group.Description, Is.EqualTo("Desc"));
-        Assert.That(group.Badge, Is.EqualTo("badge"));
-        Assert.That(group.ColorA, Is.EqualTo(5));
-        Assert.That(group.ColorB, Is.EqualTo(6));
-        Assert.That(group.Type, Is.EqualTo(GroupType.Closed));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.PlayerId, Is.EqualTo(1));
+            Assert.That(group.RoomId, Is.EqualTo(4));
+            Assert.That(group.Name, Is.EqualTo("Name"));
+            Assert.That(group.Description, Is.EqualTo("Desc"));
+            Assert.That(group.Badge, Is.EqualTo("badge"));
+            Assert.That(group.ColorA, Is.EqualTo(5));
+            Assert.That(group.ColorB, Is.EqualTo(6));
+            Assert.That(group.Type, Is.EqualTo(GroupType.Closed));
+        });
         var membership = (await _repository.GetMembershipAsync(groupId, 1))!;
-        Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Admin));
-        Assert.That(membership.IsPending, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Admin));
+            Assert.That(membership.IsPending, Is.False);
+        });
     }
 
     [Test]
@@ -433,8 +463,11 @@ public class GroupRepositoryTests
         await _repository.UpdateInfoAsync(1, "NewName", "NewDesc");
 
         var group = (await _repository.GetByIdAsync(1))!;
-        Assert.That(group.Name, Is.EqualTo("NewName"));
-        Assert.That(group.Description, Is.EqualTo("NewDesc"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.Name, Is.EqualTo("NewName"));
+            Assert.That(group.Description, Is.EqualTo("NewDesc"));
+        });
     }
 
     [Test]
@@ -445,8 +478,11 @@ public class GroupRepositoryTests
         await _repository.UpdateColorsAsync(1, 11, 12);
 
         var group = (await _repository.GetByIdAsync(1))!;
-        Assert.That(group.ColorA, Is.EqualTo(11));
-        Assert.That(group.ColorB, Is.EqualTo(12));
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.ColorA, Is.EqualTo(11));
+            Assert.That(group.ColorB, Is.EqualTo(12));
+        });
     }
 
     [Test]
@@ -457,8 +493,11 @@ public class GroupRepositoryTests
         await _repository.UpdatePreferencesAsync(1, GroupType.Closed, true);
 
         var group = (await _repository.GetByIdAsync(1))!;
-        Assert.That(group.Type, Is.EqualTo(GroupType.Closed));
-        Assert.That(group.AdminOnlyDecoration, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.Type, Is.EqualTo(GroupType.Closed));
+            Assert.That(group.AdminOnlyDecoration, Is.True);
+        });
     }
 
     [Test]
@@ -479,9 +518,11 @@ public class GroupRepositoryTests
         await SeedMembershipAsync(1, 1);
 
         await _repository.DeleteGroupAsync(1);
-
-        Assert.That(await _repository.GetByIdAsync(1), Is.Null);
-        Assert.That(await _repository.GetMembershipAsync(1, 1), Is.Null);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _repository.GetByIdAsync(1), Is.Null);
+            Assert.That(await _repository.GetMembershipAsync(1, 1), Is.Null);
+        });
     }
 
     [Test]
@@ -493,8 +534,11 @@ public class GroupRepositoryTests
         await _repository.AddMembershipAsync(1, 1, GroupMemberRank.Member, true);
 
         var membership = (await _repository.GetMembershipAsync(1, 1))!;
-        Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Member));
-        Assert.That(membership.IsPending, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Member));
+            Assert.That(membership.IsPending, Is.True);
+        });
     }
 
     [Test]
@@ -507,8 +551,11 @@ public class GroupRepositoryTests
         await _repository.AddMembershipAsync(1, 1, GroupMemberRank.Admin, true);
 
         var membership = (await _repository.GetMembershipAsync(1, 1))!;
-        Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Member));
-        Assert.That(membership.IsPending, Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(membership.Rank, Is.EqualTo(GroupMemberRank.Member));
+            Assert.That(membership.IsPending, Is.False);
+        });
     }
 
     [Test]

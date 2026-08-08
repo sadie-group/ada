@@ -11,7 +11,7 @@ namespace Ada.Tests.Game.Groups;
 [TestFixture]
 public class GroupForumRepositoryTests
 {
-    private static readonly DateTimeOffset BaseTime = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _baseTime = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     private static async Task SeedAsync(SqliteTestDbFactory factory)
     {
@@ -36,30 +36,30 @@ public class GroupForumRepositoryTests
         db.GroupForumThreads.Add(new GroupForumThread
         {
             Id = 1, GroupId = 1, PlayerId = 1, Subject = "first thread",
-            CreatedAt = BaseTime, UpdatedAt = BaseTime
+            CreatedAt = _baseTime, UpdatedAt = _baseTime
         });
         db.GroupForumThreads.Add(new GroupForumThread
         {
             Id = 2, GroupId = 1, PlayerId = 2, Subject = "pinned thread", IsPinned = true,
-            CreatedAt = BaseTime.AddMinutes(1), UpdatedAt = BaseTime.AddMinutes(1)
+            CreatedAt = _baseTime.AddMinutes(1), UpdatedAt = _baseTime.AddMinutes(1)
         });
         db.GroupForumThreads.Add(new GroupForumThread
         {
             Id = 3, GroupId = 1, PlayerId = 1, Subject = "hidden thread", State = ForumThreadState.Hidden,
-            CreatedAt = BaseTime.AddMinutes(2), UpdatedAt = BaseTime.AddMinutes(2)
+            CreatedAt = _baseTime.AddMinutes(2), UpdatedAt = _baseTime.AddMinutes(2)
         });
 
         db.GroupForumMessages.Add(new GroupForumMessage
-            { Id = 1, ThreadId = 1, PlayerId = 1, Message = "opener", CreatedAt = BaseTime });
+            { Id = 1, ThreadId = 1, PlayerId = 1, Message = "opener", CreatedAt = _baseTime });
         db.GroupForumMessages.Add(new GroupForumMessage
-            { Id = 2, ThreadId = 1, PlayerId = 2, Message = "reply", CreatedAt = BaseTime.AddMinutes(1) });
+            { Id = 2, ThreadId = 1, PlayerId = 2, Message = "reply", CreatedAt = _baseTime.AddMinutes(1) });
         db.GroupForumMessages.Add(new GroupForumMessage
         {
             Id = 3, ThreadId = 1, PlayerId = 1, Message = "hidden reply", State = ForumMessageState.Hidden,
-            CreatedAt = BaseTime.AddMinutes(2)
+            CreatedAt = _baseTime.AddMinutes(2)
         });
         db.GroupForumMessages.Add(new GroupForumMessage
-            { Id = 4, ThreadId = 2, PlayerId = 2, Message = "pinned opener", CreatedAt = BaseTime.AddMinutes(3) });
+            { Id = 4, ThreadId = 2, PlayerId = 2, Message = "pinned opener", CreatedAt = _baseTime.AddMinutes(3) });
 
         await db.SaveChangesAsync();
     }
@@ -89,16 +89,19 @@ public class GroupForumRepositoryTests
         var stats = await repository.GetStatsAsync(1);
 
         Assert.That(stats, Is.Not.Null);
-        Assert.That(stats!.GuildId, Is.EqualTo(1));
-        Assert.That(stats.GuildName, Is.EqualTo("Forum One"));
-        Assert.That(stats.GuildDescription, Is.EqualTo("first"));
-        Assert.That(stats.Badge, Is.EqualTo("b1"));
-        Assert.That(stats.TotalThreads, Is.EqualTo(2));
-        Assert.That(stats.TotalComments, Is.EqualTo(3));
-        Assert.That(stats.LastCommentThreadId, Is.EqualTo(2));
-        Assert.That(stats.LastCommentUserId, Is.EqualTo(2));
-        Assert.That(stats.LastCommentUsername, Is.EqualTo("bob"));
-        Assert.That(stats.LastCommentAt, Is.EqualTo(BaseTime.AddMinutes(3)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(stats!.GuildId, Is.EqualTo(1));
+            Assert.That(stats.GuildName, Is.EqualTo("Forum One"));
+            Assert.That(stats.GuildDescription, Is.EqualTo("first"));
+            Assert.That(stats.Badge, Is.EqualTo("b1"));
+            Assert.That(stats.TotalThreads, Is.EqualTo(2));
+            Assert.That(stats.TotalComments, Is.EqualTo(3));
+            Assert.That(stats.LastCommentThreadId, Is.EqualTo(2));
+            Assert.That(stats.LastCommentUserId, Is.EqualTo(2));
+            Assert.That(stats.LastCommentUsername, Is.EqualTo("bob"));
+            Assert.That(stats.LastCommentAt, Is.EqualTo(_baseTime.AddMinutes(3)));
+        });
     }
 
     [Test]
@@ -110,12 +113,15 @@ public class GroupForumRepositoryTests
         var stats = await repository.GetStatsAsync(2);
 
         Assert.That(stats, Is.Not.Null);
-        Assert.That(stats!.TotalThreads, Is.EqualTo(0));
-        Assert.That(stats.TotalComments, Is.EqualTo(0));
-        Assert.That(stats.LastCommentThreadId, Is.EqualTo(-1));
-        Assert.That(stats.LastCommentUserId, Is.EqualTo(-1));
-        Assert.That(stats.LastCommentUsername, Is.EqualTo(""));
-        Assert.That(stats.LastCommentAt, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(stats!.TotalThreads, Is.EqualTo(0));
+            Assert.That(stats.TotalComments, Is.EqualTo(0));
+            Assert.That(stats.LastCommentThreadId, Is.EqualTo(-1));
+            Assert.That(stats.LastCommentUserId, Is.EqualTo(-1));
+            Assert.That(stats.LastCommentUsername, Is.EqualTo(""));
+            Assert.That(stats.LastCommentAt, Is.Null);
+        });
     }
 
     [Test]
@@ -125,17 +131,19 @@ public class GroupForumRepositoryTests
         using var _ = factory;
 
         var (forums, total) = await repository.GetForumsListAsync(0, 0, 10);
-
-        Assert.That(total, Is.EqualTo(2));
-        Assert.That(forums.Select(f => f.GuildId), Is.EqualTo(new[] { 1, 2 }));
-        Assert.That(forums[0].TotalThreads, Is.EqualTo(2));
-        Assert.That(forums[0].TotalComments, Is.EqualTo(3));
-        Assert.That(forums[0].LastCommentThreadId, Is.EqualTo(2));
-        Assert.That(forums[0].LastCommentUsername, Is.EqualTo("bob"));
-        Assert.That(forums[1].TotalThreads, Is.EqualTo(0));
-        Assert.That(forums[1].TotalComments, Is.EqualTo(0));
-        Assert.That(forums[1].LastCommentThreadId, Is.EqualTo(-1));
-        Assert.That(forums[1].LastCommentUsername, Is.EqualTo(""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(2));
+            Assert.That(forums.Select(f => f.GuildId), Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(forums[0].TotalThreads, Is.EqualTo(2));
+            Assert.That(forums[0].TotalComments, Is.EqualTo(3));
+            Assert.That(forums[0].LastCommentThreadId, Is.EqualTo(2));
+            Assert.That(forums[0].LastCommentUsername, Is.EqualTo("bob"));
+            Assert.That(forums[1].TotalThreads, Is.EqualTo(0));
+            Assert.That(forums[1].TotalComments, Is.EqualTo(0));
+            Assert.That(forums[1].LastCommentThreadId, Is.EqualTo(-1));
+            Assert.That(forums[1].LastCommentUsername, Is.EqualTo(""));
+        });
     }
 
     [Test]
@@ -145,9 +153,11 @@ public class GroupForumRepositoryTests
         using var _ = factory;
 
         var (forums, total) = await repository.GetForumsListAsync(0, 1, 10);
-
-        Assert.That(total, Is.EqualTo(2));
-        Assert.That(forums, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(2));
+            Assert.That(forums, Has.Count.EqualTo(1));
+        });
         Assert.That(forums[0].GuildId, Is.EqualTo(2));
     }
 
@@ -162,13 +172,16 @@ public class GroupForumRepositoryTests
         Assert.That(threads.Select(t => t.ThreadId), Is.EqualTo(new[] { 2, 1 }));
 
         var first = threads[1];
-        Assert.That(first.OpenerId, Is.EqualTo(1));
-        Assert.That(first.OpenerUsername, Is.EqualTo("alice"));
-        Assert.That(first.Subject, Is.EqualTo("first thread"));
-        Assert.That(first.TotalComments, Is.EqualTo(2));
-        Assert.That(first.LastAuthorId, Is.EqualTo(2));
-        Assert.That(first.LastAuthorUsername, Is.EqualTo("bob"));
-        Assert.That(first.LastCommentAt, Is.EqualTo(BaseTime.AddMinutes(1)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.OpenerId, Is.EqualTo(1));
+            Assert.That(first.OpenerUsername, Is.EqualTo("alice"));
+            Assert.That(first.Subject, Is.EqualTo("first thread"));
+            Assert.That(first.TotalComments, Is.EqualTo(2));
+            Assert.That(first.LastAuthorId, Is.EqualTo(2));
+            Assert.That(first.LastAuthorUsername, Is.EqualTo("bob"));
+            Assert.That(first.LastCommentAt, Is.EqualTo(_baseTime.AddMinutes(1)));
+        });
     }
 
     [Test]
@@ -192,11 +205,14 @@ public class GroupForumRepositoryTests
         var thread = await repository.GetThreadAsync(1, 3);
 
         Assert.That(thread, Is.Not.Null);
-        Assert.That(thread!.State, Is.EqualTo((int) ForumThreadState.Hidden));
-        Assert.That(thread.TotalComments, Is.EqualTo(0));
-        Assert.That(thread.LastAuthorId, Is.EqualTo(-1));
-        Assert.That(thread.LastAuthorUsername, Is.EqualTo(""));
-        Assert.That(thread.LastCommentAt, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(thread!.State, Is.EqualTo((int)ForumThreadState.Hidden));
+            Assert.That(thread.TotalComments, Is.EqualTo(0));
+            Assert.That(thread.LastAuthorId, Is.EqualTo(-1));
+            Assert.That(thread.LastAuthorUsername, Is.EqualTo(""));
+            Assert.That(thread.LastCommentAt, Is.Null);
+        });
     }
 
     [Test]
@@ -217,13 +233,16 @@ public class GroupForumRepositoryTests
         var comment = await repository.GetCommentAsync(1, 2);
 
         Assert.That(comment, Is.Not.Null);
-        Assert.That(comment!.CommentId, Is.EqualTo(2));
-        Assert.That(comment.Index, Is.EqualTo(1));
-        Assert.That(comment.UserId, Is.EqualTo(2));
-        Assert.That(comment.Username, Is.EqualTo("bob"));
-        Assert.That(comment.FigureCode, Is.EqualTo(""));
-        Assert.That(comment.Message, Is.EqualTo("reply"));
-        Assert.That(comment.AuthorPostCount, Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(comment!.CommentId, Is.EqualTo(2));
+            Assert.That(comment.Index, Is.EqualTo(1));
+            Assert.That(comment.UserId, Is.EqualTo(2));
+            Assert.That(comment.Username, Is.EqualTo("bob"));
+            Assert.That(comment.FigureCode, Is.EqualTo(""));
+            Assert.That(comment.Message, Is.EqualTo("reply"));
+            Assert.That(comment.AuthorPostCount, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -235,9 +254,12 @@ public class GroupForumRepositoryTests
         var comment = await repository.GetCommentAsync(1, 1);
 
         Assert.That(comment, Is.Not.Null);
-        Assert.That(comment!.FigureCode, Is.EqualTo("fig-a"));
-        Assert.That(comment.Index, Is.EqualTo(0));
-        Assert.That(comment.AuthorPostCount, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(comment!.FigureCode, Is.EqualTo("fig-a"));
+            Assert.That(comment.Index, Is.EqualTo(0));
+            Assert.That(comment.AuthorPostCount, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -256,14 +278,19 @@ public class GroupForumRepositoryTests
         using var _ = factory;
 
         var (comments, total) = await repository.GetCommentsAsync(1, 1, 0, 10);
-
-        Assert.That(total, Is.EqualTo(2));
-        Assert.That(comments, Has.Count.EqualTo(3));
-        Assert.That(comments.Select(c => c.CommentId), Is.EqualTo(new[] { 1, 2, 3 }));
-        Assert.That(comments.Select(c => c.Index), Is.EqualTo(new[] { 0, 1, 2 }));
-        Assert.That(comments[2].State, Is.EqualTo((int) ForumMessageState.Hidden));
-        Assert.That(comments[0].AuthorPostCount, Is.EqualTo(1));
-        Assert.That(comments[1].AuthorPostCount, Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(2));
+            Assert.That(comments, Has.Count.EqualTo(3));
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(comments.Select(c => c.CommentId), Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(comments.Select(c => c.Index), Is.EqualTo(new[] { 0, 1, 2 }));
+            Assert.That(comments[2].State, Is.EqualTo((int)ForumMessageState.Hidden));
+            Assert.That(comments[0].AuthorPostCount, Is.EqualTo(1));
+            Assert.That(comments[1].AuthorPostCount, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -273,11 +300,16 @@ public class GroupForumRepositoryTests
         using var _ = factory;
 
         var (comments, total) = await repository.GetCommentsAsync(1, 1, 1, 1);
-
-        Assert.That(total, Is.EqualTo(2));
-        Assert.That(comments, Has.Count.EqualTo(1));
-        Assert.That(comments[0].CommentId, Is.EqualTo(2));
-        Assert.That(comments[0].Index, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(2));
+            Assert.That(comments, Has.Count.EqualTo(1));
+        });
+        Assert.Multiple(() =>
+        {
+            Assert.That(comments[0].CommentId, Is.EqualTo(2));
+            Assert.That(comments[0].Index, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -289,16 +321,21 @@ public class GroupForumRepositoryTests
         var thread = await repository.PostThreadAsync(2, 1, "new subject", "new message");
 
         Assert.That(thread, Is.Not.Null);
-        Assert.That(thread!.Subject, Is.EqualTo("new subject"));
-        Assert.That(thread.OpenerId, Is.EqualTo(1));
-        Assert.That(thread.OpenerUsername, Is.EqualTo("alice"));
-        Assert.That(thread.TotalComments, Is.EqualTo(1));
-        Assert.That(thread.LastAuthorId, Is.EqualTo(1));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(thread!.Subject, Is.EqualTo("new subject"));
+            Assert.That(thread.OpenerId, Is.EqualTo(1));
+            Assert.That(thread.OpenerUsername, Is.EqualTo("alice"));
+            Assert.That(thread.TotalComments, Is.EqualTo(1));
+            Assert.That(thread.LastAuthorId, Is.EqualTo(1));
+        });
         await using var db = factory.CreateDbContext();
         var message = await db.GroupForumMessages.SingleAsync(m => m.ThreadId == thread.ThreadId);
-        Assert.That(message.Message, Is.EqualTo("new message"));
-        Assert.That(message.PlayerId, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(message.Message, Is.EqualTo("new message"));
+            Assert.That(message.PlayerId, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -310,18 +347,23 @@ public class GroupForumRepositoryTests
         var comment = await repository.PostCommentAsync(1, 1, 2, "another reply");
 
         Assert.That(comment, Is.Not.Null);
-        Assert.That(comment!.Index, Is.EqualTo(2));
-        Assert.That(comment.UserId, Is.EqualTo(2));
-        Assert.That(comment.Username, Is.EqualTo("bob"));
-        Assert.That(comment.FigureCode, Is.EqualTo(""));
-        Assert.That(comment.Message, Is.EqualTo("another reply"));
-        Assert.That(comment.State, Is.EqualTo((int) ForumMessageState.Visible));
-        Assert.That(comment.AuthorPostCount, Is.EqualTo(3));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(comment!.Index, Is.EqualTo(2));
+            Assert.That(comment.UserId, Is.EqualTo(2));
+            Assert.That(comment.Username, Is.EqualTo("bob"));
+            Assert.That(comment.FigureCode, Is.EqualTo(""));
+            Assert.That(comment.Message, Is.EqualTo("another reply"));
+            Assert.That(comment.State, Is.EqualTo((int)ForumMessageState.Visible));
+            Assert.That(comment.AuthorPostCount, Is.EqualTo(3));
+        });
         await using var db = factory.CreateDbContext();
         var thread = await db.GroupForumThreads.SingleAsync(t => t.Id == 1);
-        Assert.That(thread.UpdatedAt, Is.GreaterThan(BaseTime.AddMinutes(5)));
-        Assert.That(await db.GroupForumMessages.CountAsync(m => m.ThreadId == 1), Is.EqualTo(4));
+        Assert.Multiple(async () =>
+        {
+            Assert.That(thread.UpdatedAt, Is.GreaterThan(_baseTime.AddMinutes(5)));
+            Assert.That(await db.GroupForumMessages.CountAsync(m => m.ThreadId == 1), Is.EqualTo(4));
+        });
     }
 
     [Test]
@@ -334,8 +376,11 @@ public class GroupForumRepositoryTests
 
         await using var db = factory.CreateDbContext();
         var thread = await db.GroupForumThreads.SingleAsync(t => t.Id == 1);
-        Assert.That(thread.IsPinned, Is.True);
-        Assert.That(thread.IsLocked, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(thread.IsPinned, Is.True);
+            Assert.That(thread.IsLocked, Is.True);
+        });
     }
 
     [Test]
@@ -348,8 +393,11 @@ public class GroupForumRepositoryTests
 
         await using var db = factory.CreateDbContext();
         var thread = await db.GroupForumThreads.SingleAsync(t => t.Id == 1);
-        Assert.That(thread.State, Is.EqualTo(ForumThreadState.HiddenByStaff));
-        Assert.That(thread.AdminId, Is.EqualTo(42));
+        Assert.Multiple(() =>
+        {
+            Assert.That(thread.State, Is.EqualTo(ForumThreadState.HiddenByStaff));
+            Assert.That(thread.AdminId, Is.EqualTo(42));
+        });
     }
 
     [Test]
@@ -362,8 +410,11 @@ public class GroupForumRepositoryTests
 
         await using var db = factory.CreateDbContext();
         var message = await db.GroupForumMessages.SingleAsync(m => m.Id == 1);
-        Assert.That(message.State, Is.EqualTo(ForumMessageState.HiddenByStaff));
-        Assert.That(message.AdminId, Is.EqualTo(42));
+        Assert.Multiple(() =>
+        {
+            Assert.That(message.State, Is.EqualTo(ForumMessageState.HiddenByStaff));
+            Assert.That(message.AdminId, Is.EqualTo(42));
+        });
     }
 
     [Test]
@@ -378,10 +429,13 @@ public class GroupForumRepositoryTests
 
         await using var db = factory.CreateDbContext();
         var group = await db.Groups.SingleAsync(g => g.Id == 1);
-        Assert.That(group.ForumReadPermission, Is.EqualTo(ForumPermissionLevel.Members));
-        Assert.That(group.ForumPostMessagesPermission, Is.EqualTo(ForumPermissionLevel.Admins));
-        Assert.That(group.ForumPostThreadsPermission, Is.EqualTo(ForumPermissionLevel.Owner));
-        Assert.That(group.ForumModPermission, Is.EqualTo(ForumPermissionLevel.Everyone));
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.ForumReadPermission, Is.EqualTo(ForumPermissionLevel.Members));
+            Assert.That(group.ForumPostMessagesPermission, Is.EqualTo(ForumPermissionLevel.Admins));
+            Assert.That(group.ForumPostThreadsPermission, Is.EqualTo(ForumPermissionLevel.Owner));
+            Assert.That(group.ForumModPermission, Is.EqualTo(ForumPermissionLevel.Everyone));
+        });
     }
 
     [Test]
@@ -394,9 +448,12 @@ public class GroupForumRepositoryTests
         var reference = await repository.GetThreadRefAsync(2);
 
         Assert.That(reference, Is.Not.Null);
-        Assert.That(reference!.Value.ThreadId, Is.EqualTo(2));
-        Assert.That(reference.Value.GroupId, Is.EqualTo(1));
-        Assert.That(reference.Value.IsLocked, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reference!.Value.ThreadId, Is.EqualTo(2));
+            Assert.That(reference.Value.GroupId, Is.EqualTo(1));
+            Assert.That(reference.Value.IsLocked, Is.True);
+        });
     }
 
     [Test]

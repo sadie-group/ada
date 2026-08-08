@@ -6,8 +6,6 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Core.Shared.Extensions;
 using Ada.Networking.Events.Attributes;
-using Ada.Networking.Events.Handlers.Rooms.Users;
-using Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 using Ada.Networking.Options;
 using Ada.Networking.Packets;
 using Ada.Networking.Writers.Generic;
@@ -117,14 +115,14 @@ public class ClientPacketHandler(
         }
     }
 
-    private static readonly ConcurrentDictionary<Type, HandlerAttributeFlags> AttributeFlagsCache = new();
+    private static readonly ConcurrentDictionary<Type, HandlerAttributeFlags> _attributeFlagsCache = new();
 
     private readonly record struct HandlerAttributeFlags(bool AllowsUnauthenticated, bool RequiresRoomRights);
 
     private static bool ValidateAttributes(INetworkPacketEventHandler eventHandler,
         INetworkClient client)
     {
-        var flags = AttributeFlagsCache.GetOrAdd(eventHandler.GetType(), static type =>
+        var flags = _attributeFlagsCache.GetOrAdd(eventHandler.GetType(), static type =>
         {
             var method = type.GetMethods()
                 .SingleOrDefault(x => x.Name == "HandleAsync");

@@ -9,7 +9,7 @@ namespace Ada.Tests.Game.Moderation;
 [TestFixture]
 public class ModerationTicketServiceTests
 {
-    private static readonly DateTimeOffset BaseTime = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _baseTime = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
     private SqliteTestDbFactory _factory = null!;
     private ModerationTicketService _service = null!;
@@ -56,8 +56,8 @@ public class ModerationTicketServiceTests
             Message = $"report {id}",
             State = state,
             PickedByPlayerId = pickedById,
-            CreatedAt = createdAt ?? BaseTime,
-            PickedAt = pickedById == null ? null : BaseTime.AddMinutes(1)
+            CreatedAt = createdAt ?? _baseTime,
+            PickedAt = pickedById == null ? null : _baseTime.AddMinutes(1)
         });
         db.SaveChanges();
     }
@@ -79,16 +79,19 @@ public class ModerationTicketServiceTests
         Assert.That(_service.GetActiveTickets(), Has.Count.EqualTo(2));
 
         var picked = _service.GetById(2)!;
-        Assert.That(picked.ReporterPlayerId, Is.EqualTo(2));
-        Assert.That(picked.ReporterUsername, Is.EqualTo("bob"));
-        Assert.That(picked.ReportedPlayerId, Is.EqualTo(1));
-        Assert.That(picked.ReportedUsername, Is.EqualTo("alice"));
-        Assert.That(picked.PickedByPlayerId, Is.EqualTo(3));
-        Assert.That(picked.PickedByUsername, Is.EqualTo("mod"));
-        Assert.That(picked.State, Is.EqualTo(ModerationTicketState.Picked));
-        Assert.That(picked.PickedAt, Is.Not.Null);
-        Assert.That(picked.CategoryId, Is.EqualTo(7));
-        Assert.That(picked.Message, Is.EqualTo("report 2"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(picked.ReporterPlayerId, Is.EqualTo(2));
+            Assert.That(picked.ReporterUsername, Is.EqualTo("bob"));
+            Assert.That(picked.ReportedPlayerId, Is.EqualTo(1));
+            Assert.That(picked.ReportedUsername, Is.EqualTo("alice"));
+            Assert.That(picked.PickedByPlayerId, Is.EqualTo(3));
+            Assert.That(picked.PickedByUsername, Is.EqualTo("mod"));
+            Assert.That(picked.State, Is.EqualTo(ModerationTicketState.Picked));
+            Assert.That(picked.PickedAt, Is.Not.Null);
+            Assert.That(picked.CategoryId, Is.EqualTo(7));
+            Assert.That(picked.Message, Is.EqualTo("report 2"));
+        });
     }
 
     [Test]
@@ -99,9 +102,12 @@ public class ModerationTicketServiceTests
         await _service.LoadAsync();
 
         var ticket = _service.GetById(1)!;
-        Assert.That(ticket.ReporterUsername, Is.EqualTo("alice"));
-        Assert.That(ticket.ReportedUsername, Is.Null);
-        Assert.That(ticket.PickedByUsername, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(ticket.ReporterUsername, Is.EqualTo("alice"));
+            Assert.That(ticket.ReportedUsername, Is.Null);
+            Assert.That(ticket.PickedByUsername, Is.Null);
+        });
     }
 
     [Test]
@@ -111,16 +117,18 @@ public class ModerationTicketServiceTests
         SeedTicket(2, ModerationTicketState.Closed, reporterId: 2);
 
         await _service.LoadAsync();
-
-        Assert.That(_service.GetById(2), Is.Null);
-        Assert.That(_service.GetActiveTickets(), Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(_service.GetById(2), Is.Null);
+            Assert.That(_service.GetActiveTickets(), Has.Count.EqualTo(1));
+        });
     }
 
     [Test]
     public async Task GetActiveTickets_OrdersByCreatedAt()
     {
-        SeedTicket(1, ModerationTicketState.Open, createdAt: BaseTime.AddHours(2));
-        SeedTicket(2, ModerationTicketState.Open, reporterId: 2, createdAt: BaseTime);
+        SeedTicket(1, ModerationTicketState.Open, createdAt: _baseTime.AddHours(2));
+        SeedTicket(2, ModerationTicketState.Open, reporterId: 2, createdAt: _baseTime);
 
         await _service.LoadAsync();
 
@@ -139,28 +147,35 @@ public class ModerationTicketServiceTests
         var dto = await _service.CreateAsync(1, 2, null, 5, "bad words");
 
         Assert.That(dto, Is.Not.Null);
-        Assert.That(dto!.Id, Is.GreaterThan(0));
-        Assert.That(dto.ReporterUsername, Is.EqualTo("alice"));
-        Assert.That(dto.ReportedUsername, Is.EqualTo("bob"));
-        Assert.That(dto.CategoryId, Is.EqualTo(5));
-        Assert.That(dto.Message, Is.EqualTo("bad words"));
-        Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Open));
-        Assert.That(dto.Resolution, Is.EqualTo(ModerationTicketResolution.None));
-        Assert.That(_service.GetById(dto.Id), Is.SameAs(dto));
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto!.Id, Is.GreaterThan(0));
+            Assert.That(dto.ReporterUsername, Is.EqualTo("alice"));
+            Assert.That(dto.ReportedUsername, Is.EqualTo("bob"));
+            Assert.That(dto.CategoryId, Is.EqualTo(5));
+            Assert.That(dto.Message, Is.EqualTo("bad words"));
+            Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Open));
+            Assert.That(dto.Resolution, Is.EqualTo(ModerationTicketResolution.None));
+            Assert.That(_service.GetById(dto.Id), Is.SameAs(dto));
+        });
         var row = TicketRow(dto.Id);
-        Assert.That(row.State, Is.EqualTo(ModerationTicketState.Open));
-        Assert.That(row.ReporterPlayerId, Is.EqualTo(1));
-        Assert.That(row.ReportedPlayerId, Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.State, Is.EqualTo(ModerationTicketState.Open));
+            Assert.That(row.ReporterPlayerId, Is.EqualTo(1));
+            Assert.That(row.ReportedPlayerId, Is.EqualTo(2));
+        });
     }
 
     [Test]
     public async Task CreateAsync_NullReported_EmptyReportedUsername()
     {
         var dto = await _service.CreateAsync(1, null, null, 5, "spam");
-
-        Assert.That(dto!.ReportedPlayerId, Is.Null);
-        Assert.That(dto.ReportedUsername, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto!.ReportedPlayerId, Is.Null);
+            Assert.That(dto.ReportedUsername, Is.Empty);
+        });
     }
 
     [Test]
@@ -188,15 +203,20 @@ public class ModerationTicketServiceTests
         var picked = await _service.TryPickAsync(dto!.Id, 3, "mod");
 
         Assert.That(picked, Is.SameAs(dto));
-        Assert.That(picked!.State, Is.EqualTo(ModerationTicketState.Picked));
-        Assert.That(picked.PickedByPlayerId, Is.EqualTo(3));
-        Assert.That(picked.PickedByUsername, Is.EqualTo("mod"));
-        Assert.That(picked.PickedAt, Is.Not.Null);
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(picked!.State, Is.EqualTo(ModerationTicketState.Picked));
+            Assert.That(picked.PickedByPlayerId, Is.EqualTo(3));
+            Assert.That(picked.PickedByUsername, Is.EqualTo("mod"));
+            Assert.That(picked.PickedAt, Is.Not.Null);
+        });
         var row = TicketRow(dto.Id);
-        Assert.That(row.State, Is.EqualTo(ModerationTicketState.Picked));
-        Assert.That(row.PickedByPlayerId, Is.EqualTo(3));
-        Assert.That(row.PickedAt, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.State, Is.EqualTo(ModerationTicketState.Picked));
+            Assert.That(row.PickedByPlayerId, Is.EqualTo(3));
+            Assert.That(row.PickedAt, Is.Not.Null);
+        });
     }
 
     [Test]
@@ -225,8 +245,11 @@ public class ModerationTicketServiceTests
             db.SaveChanges();
         }
 
-        Assert.That(await _service.TryPickAsync(dto!.Id, 3, "mod"), Is.Null);
-        Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Open));
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _service.TryPickAsync(dto!.Id, 3, "mod"), Is.Null);
+            Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Open));
+        });
     }
 
     [Test]
@@ -238,15 +261,20 @@ public class ModerationTicketServiceTests
         var released = await _service.TryReleaseAsync(dto.Id, 3);
 
         Assert.That(released, Is.SameAs(dto));
-        Assert.That(released!.State, Is.EqualTo(ModerationTicketState.Open));
-        Assert.That(released.PickedByPlayerId, Is.Null);
-        Assert.That(released.PickedByUsername, Is.Empty);
-        Assert.That(released.PickedAt, Is.Null);
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(released!.State, Is.EqualTo(ModerationTicketState.Open));
+            Assert.That(released.PickedByPlayerId, Is.Null);
+            Assert.That(released.PickedByUsername, Is.Empty);
+            Assert.That(released.PickedAt, Is.Null);
+        });
         var row = TicketRow(dto.Id);
-        Assert.That(row.State, Is.EqualTo(ModerationTicketState.Open));
-        Assert.That(row.PickedByPlayerId, Is.Null);
-        Assert.That(row.PickedAt, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.State, Is.EqualTo(ModerationTicketState.Open));
+            Assert.That(row.PickedByPlayerId, Is.Null);
+            Assert.That(row.PickedAt, Is.Null);
+        });
     }
 
     [Test]
@@ -268,9 +296,11 @@ public class ModerationTicketServiceTests
     {
         var dto = await _service.CreateAsync(1, null, null, 5, "report");
         await _service.TryPickAsync(dto!.Id, 3, "mod");
-
-        Assert.That(await _service.TryReleaseAsync(dto.Id, 2), Is.Null);
-        Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Picked));
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await _service.TryReleaseAsync(dto.Id, 2), Is.Null);
+            Assert.That(dto.State, Is.EqualTo(ModerationTicketState.Picked));
+        });
     }
 
     [TestCase(ModerationTicketResolution.Useless)]
@@ -284,18 +314,23 @@ public class ModerationTicketServiceTests
         var closed = await _service.TryCloseAsync(dto.Id, 3, resolution);
 
         Assert.That(closed, Is.SameAs(dto));
-        Assert.That(closed!.State, Is.EqualTo(ModerationTicketState.Closed));
-        Assert.That(closed.Resolution, Is.EqualTo(resolution));
-        Assert.That(closed.PickedByPlayerId, Is.EqualTo(3));
-        Assert.That(closed.ClosedAt, Is.Not.Null);
-        Assert.That(_service.GetById(dto.Id), Is.Null);
-        Assert.That(_service.GetActiveTickets(), Is.Empty);
-
+        Assert.Multiple(() =>
+        {
+            Assert.That(closed!.State, Is.EqualTo(ModerationTicketState.Closed));
+            Assert.That(closed.Resolution, Is.EqualTo(resolution));
+            Assert.That(closed.PickedByPlayerId, Is.EqualTo(3));
+            Assert.That(closed.ClosedAt, Is.Not.Null);
+            Assert.That(_service.GetById(dto.Id), Is.Null);
+            Assert.That(_service.GetActiveTickets(), Is.Empty);
+        });
         var row = TicketRow(dto.Id);
-        Assert.That(row.State, Is.EqualTo(ModerationTicketState.Closed));
-        Assert.That(row.Resolution, Is.EqualTo(resolution));
-        Assert.That(row.PickedByPlayerId, Is.EqualTo(3));
-        Assert.That(row.ClosedAt, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.State, Is.EqualTo(ModerationTicketState.Closed));
+            Assert.That(row.Resolution, Is.EqualTo(resolution));
+            Assert.That(row.PickedByPlayerId, Is.EqualTo(3));
+            Assert.That(row.ClosedAt, Is.Not.Null);
+        });
     }
 
     [Test]
@@ -307,6 +342,40 @@ public class ModerationTicketServiceTests
 
         Assert.That(closed, Is.Not.Null);
         Assert.That(closed!.State, Is.EqualTo(ModerationTicketState.Closed));
+    }
+
+    [Test]
+    public async Task TryCloseAsync_TicketPickedByAnotherModerator_ReturnsNullAndLeavesItOpen()
+    {
+        var dto = await _service.CreateAsync(1, null, null, 5, "report");
+        await _service.TryPickAsync(dto!.Id, 3, "mod");
+
+        var closed = await _service.TryCloseAsync(dto.Id, 99, ModerationTicketResolution.Useless);
+        Assert.Multiple(() =>
+        {
+            Assert.That(closed, Is.Null);
+            Assert.That(_service.GetById(dto.Id), Is.Not.Null);
+        });
+        var row = TicketRow(dto.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.State, Is.EqualTo(ModerationTicketState.Picked));
+            Assert.That(row.PickedByPlayerId, Is.EqualTo(3), "attribution must not be stolen by the closer");
+        });
+    }
+
+    [Test]
+    public async Task TryCloseAsync_TicketPickedBySelf_Closes()
+    {
+        var dto = await _service.CreateAsync(1, null, null, 5, "report");
+        await _service.TryPickAsync(dto!.Id, 3, "mod");
+
+        var closed = await _service.TryCloseAsync(dto.Id, 3, ModerationTicketResolution.Resolved);
+        Assert.Multiple(() =>
+        {
+            Assert.That(closed, Is.Not.Null);
+            Assert.That(TicketRow(dto.Id).PickedByPlayerId, Is.EqualTo(3));
+        });
     }
 
     [Test]
@@ -330,9 +399,12 @@ public class ModerationTicketServiceTests
         var topics = await _service.GetTopicsAsync();
 
         Assert.That(topics, Has.Count.EqualTo(12));
-        Assert.That(topics[0].Name, Is.EqualTo("Verbal abuse"));
-        Assert.That(topics[0].CategoryName, Is.EqualTo("Bullying"));
-        Assert.That(topics.Select(x => x.Order), Is.Ordered.Ascending);
+        Assert.Multiple(() =>
+        {
+            Assert.That(topics[0].Name, Is.EqualTo("Verbal abuse"));
+            Assert.That(topics[0].CategoryName, Is.EqualTo("Bullying"));
+            Assert.That(topics.Select(x => x.Order), Is.Ordered.Ascending);
+        });
     }
 
     [Test]
