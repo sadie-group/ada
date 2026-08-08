@@ -58,6 +58,7 @@ public class TeleportInteractorTests
                 Mock.Of<IMapper>(),
                 tileHelper.Object,
                 furniHelper.Object,
+                new InlineRoomDeferralScheduler(),
                 NullLogger<TeleportInteractor>.Instance),
             RoomRepository = roomRepository,
             TileHelper = tileHelper,
@@ -103,6 +104,7 @@ public class TeleportInteractorTests
         var room = new Mock<IRoomLogic>();
         room.SetupGet(x => x.Room).Returns(dto);
         room.SetupGet(x => x.TileMap).Returns(tileMap.Object);
+        room.Setup(x => x.RunLockedAsync(It.IsAny<Func<Task>>())).Returns<Func<Task>>(action => action());
 
         return (room, tileMap, unitMap);
     }

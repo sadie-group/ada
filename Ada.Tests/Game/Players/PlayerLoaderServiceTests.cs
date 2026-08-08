@@ -32,8 +32,18 @@ public class PlayerLoaderServiceTests
         return mapper.Object;
     }
 
-    private static PlayerLoaderService CreateService(SqliteTestDbFactory factory, bool canReuse) =>
-        new(factory, MsOptions.Create(new PlayerOptions { CanReuseSsoTokens = canReuse }), CreateMapper());
+    private static PlayerLoaderService CreateService(
+        SqliteTestDbFactory factory,
+        bool canReuse,
+        int graceSeconds = 0) =>
+        new(
+            factory,
+            MsOptions.Create(new PlayerOptions
+            {
+                CanReuseSsoTokens = canReuse,
+                SsoGraceSeconds = graceSeconds
+            }),
+            CreateMapper());
 
     private static async Task SeedTokenAsync(SqliteTestDbFactory factory, string token,
         DateTimeOffset expiresAt, DateTimeOffset? usedAt = null)
@@ -61,7 +71,7 @@ public class PlayerLoaderServiceTests
         using var factory = new SqliteTestDbFactory();
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("missing", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("missing"), Is.Null);
     }
 
     [Test]
@@ -71,17 +81,18 @@ public class PlayerLoaderServiceTests
         await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(-1));
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("sso", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("sso"), Is.Null);
     }
 
     [Test]
-    public async Task GetTokenAsync_ExpiredWithinDelayGrace_ReturnsToken()
+    public async Task GetTokenAsync_ExpiredWithinServerGrace_ReturnsToken()
     {
         using var factory = new SqliteTestDbFactory();
         await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddSeconds(-5));
-        var service = CreateService(factory, canReuse: true);
 
-        var dto = await service.GetTokenAsync("sso", 60_000);
+        var service = CreateService(factory, canReuse: true, graceSeconds: 60);
+
+        var dto = await service.GetTokenAsync("sso");
 
         Assert.That(dto, Is.Not.Null);
         Assert.That(dto!.Token, Is.EqualTo("sso"));
@@ -94,7 +105,7 @@ public class PlayerLoaderServiceTests
         await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1), usedAt: DateTimeOffset.Now.AddMinutes(-1));
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("sso", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("sso"), Is.Null);
     }
 
     [Test]
@@ -104,8 +115,8 @@ public class PlayerLoaderServiceTests
         await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
         var service = CreateService(factory, canReuse: true);
 
-        var first = await service.GetTokenAsync("sso", 0);
-        var second = await service.GetTokenAsync("sso", 0);
+        var first = await service.GetTokenAsync("sso");
+        var second = await service.GetTokenAsync("sso");
 
         Assert.Multiple(() =>
         {
@@ -125,8 +136,8 @@ public class PlayerLoaderServiceTests
         await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
         var service = CreateService(factory, canReuse: false);
 
-        var first = await service.GetTokenAsync("sso", 0);
-        var second = await service.GetTokenAsync("sso", 0);
+        var first = await service.GetTokenAsync("sso");
+        var second = await service.GetTokenAsync("sso");
 
         Assert.Multiple(() =>
         {

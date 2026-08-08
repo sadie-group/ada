@@ -1,3 +1,4 @@
+using Ada.Game.Rooms.Locking;
 using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Rooms;
@@ -111,7 +112,8 @@ public class RoomLogicTests
             Mock.Of<IRoomPathFinder>(),
             userRepository.Object,
             Mock.Of<IRoomBotRepository>(),
-            Mock.Of<IRoomPetRepository>())
+            Mock.Of<IRoomPetRepository>(),
+            new InProcessRoomLock())
         {
             Name = "",
             Description = ""

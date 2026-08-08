@@ -143,7 +143,7 @@ public class RoomUserTests
             player.Object,
             new ServerRoomConstants { SecondsTillUserIdle = secondsTillIdle },
             controllerLevel,
-            tileMap,
+            new RoomTileMapHelperService(),
             roomHelper.Object,
             wired.Object,
             new RoomPathFinderHelperService(),
@@ -226,7 +226,7 @@ public class RoomUserTests
     {
         var h = Create();
         h.User.HandItemId = 5;
-        h.User.HandItemSet = DateTime.Now.AddSeconds(-31);
+        h.User.HandItemSet = DateTime.UtcNow.AddSeconds(-31);
 
         await h.User.RunPeriodicCheckAsync();
 
@@ -244,7 +244,7 @@ public class RoomUserTests
     {
         var h = Create();
         h.User.HandItemId = 5;
-        h.User.HandItemSet = DateTime.Now;
+        h.User.HandItemSet = DateTime.UtcNow;
 
         await h.User.RunPeriodicCheckAsync();
         Assert.Multiple(() =>
@@ -259,7 +259,7 @@ public class RoomUserTests
     {
         var h = Create();
         h.User.AddStatus(RoomUserStatus.Sign, "7");
-        h.User.SignSet = DateTime.Now.AddSeconds(-6);
+        h.User.SignSet = DateTime.UtcNow.AddSeconds(-6);
 
         await h.User.RunPeriodicCheckAsync();
 
@@ -271,7 +271,7 @@ public class RoomUserTests
     {
         var h = Create();
         h.User.AddStatus(RoomUserStatus.Sign, "7");
-        h.User.SignSet = DateTime.Now;
+        h.User.SignSet = DateTime.UtcNow;
 
         await h.User.RunPeriodicCheckAsync();
 
@@ -282,13 +282,13 @@ public class RoomUserTests
     public async Task RunPeriodicCheckAsync_IdleTransitions_BroadcastOnChangeOnly()
     {
         var h = Create(secondsTillIdle: 0);
-        h.User.LastAction = DateTime.Now.AddSeconds(-5);
+        h.User.LastAction = DateTime.UtcNow.AddSeconds(-5);
 
         await h.User.RunPeriodicCheckAsync();
 
         Assert.That(h.User.IsIdle, Is.True);
 
-        h.User.LastAction = DateTime.Now.AddMinutes(5);
+        h.User.LastAction = DateTime.UtcNow.AddMinutes(5);
 
         await h.User.RunPeriodicCheckAsync();
         await h.User.RunPeriodicCheckAsync();

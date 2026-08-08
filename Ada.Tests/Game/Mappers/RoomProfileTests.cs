@@ -1,3 +1,4 @@
+using Ada.Game.Rooms.Locking;
 using Ada.API.Collections;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
@@ -24,6 +25,7 @@ public class RoomProfileTests
             .AddSingleton(Mock.Of<IRoomUserRepository>())
             .AddSingleton(Mock.Of<IRoomBotRepository>())
             .AddSingleton(Mock.Of<IRoomPetRepository>())
+            .AddSingleton<IRoomLockFactory, InProcessRoomLockFactory>()
             .BuildServiceProvider();
 
         var configuration = new MapperConfiguration(
