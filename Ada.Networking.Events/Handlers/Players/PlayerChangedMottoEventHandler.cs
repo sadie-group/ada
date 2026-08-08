@@ -1,6 +1,8 @@
 ﻿using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Extensions;
 using Ada.Db;
@@ -14,6 +16,7 @@ namespace Ada.Networking.Events.Handlers.Players;
 public class PlayerChangedMottoEventHandler(
     IRoomRepository roomRepository, 
     ServerPlayerConstants constants,
+    IWordFilterService wordFilterService,
     IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
 {
     public required string Motto { get; set; }
@@ -26,23 +29,32 @@ public class PlayerChangedMottoEventHandler(
         }
         
         var player = client.Player!;
-        var newMotto = Motto.Truncate(constants.MaxMottoLength);
-        
-        if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
+
+        var filtered = wordFilterService.Filter(Motto, WordFilterContext.Chat);
+
+        if (filtered.IsBlocked)
         {
             return;
         }
-        
-        await room.BroadcastDataAsync(new RoomUserDataWriter{
-            Users = [roomUser]
-        });
+
+        var newMotto = filtered.FilteredText.Truncate(constants.MaxMottoLength);
+
+        player.Player.AvatarData.Motto = newMotto;
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         await dbContext.PlayerAvatarData
             .Where(x => x.PlayerId == player.Player.Id)
             .ExecuteUpdateAsync(x => x.SetProperty(p => p.Motto, newMotto));
 
-        player.Player.AvatarData.Motto = newMotto;
+        if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
+        {
+            return;
+        }
+
+        await room.BroadcastDataAsync(new RoomUserDataWriter
+        {
+            Users = [roomUser]
+        });
     }
 }
