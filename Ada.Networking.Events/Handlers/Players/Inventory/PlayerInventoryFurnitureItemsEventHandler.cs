@@ -1,4 +1,3 @@
-using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;

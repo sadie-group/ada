@@ -4,22 +4,31 @@ using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db;
+using Ada.Core.Enums.Game.Players;
 using Ada.Db.Models.Players;
 using Ada.Networking.Packets.Serialization;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Players;
 
 public class PlayerRepository(
     IDbContextFactory<AdaDbContext> dbContextFactory,
+    ILogger<PlayerRepository> logger,
     IMapper mapper) : IPlayerRepository
 {
+    private const int _slowLookupWarningMs = 300;
+
     private readonly ConcurrentDictionary<long, IPlayerLogic> _players = new();
     private readonly ConcurrentDictionary<long, string> _playerIdToUsernameCache = new();
 
+    private readonly ConcurrentDictionary<string, IPlayerLogic> _playersByUsername =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public IPlayerLogic? GetPlayerLogicById(long id) => _players.GetValueOrDefault(id);
-    public IPlayerLogic? GetPlayerLogicByUsername(string username) => _players.Values.FirstOrDefault(x => x.Player.Username == username);
+    public IPlayerLogic? GetPlayerLogicByUsername(string username) =>
+        _playersByUsername.GetValueOrDefault(username);
 
     public async Task<PlayerDto?> GetPlayerByIdAsync(long id)
     {
@@ -52,19 +61,28 @@ public class PlayerRepository(
             .AsNoTrackingWithIdentityResolution()
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        var value = mapper.Map<PlayerDto>(player);
         sw.Stop();
 
-        if (sw.Elapsed.TotalMilliseconds > 300)
+        if (player == null)
         {
-            Console.WriteLine($"Finding a player {id}, {value.Username} took {sw.Elapsed.TotalMilliseconds}ms");
+            return null;
         }
-        return value;
+
+        if (sw.Elapsed.TotalMilliseconds > _slowLookupWarningMs)
+        {
+            logger.LogWarning(
+                "Loading player {PlayerId} ({Username}) took {ElapsedMs}ms",
+                id,
+                player.Username,
+                sw.Elapsed.TotalMilliseconds);
+        }
+
+        return mapper.Map<PlayerDto>(player);
     }
 
     public async Task<PlayerDto?> GetPlayerByUsernameAsync(string username)
     {
-        var online = _players.Values.FirstOrDefault(x => x.Player.Username == username);
+        var online = _playersByUsername.GetValueOrDefault(username);
 
         if (online != null)
         {
@@ -82,9 +100,34 @@ public class PlayerRepository(
         return mapper.Map<PlayerDto>(player);
     }
 
+    public async Task<int> GetAcceptedFriendshipCountAsync(long playerId)
+    {
+        if (_players.TryGetValue(playerId, out var online))
+        {
+            return online.GetAcceptedFriendshipCount();
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.Set<PlayerFriendship>()
+            .CountAsync(x =>
+                (x.OriginPlayerId == playerId || x.TargetPlayerId == playerId) &&
+                x.Status == PlayerFriendshipStatus.Accepted);
+    }
+
     public ICollection<IPlayerLogic> GetAll() => _players.Values;
 
-    public bool TryAddPlayer(IPlayerLogic player) => _players.TryAdd(player.Player.Id, player);
+    public bool TryAddPlayer(IPlayerLogic player)
+    {
+        if (!_players.TryAdd(player.Player.Id, player))
+        {
+            return false;
+        }
+
+        _playersByUsername[player.Player.Username] = player;
+
+        return true;
+    }
 
     public async Task<bool> TryRemovePlayerAsync(long playerId)
     {
@@ -94,6 +137,9 @@ public class PlayerRepository(
         {
             return result;
         }
+
+        _playersByUsername.TryRemove(
+            new KeyValuePair<string, IPlayerLogic>(player.Player.Username, player));
 
         await player.DisposeAsync();
 
@@ -134,9 +180,11 @@ public class PlayerRepository(
         return mapper.Map<List<PlayerRelationshipDto>>(playerRelationships);
     }
 
-    public async Task BroadcastDataAsync(AbstractPacketWriter writer)
+    public Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        await PacketBroadcast.SendAsync(writer, _players.Values.Select(player => player.NetworkObject!));
+        PacketBroadcast.SendAndFlush(writer, _players.Values.Select(player => player.NetworkObject!));
+
+        return Task.CompletedTask;
     }
 
     public async Task<string?> GetPlayerUsernameByIdAsync(long playerId)
