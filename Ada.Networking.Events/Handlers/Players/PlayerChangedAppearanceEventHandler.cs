@@ -3,6 +3,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Rooms.Users;
@@ -17,7 +18,7 @@ public class PlayerChangedAppearanceEventHandler(
 {
     public required string Gender { get; set; }
     public required string FigureCode { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
@@ -27,8 +28,13 @@ public class PlayerChangedAppearanceEventHandler(
             return;
         }
 
-        var gender = Gender == "M" ? 
-            PlayerAvatarGender.Male : 
+        if (!AvatarHelpers.IsValidFigureCode(FigureCode))
+        {
+            return;
+        }
+
+        var gender = Gender == "M" ?
+            PlayerAvatarGender.Male :
             PlayerAvatarGender.Female;
 
         var figureCode = FigureCode;
