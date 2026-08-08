@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Drawing;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Rooms;
@@ -17,7 +18,44 @@ namespace Ada.Networking.Events;
 
 public static class RoomHelpers
 {
-    public static async Task<IRoomLogic?> TryLoadRoomByIdAsync(
+    private static readonly ConcurrentDictionary<long, Task<IRoomLogic?>> InFlightLoads = new();
+
+    public static Task<IRoomLogic?> TryLoadRoomByIdAsync(
+        long id,
+        IRoomRepository roomRepository,
+        IDbContextFactory<AdaDbContext> dbContextFactory,
+        IMapper mapper)
+    {
+        var memoryValue = roomRepository.TryGetRoomById(id);
+
+        if (memoryValue != null)
+        {
+            return Task.FromResult<IRoomLogic?>(memoryValue);
+        }
+
+        return InFlightLoads.GetOrAdd(
+            id,
+            static (key, state) => LoadRoomAsync(key, state.Repository, state.ContextFactory, state.Mapper),
+            (Repository: roomRepository, ContextFactory: dbContextFactory, Mapper: mapper));
+    }
+
+    private static async Task<IRoomLogic?> LoadRoomAsync(
+        long id,
+        IRoomRepository roomRepository,
+        IDbContextFactory<AdaDbContext> dbContextFactory,
+        IMapper mapper)
+    {
+        try
+        {
+            return await LoadRoomCoreAsync(id, roomRepository, dbContextFactory, mapper);
+        }
+        finally
+        {
+            InFlightLoads.TryRemove(id, out _);
+        }
+    }
+
+    private static async Task<IRoomLogic?> LoadRoomCoreAsync(
         long id,
         IRoomRepository roomRepository,
         IDbContextFactory<AdaDbContext> dbContextFactory,
