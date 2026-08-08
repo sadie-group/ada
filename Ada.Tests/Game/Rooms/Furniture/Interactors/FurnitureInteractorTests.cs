@@ -484,6 +484,7 @@ public class VendingInteractorTests
         var furniHelper = new Mock<IRoomFurnitureItemHelperService>();
 
         return (new VendingInteractor(tileHelper.Object, furniHelper.Object,
+            new InlineRoomDeferralScheduler(),
             NullLogger<VendingInteractor>.Instance), tileHelper, furniHelper);
     }
 

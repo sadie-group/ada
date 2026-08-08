@@ -35,13 +35,13 @@ public class CatalogPurchaseEventHandler(
         }
 
         if (!PurchaseLimits.IsValidAmount(Amount) ||
-            (DateTime.Now - player.State.LastCatalogPurchase).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
+            (DateTime.UtcNow - player.State.LastCatalogPurchase).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
             return;
         }
 
-        player.State.LastCatalogPurchase = DateTime.Now;
+        player.State.LastCatalogPurchase = DateTime.UtcNow;
 
         var page = pageRepository.Pages.FirstOrDefault(x => x.Id == PageId);
 

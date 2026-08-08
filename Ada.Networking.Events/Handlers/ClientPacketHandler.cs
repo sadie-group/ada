@@ -71,7 +71,7 @@ public class ClientPacketHandler(
 
             if (client.RoomUser != null && eventHandler is ICountsAsRoomActivity)
             {
-                client.RoomUser.LastAction = DateTime.Now;
+                client.RoomUser.LastAction = DateTime.UtcNow;
             }
 
             foreach (var filter in packetFilters)

@@ -1,7 +1,6 @@
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Client;
-using Ada.Tests.Common;
 using AutoMapper;
 using Moq;
 
@@ -92,7 +91,7 @@ public class NetworkClientRepositoryTests
         var repository = CreateRepository();
         var guid = Guid.NewGuid();
         var client = CreateClient(guid);
-        client.SetupGet(c => c.LastPong).Returns(DateTime.Now);
+        client.SetupGet(c => c.LastPong).Returns(DateTime.UtcNow);
         repository.AddClient(guid, client.Object);
 
         await repository.DisconnectIdleClientsAsync();
@@ -106,7 +105,7 @@ public class NetworkClientRepositoryTests
         var repository = CreateRepository();
         var guid = Guid.NewGuid();
         var client = CreateClient(guid);
-        client.SetupGet(c => c.LastPong).Returns(DateTime.Now.AddMinutes(-5));
+        client.SetupGet(c => c.LastPong).Returns(DateTime.UtcNow.AddMinutes(-5));
         repository.AddClient(guid, client.Object);
 
         await repository.DisconnectIdleClientsAsync();

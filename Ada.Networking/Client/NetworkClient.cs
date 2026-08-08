@@ -36,18 +36,20 @@ public class NetworkClient(
 
     public void EnableEncryption(byte[] sharedKey)
     {
-        if (!networkOptions.Value.UseWss)
+        if (networkOptions.Value.UseWss)
         {
-            logger.LogWarning(
-                "Client {Guid} completed the Diffie-Hellman handshake but the listener is plaintext; " +
-                "the negotiated key is not applied to the stream and traffic is readable on the wire. " +
-                "Set Network:UseWss to secure it.",
-                Guid);
+            return;
         }
+
+        logger.LogWarning(
+            "Client {Guid} completed the Diffie-Hellman handshake but the listener is plaintext; " +
+            "the negotiated key is not applied to the stream and traffic is readable on the wire. " +
+            "Set NetworkOptions:UseWss to secure it.",
+            Guid);
     }
 
-    public DateTime LastPing { get; set; } = DateTime.Now;
-    public DateTime LastPong { get; set; } = DateTime.Now;
+    public DateTime LastPing { get; set; } = DateTime.UtcNow;
+    public DateTime LastPong { get; set; } = DateTime.UtcNow;
 
     private const int MaxOutboxBytes = 8 * 1024 * 1024;
 
@@ -154,6 +156,21 @@ public class NetworkClient(
 
     private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(30);
 
+    private CancellationTokenSource _sendCts = new();
+
+    private CancellationToken StartSendTimeout()
+    {
+        if (!_sendCts.TryReset())
+        {
+            _sendCts.Dispose();
+            _sendCts = new CancellationTokenSource();
+        }
+
+        _sendCts.CancelAfter(SendTimeout);
+
+        return _sendCts.Token;
+    }
+
     private async Task SendBatchAsync(INetworkPacketWriter[] batch)
     {
         if (WebSocket.State is not WebSocketState.Open)
@@ -161,7 +178,7 @@ public class NetworkClient(
             return;
         }
 
-        using var cts = new CancellationTokenSource(SendTimeout);
+        var token = StartSendTimeout();
 
         if (batch.Length == 1)
         {
@@ -169,7 +186,7 @@ public class NetworkClient(
                 batch[0].GetAllBytes(),
                 WebSocketMessageType.Binary,
                 true,
-                cts.Token);
+                token);
 
             return;
         }
@@ -198,7 +215,7 @@ public class NetworkClient(
                 payload.AsMemory(0, totalLength),
                 WebSocketMessageType.Binary,
                 true,
-                cts.Token);
+                token);
         }
         finally
         {
@@ -235,6 +252,8 @@ public class NetworkClient(
             _outbox.Clear();
             _outboxBytes = 0;
         }
+
+        _sendCts.Dispose();
 
         try
         {

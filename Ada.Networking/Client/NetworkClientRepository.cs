@@ -3,9 +3,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Plugins;
-using Ada.Db;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Client;
@@ -13,7 +11,7 @@ namespace Ada.Networking.Client;
 public class NetworkClientRepository(
     ILogger<NetworkClientRepository> logger,
     IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IPlayerPresenceStore playerPresenceStore,
     IPlayerHelperService playerHelperService,
     IMapper mapper,
     IEnumerable<IPlayerSessionListener> sessionListeners) : INetworkClientRepository
@@ -55,40 +53,27 @@ public class NetworkClientRepository(
                 await roomUser.Room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
             }
 
-            try
+            if (player != null)
             {
-                if (player != null)
+                if (!await playerRepository.TryRemovePlayerAsync(player.Player.Id))
                 {
-                    if (!await playerRepository.TryRemovePlayerAsync(player.Player.Id))
-                    {
-                        logger.LogError("Failed to remove player whilst disposing network client.");
-                        return false;
-                    }
-
-                    var friendships = player.GetMergedFriendships();
-
-                    if (friendships.Count != 0)
-                    {
-                        await playerHelperService.UpdatePlayerStatusForFriendsAsync(
-                            player,
-                            friendships,
-                            false,
-                            false,
-                            playerRepository);
-                    }
-
-                    await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-                    var playerId = player.Player.Id;
-
-                    await dbContext.PlayerData
-                        .Where(x => x.PlayerId == playerId)
-                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsOnline, false));
+                    logger.LogError("Failed to remove player whilst disposing network client.");
+                    return false;
                 }
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                // Another thread removed the player already, safe to ignore
+
+                var friendships = player.GetMergedFriendships();
+
+                if (friendships.Count != 0)
+                {
+                    await playerHelperService.UpdatePlayerStatusForFriendsAsync(
+                        player,
+                        friendships,
+                        false,
+                        false,
+                        playerRepository);
+                }
+
+                await playerPresenceStore.SetOfflineAsync(player.Player.Id);
             }
 
             await client.DisposeAsync();
@@ -102,8 +87,9 @@ public class NetworkClientRepository(
 
     public async Task DisconnectIdleClientsAsync()
     {
-        var idleClients = _clients.Values
-            .Where(x => (DateTime.Now - x.LastPong).TotalSeconds >= 60)
+        var idleClients = _clients
+            .Select(x => x.Value)
+            .Where(x => (DateTime.UtcNow - x.LastPong).TotalSeconds >= 60)
             .Take(20)
             .ToList();
 
