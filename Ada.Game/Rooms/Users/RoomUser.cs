@@ -44,7 +44,7 @@ public class RoomUser(
         IRoomUser
 {
     public IPlayerLogic Player { get; } = player;
-    public DateTime LastAction { get; set; } = DateTime.Now;
+    public DateTime LastAction { get; set; } = DateTime.UtcNow;
     public TimeSpan IdleTime { get; } = TimeSpan.FromSeconds(roomConstants.SecondsTillUserIdle);
     public bool IsIdle { get; set; }
     public bool MoonWalking { get; set; }
@@ -75,7 +75,7 @@ public class RoomUser(
 
     public async Task RunPeriodicCheckAsync()
     {
-        if (HandItemId != 0 && (DateTime.Now - HandItemSet).TotalSeconds >= 30)
+        if (HandItemId != 0 && (DateTime.UtcNow - HandItemSet).TotalSeconds >= 30)
         {
             HandItemId = 0;
 
@@ -87,7 +87,7 @@ public class RoomUser(
         }
 
         if (StatusMap.ContainsKey(RoomUserStatus.Sign) &&
-            (DateTime.Now - SignSet).TotalSeconds >= 5)
+            (DateTime.UtcNow - SignSet).TotalSeconds >= 5)
         {
             RemoveStatuses(RoomUserStatus.Sign);
         }
@@ -188,7 +188,7 @@ public class RoomUser(
 
     private async Task UpdateIdleStatusAsync()
     {
-        var shouldBeIdle = DateTime.Now - LastAction > IdleTime;
+        var shouldBeIdle = DateTime.UtcNow - LastAction > IdleTime;
 
         if (shouldBeIdle && !IsIdle || !shouldBeIdle && IsIdle)
         {

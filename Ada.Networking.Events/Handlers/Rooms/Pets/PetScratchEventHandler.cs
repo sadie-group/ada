@@ -11,7 +11,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 [PacketId(EventHandlerId.PetScratch)]
 public class PetScratchEventHandler(
     IPlayerPetPersistence petPersistence,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
     private const int _scratchExperience = 10;
     private const int _scratchHappiness = 10;
@@ -44,7 +44,7 @@ public class PetScratchEventHandler(
             pet.Level++;
         }
 
-        await petPersistence.SaveScratchAsync(pet);
+        _persist = () => petPersistence.SaveScratchAsync(pet);
 
         await room.BroadcastDataAsync(new RoomPetRespectWriter
         {
@@ -69,4 +69,8 @@ public class PetScratchEventHandler(
             });
         }
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

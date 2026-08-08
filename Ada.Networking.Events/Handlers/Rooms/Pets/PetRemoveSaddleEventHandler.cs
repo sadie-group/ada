@@ -11,7 +11,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 [PacketId(EventHandlerId.PetRemoveSaddle)]
 public class PetRemoveSaddleEventHandler(
     IPlayerPetPersistence petPersistence,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int Id { get; init; }
 
@@ -37,11 +37,15 @@ public class PetRemoveSaddleEventHandler(
         pet.HasSaddle = false;
         roomPet.RiderId = null;
 
-        await petPersistence.SaveSaddleAsync(pet);
+        _persist = () => petPersistence.SaveSaddleAsync(pet);
 
         await room.BroadcastDataAsync(new RoomPetHorseFigureWriter
         {
             Pet = pet,
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

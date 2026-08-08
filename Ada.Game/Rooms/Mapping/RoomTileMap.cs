@@ -7,7 +7,7 @@ using Ada.Core.Shared.Extensions;
 
 namespace Ada.Game.Rooms.Mapping;
 
-public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
+public class RoomTileMap : IRoomTileMap
 {
     public int SizeX { get; }
     public int SizeY { get; }
@@ -17,6 +17,8 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
     public short[,] ZMap { get; set; }
     public short[,] TileExistenceMap { get; set; }
     public short[,] EffectMap { get; }
+
+    private static readonly RoomTileMapHelperService _tiles = new();
 
     public RoomTileMap(
         string heightmap,
@@ -56,7 +58,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
                     height = (short) (10 + "ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(square));
                 }
 
-                Map[y, x] = (short) GetTileState(x, y, furnitureItems);
+                Map[y, x] = (short) _tiles.GetTileState(x, y, furnitureItems);
                 ZMap[y, x] = height;
                 TileExistenceMap[y, x] = 1;
 
@@ -70,7 +72,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
         PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
-        var itemsOnSquare = GetItemsForPosition(x, y, furnitureItems);
+        var itemsOnSquare = _tiles.GetItemsForPosition(x, y, furnitureItems);
 
         if (excludeItem != null)
         {
@@ -84,7 +86,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
         }
 
         var topItemOnSquare = itemsOnSquare.MaxBy(x => x.PositionZ);
-        var effect = GetEffectFromInteractionType(topItemOnSquare?.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "");
+        var effect = _tiles.GetEffectFromInteractionType(topItemOnSquare?.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "");
 
         EffectMap[y, x] = (short) effect;
     }

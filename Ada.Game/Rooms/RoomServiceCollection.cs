@@ -1,3 +1,5 @@
+using Ada.API.Interfaces.Game.Pets;
+using Ada.Game.Pets;
 ﻿using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
@@ -34,6 +36,7 @@ public static class RoomServiceCollection
         serviceCollection.AddSingleton<IRoomUserFactory, RoomUserFactory>();
         serviceCollection.AddSingleton<IRoomBotFactory, RoomBotFactory>();
         serviceCollection.AddSingleton<IRoomPetFactory, RoomPetFactory>();
+        serviceCollection.AddSingleton<IPlayerPetPersistence, PlayerPetPersistence>();
         serviceCollection.AddSingleton<IRoomRepository, RoomRepository>();
         serviceCollection.AddSingleton<IRoomLockFactory, InProcessRoomLockFactory>();
         serviceCollection.AddSingleton<IRoomDeferralScheduler, RoomDeferralScheduler>();
