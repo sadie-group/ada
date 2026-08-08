@@ -107,8 +107,27 @@ public class SecureLoginEventHandler(
 
         var machineId = client.MachineId;
 
-        if (!string.IsNullOrEmpty(machineId) &&
-            await dbContext.BannedMachines.AnyAsync(x => x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        if (string.IsNullOrEmpty(machineId))
+        {
+            if (config.GetValue("PlayerOptions:RequireMachineId", true))
+            {
+                logger.LogWarning(
+                    "Rejected login for {Username} from {Ip}: no machine fingerprint was sent, so the " +
+                    "machine ban list cannot be enforced. Set PlayerOptions:RequireMachineId to false " +
+                    "if this client does not send the UniqueID packet.",
+                    player.Username, ipAddress);
+
+                await client.DisposeAsync();
+                return;
+            }
+
+            logger.LogWarning(
+                "Login for {Username} from {Ip} has no machine fingerprint; machine bans are not " +
+                "being enforced for this session.",
+                player.Username, ipAddress);
+        }
+        else if (await dbContext.BannedMachines.AnyAsync(x =>
+                     x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
         {
             logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
             await client.DisposeAsync();
