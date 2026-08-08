@@ -3,17 +3,14 @@ using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture.Wired;
 
 [PacketId(EventHandlerId.RoomWiredEffectSaved)]
 public class RoomWiredEffectSavedEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomWiredService wiredService,
     ServerRoomConstants roomConstants,
     IWordFilterService wordFilterService) : INetworkPacketEventHandler

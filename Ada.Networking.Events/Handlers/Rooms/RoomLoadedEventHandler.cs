@@ -1,3 +1,4 @@
+using Ada.Db;
 using System.Security.Cryptography;
 using System.Text;
 using Ada.API.Interfaces.Game.Players;
@@ -11,7 +12,6 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Networking.Writers.Generic;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Doorbell;
@@ -24,11 +24,11 @@ namespace Ada.Networking.Events.Handlers.Rooms;
 
 [PacketId(EventHandlerId.RoomLoaded)]
 public class RoomLoadedEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,
     ILogger<RoomLoadedEventHandler> logger,
     IRoomRepository roomRepository,
     IRoomUserFactory roomUserFactory,
     IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
     IRoomTileMapHelperService tileMapHelperService,
     IPlayerHelperService playerHelperService,

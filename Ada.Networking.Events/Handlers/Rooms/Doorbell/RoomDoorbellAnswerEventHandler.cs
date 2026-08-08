@@ -1,3 +1,4 @@
+using Ada.Db;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
@@ -7,7 +8,6 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Doorbell;
 using AutoMapper;
@@ -17,9 +17,9 @@ namespace Ada.Networking.Events.Handlers.Rooms.Doorbell;
 
 [PacketId(EventHandlerId.RoomDoorbellAnswer)]
 public class RoomDoorbellAnswerEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,
     IPlayerRepository playerRepository,
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomUserFactory roomUserFactory,
     INetworkClientRepository clientRepository,
     IRoomTileMapHelperService tileMapHelperService,

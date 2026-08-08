@@ -8,11 +8,9 @@ using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms.Users;
 using Ada.Networking.Writers.Rooms.Users.Chat;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 
@@ -20,7 +18,6 @@ namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 public class RoomUserWhisperEventHandler(
     IRoomRepository roomRepository, 
     ServerRoomConstants roomConstants,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomHelperService roomHelperService,
     IWordFilterService wordFilterService,
     IRoomFloodProtectionService floodProtectionService)
