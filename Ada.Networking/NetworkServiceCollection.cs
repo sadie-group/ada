@@ -21,7 +21,6 @@ public static class NetworkServiceCollection
 
         serviceCollection.AddTransient<INetworkClient, NetworkClient>();
 
-        serviceCollection.AddTransient<INetworkClient, NetworkClient>();
         serviceCollection.AddHostedService<NetworkListener>();
         
         serviceCollection.Configure<NetworkOptions>(options => config.GetSection("NetworkOptions").Bind(options));

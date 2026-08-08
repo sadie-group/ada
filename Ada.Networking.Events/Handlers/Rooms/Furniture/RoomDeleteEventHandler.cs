@@ -7,6 +7,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 
@@ -15,7 +16,9 @@ public class RoomDeleteEventHandler(
     IRoomRepository roomRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
-    IPlayerRepository playerRepository) : INetworkPacketEventHandler
+    IPlayerRepository playerRepository,
+    IPlayerHelperService playerHelperService,
+    ILogger<RoomDeleteEventHandler> logger) : INetworkPacketEventHandler
 {
     public required int RoomId { get; init; }
     
@@ -38,7 +41,9 @@ public class RoomDeleteEventHandler(
         }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.Database.ExecuteSqlRawAsync("UPDATE player_data SET home_room_id = NULL WHERE home_room_id = {0}", RoomId);
+        await dbContext.PlayerData
+            .Where(x => x.HomeRoomId == RoomId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, (int?) null));
 
         var updateMap = new Dictionary<IPlayerLogic, List<PlayerFurnitureItemDto>>();
 
@@ -67,6 +72,11 @@ public class RoomDeleteEventHandler(
             return;
         }
 
+        foreach (var roomUser in room.UserRepository.GetAll())
+        {
+            await room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
+        }
+
         await dbContext.RoomFurnitureItems
             .Where(x => x.RoomId == room.Room.Id)
             .ExecuteDeleteAsync();
@@ -75,9 +85,19 @@ public class RoomDeleteEventHandler(
             .Where(x => x.Id == room.Room.Id)
             .ExecuteDeleteAsync();
 
-        foreach (var roomUser in room.UserRepository.GetAll())
+        foreach (var (owner, items) in updateMap)
         {
-            await room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id);
+            try
+            {
+                await playerHelperService.SendUnseenInventoryItemsAsync(owner, items);
+                await playerHelperService.RefreshInventoryAsync(owner);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Failed to refresh inventory for player {PlayerId} after room {RoomId} was deleted",
+                    owner.Player.Id, RoomId);
+            }
         }
     }
 }

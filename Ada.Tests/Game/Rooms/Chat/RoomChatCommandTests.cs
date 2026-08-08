@@ -70,10 +70,12 @@ public class AboutCommandTests
     public void Defaults_NoPermissionsNoParameters()
     {
         var command = CreateCommand();
-
-        Assert.That(command.PermissionsRequired, Is.Empty);
-        Assert.That(command.BypassPermissionCheckIfRoomOwner, Is.False);
-        Assert.That(command.Parameters, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(command.PermissionsRequired, Is.Empty);
+            Assert.That(command.BypassPermissionCheckIfRoomOwner, Is.False);
+            Assert.That(command.Parameters, Is.Empty);
+        });
     }
 
     [Test]

@@ -19,13 +19,10 @@ public static class RoomCommandService
             return false;
         }
 
-        if (command.BypassPermissionCheckIfRoomOwner &&
-            roomUser.ControllerLevel != RoomControllerLevel.Owner)
-        {
-            return false;
-        }
+        var ownerBypass = command.BypassPermissionCheckIfRoomOwner &&
+                          roomUser.ControllerLevel == RoomControllerLevel.Owner;
 
-        if (!command.PermissionsRequired.All(roomUser.Player.HasPermission))
+        if (!ownerBypass && !command.PermissionsRequired.All(roomUser.Player.HasPermission))
         {
             return false;
         }

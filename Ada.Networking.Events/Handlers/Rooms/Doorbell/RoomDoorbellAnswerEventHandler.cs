@@ -40,15 +40,30 @@ public class RoomDoorbellAnswerEventHandler(
         }
         
         var player = playerRepository.GetPlayerLogicByUsername(Username);
-        
-        if (player == null)
+
+        if (player?.NetworkObject == null)
         {
             return;
         }
 
+        if (player.State.PendingDoorbellRoomId != room.Room.Id)
+        {
+            return;
+        }
+
+        player.State.PendingDoorbellRoomId = 0;
+
         if (Accept)
         {
-            await player.NetworkObject!.WriteToStreamAsync(new RoomDoorbellAcceptWriter
+            if (!RoomHelpers.CanEnterRoom(room, player, out _))
+            {
+                await player.NetworkObject.WriteToStreamAsync(
+                    new RoomDoorbellNoAnswerWriter { Username = Username });
+
+                return;
+            }
+
+            await player.NetworkObject.WriteToStreamAsync(new RoomDoorbellAcceptWriter
             {
                 Username = Username
             });
@@ -73,6 +88,6 @@ public class RoomDoorbellAnswerEventHandler(
             return;
         }
 
-        await player.NetworkObject!.WriteToStreamAsync(new RoomDoorbellNoAnswerWriter { Username = Username });
+        await player.NetworkObject.WriteToStreamAsync(new RoomDoorbellNoAnswerWriter { Username = Username });
     }
 }
