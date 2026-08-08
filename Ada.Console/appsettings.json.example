@@ -10,9 +10,10 @@
     ]
   },
   "ConnectionStrings": {
-    "Default": "Server=127.0.0.1;Database=sadie;Uid=root;Pwd=;AllowLoadLocalInfile=true"
+    "Default": "Server=127.0.0.1;Database=sadie;Uid=root;Pwd="
   },
   "PluginDirectory": "",
+  "PluginAssemblies": [],
   "Encryption": {
     "Enabled": false,
     "E": "3",
@@ -24,12 +25,17 @@
     "Port": "2096",
     "UseWss": false,
     "CertificateFile": "",
+    "AllowInsecureTransport": false,
+    "AllowedOrigins": "",
     "PacketOptions": {
       "BufferByteSize": 4024,
       "FrameLengthByteCount": 4
     }
   },
   "PlayerOptions": {
-    "CanReuseSsoTokens": false
+    "CanReuseSsoTokens": false,
+    "SsoGraceSeconds": 5,
+    "RequireHashedSsoTokens": false,
+    "RequireMachineId": true
   }
 }
