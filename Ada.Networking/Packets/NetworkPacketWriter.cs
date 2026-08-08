@@ -9,9 +9,18 @@ public class NetworkPacketWriter : INetworkPacketWriter
 {
     private readonly ArrayBufferWriter<byte> _packet = new();
 
+    private const int _maxStringByteLength = short.MaxValue;
+
     public void WriteString(string data)
     {
         var count = Encoding.UTF8.GetByteCount(data);
+
+        if (count > _maxStringByteLength)
+        {
+            throw new InvalidOperationException(
+                $"String of {count} byte(s) exceeds the {_maxStringByteLength}-byte packet string limit.");
+        }
+
         WriteShort((short) count);
 
         var span = _packet.GetSpan(count);
