@@ -103,6 +103,25 @@ public class NetworkListener(
         }
     }
 
+    internal bool IsAllowedOrigin(string? origin)
+    {
+        var allowed = _options.AllowedOrigins;
+
+        if (string.IsNullOrWhiteSpace(allowed))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(origin))
+        {
+            return false;
+        }
+
+        return allowed
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase));
+    }
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var builder = WebApplication.CreateBuilder();
@@ -144,6 +163,15 @@ public class NetworkListener(
             if (!ctx.WebSockets.IsWebSocketRequest)
             {
                 ctx.Response.StatusCode = 400;
+                return;
+            }
+
+            if (!IsAllowedOrigin(ctx.Request.Headers.Origin.ToString()))
+            {
+                logger.LogWarning("Rejected connection with disallowed Origin '{Origin}'",
+                    ctx.Request.Headers.Origin.ToString());
+
+                ctx.Response.StatusCode = 403;
                 return;
             }
 

@@ -30,6 +30,7 @@ namespace Ada.Networking.Packets.Serialization
         {
             return propertyCache.GetOrAdd(type, static t => t.GetProperties()
                 .Where(p => p.DeclaringType != typeof(AbstractPacketWriter))
+                .OrderBy(p => p.MetadataToken)
                 .ToArray());
         }
 
