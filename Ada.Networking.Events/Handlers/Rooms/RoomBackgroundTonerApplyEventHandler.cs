@@ -11,7 +11,7 @@ namespace Ada.Networking.Events.Handlers.Rooms;
 [PacketId(EventHandlerId.RoomBackgroundTonerApply)]
 public class RoomBackgroundTonerApplyEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
     public required int Hue { get; init; } 
@@ -38,10 +38,17 @@ public class RoomBackgroundTonerApplyEventHandler(
         
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(client.RoomUser.Room, roomFurnitureItem, metaData);
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+            await dbContext.PlayerFurnitureItems
+                .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+        };
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

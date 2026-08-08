@@ -10,7 +10,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 [PacketId(EventHandlerId.RoomItemUpdateObjectData)]
 public class RoomItemUpdateObjectDataEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
     public required Dictionary<string, string> ObjectData { get; init; }
@@ -38,10 +38,17 @@ public class RoomItemUpdateObjectDataEventHandler(
         var metaData = string.Join(";", ObjectData.Select(x => $"{x.Key}={x.Value}"));
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(client.RoomUser.Room, roomFurnitureItem, metaData);
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+            await dbContext.PlayerFurnitureItems
+                .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+        };
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -19,7 +19,7 @@ public class RoomGiveUserRightsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
     IPlayerRepository playerRepository,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IDefersPersistence
 {
     public int PlayerId { get; init; }
     
@@ -78,8 +78,15 @@ public class RoomGiveUserRightsEventHandler(
         
         var entity = mapper.Map<RoomPlayerRight>(roomPlayerRight);
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.RoomPlayerRights.Add(entity);
-        await dbContext.SaveChangesAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+            dbContext.RoomPlayerRights.Add(entity);
+            await dbContext.SaveChangesAsync();
+        };
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }
