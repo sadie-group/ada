@@ -33,12 +33,12 @@ public class PetMoveEventHandler(IRoomRepository roomRepository) : INetworkPacke
             return;
         }
 
-        if (X >= room.TileMap.SizeX || Y >= room.TileMap.SizeY || room.TileMap.TileExistenceMap[Y, X] == 0)
+        var point = new Point(X, Y);
+
+        if (!room.TileMap.TileExists(point))
         {
             return;
         }
-
-        var point = new Point(X, Y);
 
         room.TileMap.UnitMap[roomPet.Point].Remove(roomPet);
         room.TileMap.AddUnitToMap(point, roomPet);

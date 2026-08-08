@@ -8,6 +8,7 @@ using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Db.Models.Players;
 using Ada.Networking.Writers.Rooms.Furniture;
@@ -49,7 +50,7 @@ public partial class PetPackageNameEventHandler(
             return;
         }
 
-        if (!ValidNameRegex().IsMatch(Name))
+        if (Name.Length > PetHelpers.MaximumNameLength || !ValidNameRegex().IsMatch(Name))
         {
             await client.WriteToStreamAsync(new PetPackageNameValidationWriter
             {

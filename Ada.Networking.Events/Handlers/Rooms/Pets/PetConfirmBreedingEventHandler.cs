@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
@@ -16,7 +18,7 @@ using Ada.Networking.Writers.Rooms.Pets.Breeding;
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetConfirmBreeding)]
-public class PetConfirmBreedingEventHandler(
+public partial class PetConfirmBreedingEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
     IMapper mapper) : INetworkPacketEventHandler
@@ -42,6 +44,20 @@ public class PetConfirmBreedingEventHandler(
 
         if (!room.PetRepository.TryGetById(PetOneId, out var petOne) || petOne == null ||
             !room.PetRepository.TryGetById(PetTwoId, out var petTwo) || petTwo == null)
+        {
+            return;
+        }
+
+        var playerId = roomUser.Player.Player.Id;
+
+        var eligible = IsBreedableBy(petOne, playerId) && IsBreedableBy(petTwo, playerId);
+
+        if (!eligible)
+        {
+            return;
+        }
+
+        if (Name.Length > PetHelpers.MaximumNameLength || !ValidNameRegex().IsMatch(Name))
         {
             return;
         }
@@ -85,4 +101,11 @@ public class PetConfirmBreedingEventHandler(
             Pet = mapper.Map<PlayerPetDto>(offspring),
         });
     }
+
+    private static bool IsBreedableBy(IRoomPet pet, long playerId)
+        => pet.Pet is { GrowthStage: >= 7, IsDead: false } &&
+           (pet.Pet.PlayerId == playerId || pet.Pet.PubliclyBreedable);
+
+    [GeneratedRegex("^[a-zA-Z0-9]+$")]
+    private static partial Regex ValidNameRegex();
 }
