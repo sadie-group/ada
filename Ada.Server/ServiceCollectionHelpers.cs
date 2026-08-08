@@ -98,10 +98,37 @@ public static class ServiceCollectionHelpers
                 continue;
             }
 
-            var assembly = Assembly.LoadFile(Path.GetFullPath(path));
+            var fullPath = Path.GetFullPath(path);
+            var actualHash = ComputeSha256(fullPath);
+            var expectedHash = config.GetValue<string>($"PluginHashes:{fileName}");
+
+            if (string.IsNullOrWhiteSpace(expectedHash))
+            {
+                Log.Warning(
+                    "Plugin '{Plugin}' is not pinned. It replaces server behaviour and nothing verifies " +
+                    "it has not been swapped. Add PluginHashes:{Plugin} = {Hash} to pin this build.",
+                    fileName, fileName, actualHash);
+            }
+            else if (!string.Equals(expectedHash.Trim(), actualHash, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Error(
+                    "Refusing to load plugin '{Plugin}': expected SHA-256 {Expected} but the file on disk " +
+                    "is {Actual}. Either the plugin was rebuilt and the pin needs updating, or it was replaced.",
+                    fileName, expectedHash.Trim(), actualHash);
+
+                continue;
+            }
+
+            var assembly = Assembly.LoadFile(fullPath);
             var version = assembly.GetName().Version;
 
             Console.WriteLine($"Loaded plugin: {Path.GetFileNameWithoutExtension(path)} {version}");
         }
+    }
+
+    private static string ComputeSha256(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
     }
 }
