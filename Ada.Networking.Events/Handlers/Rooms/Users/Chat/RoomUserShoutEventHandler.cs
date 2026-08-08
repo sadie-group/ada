@@ -20,7 +20,7 @@ public class RoomUserShoutEventHandler(
     IRoomHelperService roomHelperService,
     IWordFilterService wordFilterService,
     IRoomFloodProtectionService floodProtectionService)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public required string Message { get; init; }
     public int Bubble { get; init; }

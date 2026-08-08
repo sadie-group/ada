@@ -7,7 +7,7 @@ using Ada.Core.Shared.Attributes;
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserSit)]
-public class RoomUserSitEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserSitEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public Task HandleAsync(INetworkClient client)
     {

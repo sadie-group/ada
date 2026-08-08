@@ -7,7 +7,7 @@ using Ada.Networking.Writers.Rooms.Users;
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserDance)]
-public class RoomUserDanceEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserDanceEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int DanceId { get; init; }
     

@@ -7,7 +7,7 @@ using Ada.Core.Shared.Attributes;
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserSign)]
-public class RoomUserSignEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserSignEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int SignId { get; init; }
     

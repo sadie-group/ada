@@ -8,7 +8,7 @@ using Ada.Networking.Writers.Rooms.Users;
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserAction)]
-public class RoomUserActionEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserActionEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int Action { get; init; }
     
