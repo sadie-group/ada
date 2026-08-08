@@ -1,17 +1,16 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.Interfaces.Game.Pets;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
-using Ada.Db;
 using Ada.Networking.Writers.Rooms.Pets;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetRemoveSaddle)]
 public class PetRemoveSaddleEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IPlayerPetPersistence petPersistence,
     IRoomRepository roomRepository) : INetworkPacketEventHandler
 {
     public required int Id { get; init; }
@@ -38,11 +37,7 @@ public class PetRemoveSaddleEventHandler(
         pet.HasSaddle = false;
         roomPet.RiderId = null;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        await dbContext.PlayerPets
-            .Where(x => x.Id == pet.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HasSaddle, false));
+        await petPersistence.SaveSaddleAsync(pet);
 
         await room.BroadcastDataAsync(new RoomPetHorseFigureWriter
         {

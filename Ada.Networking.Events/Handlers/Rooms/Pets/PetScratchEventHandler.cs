@@ -1,17 +1,16 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.Interfaces.Game.Pets;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
-using Ada.Db;
 using Ada.Networking.Writers.Rooms.Pets;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetScratch)]
 public class PetScratchEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IPlayerPetPersistence petPersistence,
     IRoomRepository roomRepository) : INetworkPacketEventHandler
 {
     private const int _scratchExperience = 10;
@@ -45,15 +44,7 @@ public class PetScratchEventHandler(
             pet.Level++;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        await dbContext.PlayerPets
-            .Where(x => x.Id == pet.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Respect, pet.Respect)
-                .SetProperty(x => x.Happiness, pet.Happiness)
-                .SetProperty(x => x.Experience, pet.Experience)
-                .SetProperty(x => x.Level, pet.Level));
+        await petPersistence.SaveScratchAsync(pet);
 
         await room.BroadcastDataAsync(new RoomPetRespectWriter
         {
