@@ -1,5 +1,6 @@
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Game.Players.Options;
 using AutoMapper;
@@ -12,16 +13,18 @@ public class PlayerLoaderService(IDbContextFactory<AdaDbContext> dbContextFactor
     IOptions<PlayerOptions> playerOptions,
     IMapper mapper) : IPlayerLoaderService
 {
-    public async Task<PlayerSsoTokenDto?> GetTokenAsync(string token, int delayMs)
+    public async Task<PlayerSsoTokenDto?> GetTokenAsync(string token)
     {
-        var expires = DateTime.Now
-            .Subtract(TimeSpan.FromMilliseconds(delayMs));
+        var digest = SsoTokenHasher.Hash(token);
+        var acceptRaw = !playerOptions.Value.RequireHashedSsoTokens;
+        var grace = TimeSpan.FromSeconds(Math.Clamp(playerOptions.Value.SsoGraceSeconds, 0, 60));
+        var expires = DateTime.Now.Subtract(grace);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         var entity = await dbContext.PlayerSsoToken
             .FirstOrDefaultAsync(x =>
-                x.Token == token &&
+                (x.Token == digest || (acceptRaw && x.Token == token)) &&
                 x.ExpiresAt >= expires &&
                 x.UsedAt == null);
 

@@ -34,12 +34,12 @@ public class PlayerSendDirectMessageEventHandler(
             return;
         }
 
-        if ((DateTime.Now - client.Player.State.LastDirectMessage).TotalMilliseconds < CooldownIntervals.PlayerDirectMessage)
+        if ((DateTime.UtcNow - client.Player.State.LastDirectMessage).TotalMilliseconds < CooldownIntervals.PlayerDirectMessage)
         {
             return;
         }
         
-        client.Player.State.LastDirectMessage = DateTime.Now;
+        client.Player.State.LastDirectMessage = DateTime.UtcNow;
 
         var playerId = PlayerId;
         var message = Message;

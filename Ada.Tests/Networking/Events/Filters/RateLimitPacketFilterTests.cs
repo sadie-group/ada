@@ -1,3 +1,4 @@
+using System.Net;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Networking.Events.Filters;
@@ -8,10 +9,16 @@ namespace Ada.Tests.Networking.Events.Filters;
 [TestFixture]
 public class RateLimitPacketFilterTests
 {
+    private static int _nextAddress;
+
     private static INetworkClient CreateClient()
     {
+        var octet = Interlocked.Increment(ref _nextAddress) % 250 + 1;
+
         var client = new Mock<INetworkClient>();
         client.SetupGet(c => c.Guid).Returns(Guid.NewGuid());
+        client.SetupGet(c => c.IpAddress).Returns(IPAddress.Parse($"10.0.0.{octet}"));
+
         return client.Object;
     }
 
@@ -26,7 +33,7 @@ public class RateLimitPacketFilterTests
 
         var blocked = false;
 
-        for (var i = 0; i < 500; i++)
+        for (var i = 0; i < 1000; i++)
         {
             if (!Allow(filter, client))
             {
@@ -39,13 +46,13 @@ public class RateLimitPacketFilterTests
     }
 
     [Test]
-    public void Allow_DifferentClients_AreLimitedIndependently()
+    public void Allow_DifferentAddresses_AreLimitedIndependently()
     {
         var filter = new RateLimitPacketFilter(NullLogger<RateLimitPacketFilter>.Instance);
         var first = CreateClient();
         var second = CreateClient();
 
-        for (var i = 0; i < 500; i++)
+        for (var i = 0; i < 1000; i++)
         {
             Allow(filter, first);
         }

@@ -7,7 +7,7 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
     private readonly bool _allowDiag;
     private readonly Grid<PathFinderNode> _grid;
     private readonly int[,] _visitedGeneration;
-    private readonly PathFinderNode[] _heap;
+    private PathFinderNode[] _heap;
     private int _count;
     private int _generation;
 
@@ -21,9 +21,6 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
         _heap = new PathFinderNode[height * width];
         _generation = 1;
 
-        // Node positions stay correct across searches because OpenNode always
-        // writes a node at its own position; stale G/H values are guarded by
-        // the visited-generation check, so Reset never needs to rewrite the grid.
         for (var r = 0; r < height; r++)
         {
             for (var c = 0; c < width; c++)
@@ -124,10 +121,19 @@ internal class PathFinderGraph : IModelAGraph<PathFinderNode>
         return _visitedGeneration[pos.Row, pos.Column] == _generation;
     }
 
+    public bool IsStale(PathFinderNode n) =>
+        _visitedGeneration[n.Position.Row, n.Position.Column] == _generation &&
+        _grid[n.Position.Row, n.Position.Column].F < n.F;
+
     public void OpenNode(PathFinderNode n)
     {
         _visitedGeneration[n.Position.Row, n.Position.Column] = _generation;
         _grid[n.Position.Row, n.Position.Column] = n;
+
+        if (_count == _heap.Length)
+        {
+            Array.Resize(ref _heap, Math.Max(4, _heap.Length * 2));
+        }
 
         var i = _count++;
         _heap[i] = n;
