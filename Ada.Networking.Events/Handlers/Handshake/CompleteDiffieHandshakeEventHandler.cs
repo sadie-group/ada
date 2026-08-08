@@ -21,7 +21,11 @@ public class CompleteDiffieHandshakeEventHandler(
             return;
         }
 
-        var sharedKey = habboEncryption.CalculateDiffieHellmanSharedKey(PublicKey);
+        if (!habboEncryption.TryCalculateDiffieHellmanSharedKey(PublicKey, out var sharedKey))
+        {
+            await client.DisposeAsync();
+            return;
+        }
 
         await client.WriteToStreamAsync(new CompleteDiffieHandshakeWriter
         {

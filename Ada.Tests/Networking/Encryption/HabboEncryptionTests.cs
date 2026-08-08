@@ -19,7 +19,7 @@ public class HabboEncryptionTests
             D = RsaCryptoTests.D,
         });
 
-        return new HabboEncryption(options);
+        return new HabboEncryption(options, NullLogger<HabboEncryption>.Instance);
     }
 
     private static string DecryptAsClient(string hex)
@@ -64,11 +64,19 @@ public class HabboEncryptionTests
         var encryptedClientPublic = RsaClientEmulator
             .EncryptWithPublicKey(Encoding.Default.GetBytes(clientPublic.ToString()), RsaCryptoTests.E, RsaCryptoTests.N)
             .ToHexString();
-        var serverShared = encryption.CalculateDiffieHellmanSharedKey(encryptedClientPublic);
+        Assert.That(encryption.TryCalculateDiffieHellmanSharedKey(encryptedClientPublic, out var serverShared), Is.True);
 
         var expected = clientShared.ToByteArray();
         Array.Reverse(expected);
 
         Assert.That(serverShared, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void TryCalculateDiffieHellmanSharedKey_Garbage_ReturnsFalse()
+    {
+        var encryption = CreateEncryption();
+
+        Assert.That(encryption.TryCalculateDiffieHellmanSharedKey("00ff00ff", out _), Is.False);
     }
 }
