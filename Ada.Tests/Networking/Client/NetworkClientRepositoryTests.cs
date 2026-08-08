@@ -14,7 +14,7 @@ public class NetworkClientRepositoryTests
         => new(
             NullLogger<NetworkClientRepository>.Instance,
             Mock.Of<IPlayerRepository>(),
-            TestDbFactory.CreateDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
             Mock.Of<IMapper>(),
             []);

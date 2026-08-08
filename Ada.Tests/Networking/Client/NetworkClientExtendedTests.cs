@@ -297,14 +297,6 @@ public class NetworkClientRepositoryExtendedTests
         return client;
     }
 
-    private static IDbContextFactory<AdaDbContext> MakeThrowingDbFactory()
-    {
-        var factory = new Mock<IDbContextFactory<AdaDbContext>>();
-        factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException());
-        return factory.Object;
-    }
-
     [Test]
     public async Task TryRemoveAsync_PlayerRemovalFails_NotifiesListenersAndReturnsFalse()
     {
@@ -330,7 +322,7 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
             Mock.Of<IMapper>(),
             [goodListener.Object, badListener.Object]);
@@ -366,7 +358,7 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
             Mock.Of<IMapper>(),
             []);
@@ -398,7 +390,7 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
             Mock.Of<IMapper>(),
             []);
@@ -431,7 +423,7 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
             Mock.Of<IMapper>(),
             []);
