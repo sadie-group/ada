@@ -21,7 +21,14 @@ namespace Ada.Game
             _cts = new CancellationTokenSource();
             _thread = new Thread(() =>
             {
-                GameLoopAsync(_cts.Token).GetAwaiter().GetResult();
+                try
+                {
+                    GameLoopAsync(_cts.Token).GetAwaiter().GetResult();
+                }
+                catch (Exception e)
+                {
+                    logger.LogCritical(e, "Game loop terminated");
+                }
             })
             {
                 IsBackground = true
@@ -61,11 +68,15 @@ namespace Ada.Game
                     await Parallel.ForEachAsync(
                         roomRepository.GetAllRooms(),
                         parallelOptions,
-                        async (room, _) => await TickRoomAsync(room, fullTick));
+                        (room, _) => TickRoomSafelyAsync(room, fullTick));
                 }
                 catch (OperationCanceledException)
                 {
                     break;
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Game loop tick failed");
                 }
 
                 sw.Stop();
@@ -87,6 +98,22 @@ namespace Ada.Game
                         break;
                     }
                 }
+            }
+        }
+
+        private async ValueTask TickRoomSafelyAsync(IRoomLogic room, bool fullTick)
+        {
+            try
+            {
+                await TickRoomAsync(room, fullTick);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Tick failed for room {RoomId}", room.Room.Id);
             }
         }
 
