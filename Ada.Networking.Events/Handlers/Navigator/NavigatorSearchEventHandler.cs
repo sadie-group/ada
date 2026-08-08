@@ -76,12 +76,20 @@ public class NavigatorSearchEventHandler(
         var ownerUsernames = ownerIds.ToDictionary(id => id,
             id => resolved.GetValueOrDefault(id, "Unknown User"));
 
+        var liveUserCounts = categoryRoomMap.Values
+            .SelectMany(x => x)
+            .Select(x => x.Id)
+            .Distinct()
+            .Select(id => (Id: id, Room: roomRepository.TryGetRoomById(id)))
+            .Where(x => x.Room != null)
+            .ToDictionary(x => x.Id, x => x.Room!.UserRepository.Count);
+
         var searchResultPagesWriter = new NavigatorSearchResultPagesWriter
         {
             TabName = TabName,
             SearchQuery = SearchQuery,
             CategoryRoomMap = categoryRoomMap,
-            RoomRepository = roomRepository,
+            LiveUserCounts = liveUserCounts,
             OwnerUsernames = ownerUsernames
         };
 

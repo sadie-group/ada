@@ -5,7 +5,7 @@ using Ada.API.Interfaces.Game.Rooms.Unit;
 
 namespace Ada.API.Interfaces.Game.Rooms.Mapping;
 
-public interface IRoomTileMap : IRoomTileMapHelperService
+public interface IRoomTileMap
 {
     int SizeX { get; }
     int SizeY { get; }
