@@ -1,18 +1,17 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.Interfaces.Game.Pets;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
-using Ada.Db;
 using Ada.Networking.Writers.Rooms.Users;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetCompostMonsterPlant)]
 public class PetCompostMonsterPlantEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IPlayerPetPersistence petPersistence,
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int Id { get; init; }
 
@@ -44,15 +43,15 @@ public class PetCompostMonsterPlantEventHandler(
 
         room.TileMap.UnitMap[roomPet.Point].Remove(roomPet);
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        await dbContext.PlayerPets
-            .Where(x => x.Id == pet.Id)
-            .ExecuteDeleteAsync();
+        _persist = () => petPersistence.DeleteAsync(pet.Id);
 
         await room.BroadcastDataAsync(new RoomUserLeftWriter
         {
             UserId = pet.Id.ToString(),
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }
