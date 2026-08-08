@@ -1,5 +1,6 @@
 using Ada.API.DTOs;
 using Ada.API.DTOs.Groups;
+using Ada.API.Interfaces.Game.Groups;
 using Ada.Core.Enums.Game.Groups;
 
 namespace Ada.Networking.Events.Handlers.Groups;
@@ -32,6 +33,23 @@ public static class ForumPermissions
         }
 
         return membership.Rank == GroupMemberRank.Admin ? 2 : 1;
+    }
+
+    public static async Task<bool> CanReadForumAsync(
+        IGroupRepository groupRepository,
+        int guildId,
+        long playerId)
+    {
+        var group = await groupRepository.GetByIdAsync(guildId);
+
+        if (group == null)
+        {
+            return false;
+        }
+
+        var membership = await groupRepository.GetMembershipAsync(guildId, playerId);
+
+        return Evaluate(group, LevelFor(group, membership, playerId)).CanRead;
     }
 
     public static ForumPermissionResult Evaluate(GroupDto group, int level)

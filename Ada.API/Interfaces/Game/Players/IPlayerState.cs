@@ -11,6 +11,7 @@ public interface IPlayerState
     string? CatalogMode { get; set; }
     PlayerFurnitureItemPlacementDataDto? Teleport { get; set; }
     int CurrentRoomId { get; set; }
+    int PendingDoorbellRoomId { get; set; }
     PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
     IPlayerUnseenItems UnseenItems { get; }
 }

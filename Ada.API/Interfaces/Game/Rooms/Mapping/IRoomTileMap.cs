@@ -19,4 +19,5 @@ public interface IRoomTileMap : IRoomTileMapHelperService
     void AddUnitToMap(Point point, IRoomUnitData unit);
     bool UsersAtPoint(Point point);
     bool TileExists(Point point);
+    Point? FirstExistingTile();
 }

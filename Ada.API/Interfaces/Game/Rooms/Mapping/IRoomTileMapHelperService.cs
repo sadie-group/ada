@@ -24,6 +24,10 @@ public interface IRoomTileMapHelperService
         IEnumerable<PlayerFurnitureItemPlacementDataDto> furnitureItems,
         PlayerFurnitureItemPlacementDataDto? excludeItem = null);
 
+    IReadOnlyList<PlayerFurnitureItemPlacementDataDto> GetItemsOnTilePosition(int x,
+        int y,
+        IEnumerable<PlayerFurnitureItemPlacementDataDto> items);
+
     List<PlayerFurnitureItemPlacementDataDto> GetItemsForPosition(int x,
         int y,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> items);

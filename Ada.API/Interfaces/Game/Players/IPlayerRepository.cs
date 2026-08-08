@@ -9,6 +9,7 @@ public interface IPlayerRepository
     IPlayerLogic? GetPlayerLogicByUsername(string username);
     Task<PlayerDto?> GetPlayerByIdAsync(long id);
     Task<PlayerDto?> GetPlayerByUsernameAsync(string username);
+    Task<int> GetAcceptedFriendshipCountAsync(long playerId);
     ICollection<IPlayerLogic> GetAll();
     bool TryAddPlayer(IPlayerLogic player);
     Task<bool> TryRemovePlayerAsync(long playerId);
