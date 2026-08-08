@@ -9,6 +9,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Db.Models.Constants;
+using Ada.Db.Models.Rooms;
 using Ada.Networking.Writers.Rooms;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,6 +46,12 @@ public class RoomSettingsSaveEventHandler(
     public int ChatDistance { get; init; }
     public int ChatProtection { get; init; }
 
+    private const int _maxUsersCeiling = 250;
+    private const int _maxTagCount = 20;
+    private const int _maxPasswordLength = 64;
+    private const int _maxThickness = 2;
+    private const int _minThickness = -2;
+
     public async Task HandleAsync(INetworkClient client)
     {
         var room = roomRepository.TryGetRoomById(RoomId);
@@ -58,7 +65,25 @@ public class RoomSettingsSaveEventHandler(
         {
             return;
         }
-        
+
+        if (!Enum.IsDefined(typeof(RoomAccessType), AccessType) ||
+            !Enum.IsDefined(typeof(RoomTradeOption), TradeOption) ||
+            MaxUsers < 1 || MaxUsers > _maxUsersCeiling ||
+            Tags.Count > _maxTagCount ||
+            Password.Length > _maxPasswordLength ||
+            WallSize < _minThickness || WallSize > _maxThickness ||
+            FloorSize < _minThickness || FloorSize > _maxThickness)
+        {
+            await client.WriteToStreamAsync(new RoomSettingsErrorWriter
+            {
+                RoomId = room.Room.Id,
+                ErrorCode = (int) RoomSettingsError.NameRequired,
+                Message = ""
+            });
+
+            return;
+        }
+
         if (Tags.Any(x => x.Length > roomConstants.MaxTagLength))
         {
             await client.WriteToStreamAsync(new RoomSettingsErrorWriter
@@ -69,7 +94,7 @@ public class RoomSettingsSaveEventHandler(
             });
             return;
         }
-        
+
         if (string.IsNullOrEmpty(Name))
         {
             await client.WriteToStreamAsync(new RoomSettingsErrorWriter
@@ -130,13 +155,15 @@ public class RoomSettingsSaveEventHandler(
                 ErrorCode = (int) RoomSettingsError.PasswordRequired,
                 Message = ""
             });
-            
+
             return;
         }
 
         room.Room.Name = nameResult.FilteredText.Truncate(roomConstants.MaxNameLength);
         room.Room.Description = descriptionResult.FilteredText.Truncate(roomConstants.MaxDescriptionLength);
         room.Room.MaxUsersAllowed = MaxUsers;
+
+        room.Room.Tags.Clear();
 
         foreach (var tagResult in tagResults)
         {
@@ -145,7 +172,7 @@ public class RoomSettingsSaveEventHandler(
                 Name = tagResult.FilteredText
             });
         }
-        
+
         var settings = room.Room.Settings;
         var chatSettings = room.Room.ChatSettings;
 
@@ -190,12 +217,36 @@ public class RoomSettingsSaveEventHandler(
                 .SetProperty(x => x.ChatSpeed, chatSettings.ChatSpeed)
                 .SetProperty(x => x.ChatDistance, chatSettings.ChatDistance)
                 .SetProperty(x => x.ChatProtection, chatSettings.ChatProtection));
+
+        await SaveTagsAsync(dbContext, room.Room.Id, room.Room.Tags.Select(x => x.Name).ToList());
+
         await BroadcastUpdatesAsync(room);
-        
+
         await client.WriteToStreamAsync(new RoomSettingsSavedWriter
         {
             RoomId = RoomId
         });
+    }
+
+    private static async Task SaveTagsAsync(AdaDbContext dbContext, int roomId, IEnumerable<string> tagNames)
+    {
+        var entity = await dbContext.Rooms
+            .Include(x => x.Tags)
+            .FirstOrDefaultAsync(x => x.Id == roomId);
+
+        if (entity == null)
+        {
+            return;
+        }
+
+        entity.Tags.Clear();
+
+        foreach (var name in tagNames)
+        {
+            entity.Tags.Add(new RoomTag { Name = name });
+        }
+
+        await dbContext.SaveChangesAsync();
     }
 
     private void UpdateSettings(RoomSettingsDto settings)
