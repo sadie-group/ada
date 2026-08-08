@@ -10,9 +10,6 @@ public class RoomPollAnswerEventHandler : INetworkPacketEventHandler
     public required int PollId { get; set; }
     public required int QuestionId { get; set; }
     public required List<string> Answers { get; set; }
-    
-    public Task HandleAsync(INetworkClient client)
-    {
-        throw new NotImplementedException();
-    }
+
+    public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
 }
