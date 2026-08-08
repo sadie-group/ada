@@ -16,7 +16,7 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
     public TimeSpan PeriodicInterval => TimeSpan.FromSeconds(10);
     public long LastExecutedTicks { get; set; }
 
-    private const int MaxRetainedMessagesPerRoom = 150;
+    private const int _maxRetainedMessagesPerRoom = 150;
 
     public async Task ExecuteAsync()
     {
@@ -24,19 +24,14 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
 
         foreach (var room in roomRepository.GetAllRooms())
         {
-            var chatMessages = room
-                .Room.ChatMessages
-                .Where(x => x.Id == 0)
-                .ToList();
-
-            TrimPersistedMessages(room.Room.ChatMessages);
-
-            if (chatMessages.Count == 0)
+            await room.RunLockedAsync(() =>
             {
-                continue;
-            }
+                messagesToSave.AddRange(room.Room.ChatMessages.Where(x => x.Id == 0));
 
-            messagesToSave.AddRange(chatMessages);
+                TrimPersistedMessages(room.Room.ChatMessages);
+
+                return Task.CompletedTask;
+            });
         }
 
         if (messagesToSave.Count == 0)
@@ -56,7 +51,7 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
 
     private static void TrimPersistedMessages(ICollection<RoomChatMessageDto> chatMessages)
     {
-        var persistedOverflow = chatMessages.Count(x => x.Id != 0) - MaxRetainedMessagesPerRoom;
+        var persistedOverflow = chatMessages.Count(x => x.Id != 0) - _maxRetainedMessagesPerRoom;
 
         if (persistedOverflow <= 0)
         {
