@@ -19,7 +19,7 @@ public static class PacketBroadcast
         }
     }
 
-    public static Task SendAsync(AbstractPacketWriter writer, IEnumerable<INetworkObject> recipients)
+    public static void SendAndFlush(AbstractPacketWriter writer, IEnumerable<INetworkObject> recipients)
     {
         IPacketCodec? firstCodec = null;
         INetworkPacketWriter? firstPacket = null;
@@ -37,15 +37,13 @@ public static class PacketBroadcast
 
         if (queued == null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         foreach (var recipient in queued)
         {
-            _ = recipient.FlushAsync();
+            recipient.FlushAsync();
         }
-
-        return Task.CompletedTask;
     }
 
     private static INetworkPacketWriter ResolvePacket(

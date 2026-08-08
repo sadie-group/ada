@@ -3,7 +3,6 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Client;
 using Ada.Tests.Common;
 using AutoMapper;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -47,10 +46,7 @@ public class NetworkClientRepositoryTests
     }
 
     [Test]
-    public void TryGetClientByGuid_UnknownGuid_ReturnsNull()
-    {
-        Assert.That(CreateRepository().TryGetClientByGuid(Guid.NewGuid()), Is.Null);
-    }
+    public void TryGetClientByGuid_UnknownGuid_ReturnsNull() => Assert.That(CreateRepository().TryGetClientByGuid(Guid.NewGuid()), Is.Null);
 
     [Test]
     public async Task TryRemoveAsync_KnownClientWithoutPlayer_RemovesAndDisposes()
@@ -71,10 +67,7 @@ public class NetworkClientRepositoryTests
     }
 
     [Test]
-    public async Task TryRemoveAsync_UnknownGuid_ReturnsFalse()
-    {
-        Assert.That(await CreateRepository().TryRemoveAsync(Guid.NewGuid()), Is.False);
-    }
+    public async Task TryRemoveAsync_UnknownGuid_ReturnsFalse() => Assert.That(await CreateRepository().TryRemoveAsync(Guid.NewGuid()), Is.False);
 
     [Test]
     public async Task TryRemoveAsync_SameClientTwice_SecondCallReturnsFalse()

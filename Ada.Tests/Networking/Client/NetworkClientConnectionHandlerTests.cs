@@ -4,7 +4,6 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -87,6 +86,7 @@ public class NetworkClientConnectionHandlerTests
         var disposal = new Mock<IClientDisposalService>();
 
         var handler = new NetworkClientConnectionHandler(
+            NullLogger<NetworkClientConnectionHandler>.Instance,
             repository.Object,
             reader.Object,
             new PacketDispatcher(packetHandler.Object, NullLogger<PacketDispatcher>.Instance),
@@ -112,6 +112,7 @@ public class NetworkClientConnectionHandlerTests
         var disposal = new Mock<IClientDisposalService>();
 
         var handler = new NetworkClientConnectionHandler(
+            NullLogger<NetworkClientConnectionHandler>.Instance,
             repository.Object,
             reader.Object,
             new PacketDispatcher(Mock.Of<INetworkPacketHandler>(), NullLogger<PacketDispatcher>.Instance),

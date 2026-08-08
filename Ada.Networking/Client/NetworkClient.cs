@@ -7,14 +7,17 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
+using Ada.Networking.Options;
 using Ada.Networking.Packets.Serialization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Client;
 
 public class NetworkClient(
     ILogger<NetworkClient> logger,
     IPacketCodecRegistry codecRegistry,
+    IOptions<NetworkOptions> networkOptions,
     IPAddress ipAddress,
     Guid guid,
     WebSocket webSocket)
@@ -28,11 +31,19 @@ public class NetworkClient(
     public IPlayerLogic? Player { get; set; }
     public IRoomUser? RoomUser { get; set; }
     public string? MachineId { get; set; }
-    public bool EncryptionEnabled { get; private set; }
+
+    public bool EncryptionEnabled => networkOptions.Value.UseWss;
 
     public void EnableEncryption(byte[] sharedKey)
     {
-        EncryptionEnabled = true;
+        if (!networkOptions.Value.UseWss)
+        {
+            logger.LogWarning(
+                "Client {Guid} completed the Diffie-Hellman handshake but the listener is plaintext; " +
+                "the negotiated key is not applied to the stream and traffic is readable on the wire. " +
+                "Set Network:UseWss to secure it.",
+                Guid);
+        }
     }
 
     public DateTime LastPing { get; set; } = DateTime.Now;
@@ -135,9 +146,13 @@ public class NetworkClient(
                 _outboxBytes = 0;
             }
 
+            WebSocket.Abort();
+
             logger.LogError(e.ToString());
         }
     }
+
+    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(30);
 
     private async Task SendBatchAsync(INetworkPacketWriter[] batch)
     {
@@ -146,19 +161,21 @@ public class NetworkClient(
             return;
         }
 
+        using var cts = new CancellationTokenSource(SendTimeout);
+
         if (batch.Length == 1)
         {
             await WebSocket.SendAsync(
                 batch[0].GetAllBytes(),
                 WebSocketMessageType.Binary,
                 true,
-                CancellationToken.None);
+                cts.Token);
 
             return;
         }
 
         var totalLength = 0;
-        
+
         foreach (var writer in batch)
         {
             totalLength += writer.GetAllBytes().Length;
@@ -181,7 +198,7 @@ public class NetworkClient(
                 payload.AsMemory(0, totalLength),
                 WebSocketMessageType.Binary,
                 true,
-                CancellationToken.None);
+                cts.Token);
         }
         finally
         {

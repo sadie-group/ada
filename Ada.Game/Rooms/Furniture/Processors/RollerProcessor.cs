@@ -48,7 +48,7 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
             var rollerPosition = new Point(x, y);
 
             var nextRoller = tileMapHelperService
-                .GetItemsForPosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
+                .GetItemsOnTilePosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
                 .FirstOrDefault(fi => fi.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Roller);
 
             var nextHeight = nextRoller?.PlayerFurnitureItem.FurnitureItem?.StackHeight ?? 0;
@@ -84,7 +84,7 @@ public class RollerProcessor(IRoomTileMapHelperService tileMapHelperService,
             }
 
             var nonRollerItemsOnRoller = tileMapHelperService
-                .GetItemsForPosition(roller.PositionX, roller.PositionY, room.Room.FurnitureItems)
+                .GetItemsOnTilePosition(roller.PositionX, roller.PositionY, room.Room.FurnitureItems)
                 .Where(i => !itemIdsProcessed.Contains(i.Id) &&
                             i.PlayerFurnitureItem.FurnitureItem.InteractionType !=
                             FurnitureItemInteractionType.Roller)

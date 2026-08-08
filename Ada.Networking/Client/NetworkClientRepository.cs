@@ -22,7 +22,7 @@ public class NetworkClientRepository(
     private readonly ConcurrentDictionary<Guid, byte> _removalGuard = new();
 
     public ICollection<INetworkClient> Clients => _clients.Values;
-    
+
     public void AddClient(Guid guid, INetworkClient client)
     {
         _clients[guid] = client;
@@ -79,10 +79,11 @@ public class NetworkClientRepository(
 
                     await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-                    await dbContext.Database
-                        .ExecuteSqlRawAsync(
-                            "UPDATE player_data SET is_online = 0 WHERE player_id = @p0 LIMIT 1",
-                            player.Player.Id);
+                    var playerId = player.Player.Id;
+
+                    await dbContext.PlayerData
+                        .Where(x => x.PlayerId == playerId)
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsOnline, false));
                 }
             }
             catch (DbUpdateConcurrencyException)
@@ -105,14 +106,14 @@ public class NetworkClientRepository(
             .Where(x => (DateTime.Now - x.LastPong).TotalSeconds >= 60)
             .Take(20)
             .ToList();
-        
+
         if (idleClients.Count < 1)
         {
             return;
         }
-        
+
         logger.LogWarning($"Disconnecting {idleClients.Count} idle players");
-        
+
         var throttler = new SemaphoreSlim(10);
 
         var tasks = idleClients.Select(async client =>

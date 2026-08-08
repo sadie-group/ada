@@ -13,6 +13,7 @@ public class PlayerState : IPlayerState
     public string? CatalogMode { get; set; }
     public PlayerFurnitureItemPlacementDataDto? Teleport { get; set; }
     public int CurrentRoomId { get; set; }
+    public int PendingDoorbellRoomId { get; set; }
     public PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
     public IPlayerUnseenItems UnseenItems { get; } = new PlayerUnseenItems();
 }
