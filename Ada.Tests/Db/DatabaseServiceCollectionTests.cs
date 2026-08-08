@@ -4,7 +4,6 @@ using Ada.Db.Models.Catalog.FrontPage;
 using Ada.Db.Models.Catalog.Pages;
 using Ada.Db.Models.Constants;
 using Ada.Tests.Common;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
