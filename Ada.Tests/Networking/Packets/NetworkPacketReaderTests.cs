@@ -60,7 +60,10 @@ public class NetworkPacketReaderTests
         var reader = new NetworkPacketReader(new byte[] { 0, 0, 0, 1, 0, 0, 0, 2, 1 });
 
         Assert.That(reader.ReadInt(), Is.EqualTo(1));
-        Assert.That(reader.ReadInt(), Is.EqualTo(2));
-        Assert.That(reader.ReadBool(), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader.ReadInt(), Is.EqualTo(2));
+            Assert.That(reader.ReadBool(), Is.True);
+        });
     }
 }

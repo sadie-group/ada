@@ -27,9 +27,11 @@ public class PacketCodecRegistryTests
     public void TryGet_IsCaseInsensitive()
     {
         var registry = new PacketCodecRegistry([CodecFor("R63B")], "R63B");
-
-        Assert.That(registry.TryGet("r63b", out var codec), Is.True);
-        Assert.That(codec!.Revision, Is.EqualTo("R63B"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(registry.TryGet("r63b", out var codec), Is.True);
+            Assert.That(codec!.Revision, Is.EqualTo("R63B"));
+        });
     }
 
     [Test]

@@ -42,9 +42,11 @@ public class NetworkPacketReaderBoundsTests
     public void Remaining_TracksConsumedBytes()
     {
         var reader = new NetworkPacketReader(new byte[] { 0x00, 0x00, 0x00, 0x07, 0x01 });
-
-        Assert.That(reader.Remaining, Is.EqualTo(5));
-        Assert.That(reader.ReadInt(), Is.EqualTo(7));
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader.Remaining, Is.EqualTo(5));
+            Assert.That(reader.ReadInt(), Is.EqualTo(7));
+        });
         Assert.That(reader.Remaining, Is.EqualTo(1));
     }
 
@@ -52,9 +54,11 @@ public class NetworkPacketReaderBoundsTests
     public void ReadString_ExactlyFitsBody_Succeeds()
     {
         var reader = new NetworkPacketReader(new byte[] { 0x00, 0x02, 0x68, 0x69 });
-
-        Assert.That(reader.ReadString(), Is.EqualTo("hi"));
-        Assert.That(reader.Remaining, Is.Zero);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader.ReadString(), Is.EqualTo("hi"));
+            Assert.That(reader.Remaining, Is.Zero);
+        });
     }
 
     private class ListHandler

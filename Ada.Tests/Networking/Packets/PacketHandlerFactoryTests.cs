@@ -65,8 +65,10 @@ public class PacketHandlerFactoryTests
     public void Create_TypeNotSeenBefore_BuildsFactoryOnDemand()
     {
         var factory = CreateFactory();
-
-        Assert.That(factory.Create(typeof(HandlerWithDependency)), Is.InstanceOf<HandlerWithDependency>());
-        Assert.That(factory.Create(typeof(ParameterlessHandler)), Is.InstanceOf<ParameterlessHandler>());
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Create(typeof(HandlerWithDependency)), Is.InstanceOf<HandlerWithDependency>());
+            Assert.That(factory.Create(typeof(ParameterlessHandler)), Is.InstanceOf<ParameterlessHandler>());
+        });
     }
 }
