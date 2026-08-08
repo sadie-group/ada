@@ -93,5 +93,11 @@ public static class ServerServiceCollection
             .AddClasses(c => c.AssignableTo<INetworkPacketEventFilter>())
             .As<INetworkPacketEventFilter>()
             .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<IPreDispatchPacketFilter>())
+            .As<IPreDispatchPacketFilter>()
+            .WithSingletonLifetime());
     }
 }
