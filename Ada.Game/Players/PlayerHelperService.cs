@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
@@ -6,6 +7,7 @@ using Ada.API.Interfaces.Game.Players.Packets.Writers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Game.Players.Packets.Writers;
 using Ada.Networking.Events.Dtos;
+using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Friendships;
 using Ada.Networking.Writers.Players.Inventory;
@@ -84,7 +86,7 @@ public class PlayerHelperService : IPlayerHelperService
         };
     }
 
-    public async Task UpdatePlayerStatusForFriendsAsync(
+    public Task UpdatePlayerStatusForFriendsAsync(
         IPlayerLogic player, 
         IEnumerable<PlayerFriendshipDto> friendships, 
         bool isOnline, 
@@ -109,19 +111,32 @@ public class PlayerHelperService : IPlayerHelperService
             Relation = (int) PlayerRelationshipType.None
         };
         
+        var recipients = new List<INetworkObject>();
+
         foreach (var friend in friendships)
         {
-            var targetId = friend.OriginPlayerId == player.Player.Id ? 
-                friend.TargetPlayerId : 
+            var targetId = friend.OriginPlayerId == player.Player.Id ?
+                friend.TargetPlayerId :
                 friend.OriginPlayerId;
 
             var targetPlayer = playerRepository.GetPlayerLogicById(targetId);
 
-            if (targetPlayer != null)
+            if (targetPlayer?.NetworkObject != null)
             {
-                await SendFriendUpdatesToPlayerAsync(targetPlayer, [update]);
+                recipients.Add(targetPlayer.NetworkObject);
             }
         }
+
+        if (recipients.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        PacketBroadcast.SendAndFlush(
+            new PlayerUpdateFriendWriter { Updates = [update] },
+            recipients);
+
+        return Task.CompletedTask;
     }
 
     public async Task SendUnseenInventoryItemsAsync(IPlayerLogic player, List<PlayerFurnitureItemDto> items)
