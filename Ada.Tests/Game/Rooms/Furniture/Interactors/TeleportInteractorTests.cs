@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Concurrent;
 using System.Drawing;
 using Ada.API;

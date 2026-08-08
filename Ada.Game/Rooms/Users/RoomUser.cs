@@ -71,25 +71,22 @@ public class RoomUser(
         }
     }
 
-    public void ApplyFlatCtrlStatus()
-    {
-        AddStatus(RoomUserStatus.FlatCtrl, ((int)controllerLevel).ToString());
-    }
+    public void ApplyFlatCtrlStatus() => AddStatus(RoomUserStatus.FlatCtrl, ((int)controllerLevel).ToString());
 
     public async Task RunPeriodicCheckAsync()
     {
         if (HandItemId != 0 && (DateTime.Now - HandItemSet).TotalSeconds >= 30)
         {
             HandItemId = 0;
-        
+
             await room.BroadcastDataAsync(new RoomUserHandItemWriter
             {
                 UserId = Player.Player.Id,
                 ItemId = 0
             });
         }
-        
-        if (StatusMap.ContainsKey(RoomUserStatus.Sign) && 
+
+        if (StatusMap.ContainsKey(RoomUserStatus.Sign) &&
             (DateTime.Now - SignSet).TotalSeconds >= 5)
         {
             RemoveStatuses(RoomUserStatus.Sign);
@@ -100,7 +97,7 @@ public class RoomUser(
         await ProcessGenericChecksAsync();
         await UpdateIdleStatusAsync();
         await UpdateEffectAsync();
-        
+
         if (Point != position)
         {
             await CheckForStepTriggersAsync(position, FurnitureItemInteractionType.WiredTriggerUserWalksOffFurniture);
@@ -112,7 +109,7 @@ public class RoomUser(
 
     private async Task RunStepInteractorsAsync(Point point, bool walkedOn)
     {
-        foreach (var item in tileMapHelperService.GetItemsForPosition(point.X, point.Y, room.Room.FurnitureItems))
+        foreach (var item in tileMapHelperService.GetItemsOnTilePosition(point.X, point.Y, room.Room.FurnitureItems))
         {
             var interactionType = item.PlayerFurnitureItem.FurnitureItem.InteractionType;
 
@@ -141,11 +138,16 @@ public class RoomUser(
             }
         }
     }
-    
+
     private async Task CheckForStepTriggersAsync(Point point, string interactionType)
     {
+        if (!wiredService.HasTriggers(interactionType, room.Room.FurnitureItems))
+        {
+            return;
+        }
+
         var itemIdsOnPoint = tileMapHelperService
-            .GetItemsForPosition(point.X, point.Y, room.Room.FurnitureItems)
+            .GetItemsOnTilePosition(point.X, point.Y, room.Room.FurnitureItems)
             .Select(x => x.Id)
             .ToList();
 
@@ -153,19 +155,19 @@ public class RoomUser(
         {
             return;
         }
-        
+
         var triggers = wiredService.GetTriggers(
             interactionType,
             room.Room.FurnitureItems,
             "",
             itemIdsOnPoint);
-        
+
         foreach (var trigger in triggers)
         {
             await wiredService.RunTriggerForRoomAsync(room, trigger, this);
         }
     }
-    
+
     private async Task UpdateEffectAsync()
     {
         var effectPointToCheck = IsWalking && NextPoint != null ?
@@ -197,15 +199,15 @@ public class RoomUser(
                 UserId = Player.Player.Id,
                 IsIdle = IsIdle
             };
-            
+
             await room.BroadcastDataAsync(writer);
         }
     }
 
     public bool HasRights()
     {
-        return ControllerLevel is 
-            RoomControllerLevel.Owner or 
+        return ControllerLevel is
+            RoomControllerLevel.Owner or
             RoomControllerLevel.Rights;
     }
 
@@ -225,7 +227,7 @@ public class RoomUser(
     public async Task SetEffectAsync(RoomUserEffect effect)
     {
         ActiveEffectId = (int) effect;
-        
+
         var writer = new RoomUserEffectWriter
         {
             UserId = (int) Player.Player.Id,
@@ -235,7 +237,7 @@ public class RoomUser(
 
         await Room.BroadcastDataAsync(writer);
     }
-    
+
     public async ValueTask DisposeAsync()
     {
         if (room.TileMap.UnitMap.TryGetValue(Point, out var value))

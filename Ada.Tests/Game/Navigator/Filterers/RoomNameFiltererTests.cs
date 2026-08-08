@@ -1,6 +1,5 @@
 using Ada.Db;
 using Ada.Game.Navigator.Filterers;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Tests.Game.Navigator.Filterers;
 

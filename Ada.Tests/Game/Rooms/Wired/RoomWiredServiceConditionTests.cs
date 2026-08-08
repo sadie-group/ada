@@ -1,5 +1,4 @@
 using Ada.Game.Rooms.Mapping;
-using Microsoft.Extensions.Logging.Abstractions;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
@@ -84,14 +83,8 @@ public class RoomWiredServiceConditionTests : MockHelpers
     }
 
     [Test]
-    public async Task RunTrigger_ConditionFails_EffectDoesNotRun()
-    {
-        Assert.That(await RunStackAsync(conditionSatisfied: false), Is.EqualTo(0));
-    }
+    public async Task RunTrigger_ConditionFails_EffectDoesNotRun() => Assert.That(await RunStackAsync(conditionSatisfied: false), Is.EqualTo(0));
 
     [Test]
-    public async Task RunTrigger_ConditionPasses_EffectRuns()
-    {
-        Assert.That(await RunStackAsync(conditionSatisfied: true), Is.EqualTo(1));
-    }
+    public async Task RunTrigger_ConditionPasses_EffectRuns() => Assert.That(await RunStackAsync(conditionSatisfied: true), Is.EqualTo(1));
 }

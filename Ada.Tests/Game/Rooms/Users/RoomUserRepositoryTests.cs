@@ -438,8 +438,6 @@ public class RoomUserRepositoryTests
             It.Is<AbstractPacketWriter>(w => w is RoomBotStatusWriter),
             It.IsAny<IReadOnlyCollection<long>?>()), Times.Once);
 
-        // NeedsUpdate marks movement and posture, which the status payload carries; the full bot
-        // data payload goes out on room entry and on placement instead.
         room.Verify(x => x.BroadcastDataAsync(
             It.Is<AbstractPacketWriter>(w => w is RoomBotDataWriter),
             It.IsAny<IReadOnlyCollection<long>?>()), Times.Never);
