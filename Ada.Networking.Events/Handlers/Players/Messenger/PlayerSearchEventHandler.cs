@@ -20,12 +20,12 @@ public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INet
             return;
         }
 
-        if ((DateTime.Now - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
+        if ((DateTime.UtcNow - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
         {
             return;
         }
         
-        client.Player.State.LastPlayerSearch = DateTime.Now;
+        client.Player.State.LastPlayerSearch = DateTime.UtcNow;
 
         if (string.IsNullOrEmpty(SearchQuery))
         {

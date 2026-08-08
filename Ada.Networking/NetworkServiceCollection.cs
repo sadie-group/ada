@@ -18,6 +18,8 @@ public static class NetworkServiceCollection
         serviceCollection.AddSingleton<INetworkClientRepository, NetworkClientRepository>();
         serviceCollection.AddSingleton<IClientDisposalService, ClientDisposalService>();
         serviceCollection.AddSingleton<IPlayerSessionResumeService, PlayerSessionResumeService>();
+        serviceCollection.AddSingleton<ILoginAttemptThrottle, LoginAttemptThrottle>();
+        serviceCollection.AddSingleton<IRoomAccessThrottle, RoomAccessThrottle>();
 
         serviceCollection.AddTransient<INetworkClient, NetworkClient>();
 

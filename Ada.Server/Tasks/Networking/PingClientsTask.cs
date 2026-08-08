@@ -14,7 +14,7 @@ public class PingClientsTask(INetworkClientRepository networkClientRepository) :
         foreach (var client in networkClientRepository.Clients)
         {
             await client.WriteToStreamAsync(new PlayerPingWriter());
-            client.LastPing = DateTime.Now;
+            client.LastPing = DateTime.UtcNow;
         }
     }
 }

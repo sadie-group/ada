@@ -26,19 +26,19 @@ public class PlayerCurrencyRewardsTask(
     public long LastExecutedTicks { get; set; }
 
     private readonly Dictionary<int, DateTime> _lastProcessed = rewards
-        .ToDictionary(k => k.Id, _ => DateTime.Now);
+        .ToDictionary(k => k.Id, _ => DateTime.UtcNow);
 
     public async Task ExecuteAsync()
     {
         var rewardsToCheck = serverSettings.FairCurrencyRewards
             ? rewards
             : rewards
-                .Where(r => (DateTime.Now - _lastProcessed[r.Id]).TotalSeconds >= r.IntervalSeconds);
+                .Where(r => (DateTime.UtcNow - _lastProcessed[r.Id]).TotalSeconds >= r.IntervalSeconds);
 
         foreach (var reward in rewardsToCheck)
         {
             await CheckRewardsForPlayersAsync(reward);
-            _lastProcessed[reward.Id] = DateTime.Now;
+            _lastProcessed[reward.Id] = DateTime.UtcNow;
         }
     }
 
@@ -89,7 +89,7 @@ public class PlayerCurrencyRewardsTask(
         var entityLogs = mapper.Map<List<ServerPeriodicCurrencyRewardLog>>(logs);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.ServerPeriodicCurrencyRewardLogs.AddRangeAsync(entityLogs);
+        dbContext.ServerPeriodicCurrencyRewardLogs.AddRange(entityLogs);
         await dbContext.SaveChangesAsync();
 
         await PersistBalancesAsync(dbContext, reward, rewardedPlayerIds);
@@ -137,20 +137,28 @@ public class PlayerCurrencyRewardsTask(
 
     private static void TrimRewardLogs(ICollection<ServerPeriodicCurrencyRewardLogDto> logs, string? type)
     {
-        var overflow = logs.Count(x => x.Type == type) - _retainedLogsPerType;
+        List<ServerPeriodicCurrencyRewardLogDto>? ofType = null;
+
+        foreach (var log in logs)
+        {
+            if (log.Type == type)
+            {
+                (ofType ??= []).Add(log);
+            }
+        }
+
+        var overflow = (ofType?.Count ?? 0) - _retainedLogsPerType;
 
         if (overflow <= 0)
         {
             return;
         }
 
-        foreach (var stale in logs
-                     .Where(x => x.Type == type)
-                     .OrderBy(x => x.CreatedAt)
-                     .Take(overflow)
-                     .ToList())
+        ofType!.Sort(static (a, b) => a.CreatedAt.CompareTo(b.CreatedAt));
+
+        for (var i = 0; i < overflow; i++)
         {
-            logs.Remove(stale);
+            logs.Remove(ofType[i]);
         }
     }
 

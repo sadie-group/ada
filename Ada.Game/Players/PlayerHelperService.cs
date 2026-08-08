@@ -82,7 +82,7 @@ public class PlayerHelperService : IPlayerHelperService
             PastClubDays = 0,
             PastVipDays = 0,
             MinutesTillExpire = minutesLeft,
-            MinutesSinceModified = (int)(DateTime.Now - lastMod).TotalMinutes
+            MinutesSinceModified = (int)(DateTime.UtcNow - lastMod).TotalMinutes
         };
     }
 
