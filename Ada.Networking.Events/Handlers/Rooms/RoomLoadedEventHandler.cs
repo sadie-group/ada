@@ -78,25 +78,17 @@ public class RoomLoadedEventHandler(
 
         var isOwner = room.Room.OwnerId == player.Player.Id;
 
-        if (room.UserRepository.Count >= room.Room.MaxUsersAllowed && !isOwner)
+        if (!RoomHelpers.CanEnterRoom(room, player, out var enterError))
         {
             await client.WriteToStreamAsync(new RoomEnterErrorWriter
             {
-                ErrorCode = (int) RoomEnterError.NoCapacity
+                ErrorCode = (int) enterError
             });
-            
-            return;
-        }
 
-        if (!isOwner &&
-            room.Room.PlayerBans.Any(x => x.PlayerId == player.Player.Id && x.ExpiresAt > DateTimeOffset.Now))
-        {
-            await client.WriteToStreamAsync(new RoomEnterErrorWriter
+            if (enterError == RoomEnterError.Banned)
             {
-                ErrorCode = (int) RoomEnterError.Banned
-            });
-
-            await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+                await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+            }
 
             return;
         }
@@ -161,13 +153,14 @@ public class RoomLoadedEventHandler(
                     return false;
                 }
                 
+                player.State.PendingDoorbellRoomId = room.Room.Id;
+
                 foreach (var user in usersWithRights)
                 {
                     await user.NetworkObject.WriteToStreamAsync(new RoomDoorbellWriter
                     {
                         Username = player.Player.Username
                     });
-                    
                 }
 
                 await client.WriteToStreamAsync(new RoomDoorbellWriter

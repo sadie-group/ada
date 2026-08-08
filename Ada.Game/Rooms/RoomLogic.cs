@@ -1,4 +1,5 @@
-﻿using Ada.API;
+﻿using System.Collections.Immutable;
+using Ada.API;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
@@ -29,18 +30,21 @@ public class RoomLogic(
     public IRoomPetRepository PetRepository { get; } = petRepository;
 
     private readonly SemaphoreSlim _writerLock = new(1, 1);
-    private static readonly AsyncLocal<RoomLogic?> CurrentHolder = new();
+    private static readonly AsyncLocal<ImmutableHashSet<RoomLogic>?> HeldRooms = new();
 
     public async Task RunLockedAsync(Func<Task> action)
     {
-        if (CurrentHolder.Value == this)
+        var held = HeldRooms.Value ?? ImmutableHashSet<RoomLogic>.Empty;
+
+        if (held.Contains(this))
         {
             await action();
             return;
         }
 
         await _writerLock.WaitAsync();
-        CurrentHolder.Value = this;
+
+        HeldRooms.Value = held.Add(this);
 
         try
         {
@@ -48,7 +52,7 @@ public class RoomLogic(
         }
         finally
         {
-            CurrentHolder.Value = null;
+            HeldRooms.Value = held;
             _writerLock.Release();
         }
     }
@@ -56,7 +60,7 @@ public class RoomLogic(
     public async ValueTask DisposeAsync()
     {
     }
-    
+
     public Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)
     {
         var users = UserRepository.GetAll();
@@ -82,6 +86,8 @@ public class RoomLogic(
             recipients.Add(user.NetworkObject);
         }
 
-        return PacketBroadcast.SendAsync(writer, recipients);
+        PacketBroadcast.SendAndFlush(writer, recipients);
+
+        return Task.CompletedTask;
     }
 }

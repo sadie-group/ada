@@ -56,38 +56,66 @@ public static class RoomHelpers
         var roomLogic = mapper.Map<IRoomLogic>(roomDto);
 
         roomLogic.UserRepository.SetRoom(roomLogic);
-        roomRepository.AddRoom(roomLogic);
+        roomLogic = roomRepository.GetOrAddRoom(roomLogic);
 
         return roomLogic;
+    }
+
+    public static bool CanEnterRoom(IRoomLogic room, IPlayerLogic player, out RoomEnterError error)
+    {
+        error = default;
+
+        if (room.Room.OwnerId == player.Player.Id)
+        {
+            return true;
+        }
+
+        if (room.UserRepository.Count >= room.Room.MaxUsersAllowed)
+        {
+            error = RoomEnterError.NoCapacity;
+            return false;
+        }
+
+        if (room.Room.PlayerBans.Any(x =>
+                x.PlayerId == player.Player.Id && x.ExpiresAt > DateTimeOffset.Now))
+        {
+            error = RoomEnterError.Banned;
+            return false;
+        }
+
+        return true;
     }
 
     private static RoomControllerLevel GetControllerLevelForUser(IRoomLogic room, IPlayerLogic player)
     {
         var controllerLevel = RoomControllerLevel.None;
 
+        void Grant(RoomControllerLevel level)
+        {
+            if (level > controllerLevel)
+            {
+                controllerLevel = level;
+            }
+        }
+
         if (room.Room.PlayerRights.FirstOrDefault(x => x.PlayerId == player.Player.Id) != null)
         {
-            controllerLevel = RoomControllerLevel.Rights;
+            Grant(RoomControllerLevel.Rights);
         }
 
         if (room.Room.OwnerId == player.Player.Id)
         {
-            controllerLevel = RoomControllerLevel.Owner;
+            Grant(RoomControllerLevel.Owner);
         }
 
         if (player.HasPermission(PlayerPermissionName.AnyRoomRights))
         {
-            controllerLevel = RoomControllerLevel.Owner;
+            Grant(RoomControllerLevel.Owner);
         }
 
         if (player.HasPermission(PlayerPermissionName.Moderator))
         {
-            controllerLevel = RoomControllerLevel.Moderator;
-        }
-
-        if (player.HasPermission(PlayerPermissionName.AnyRoomRights))
-        {
-            controllerLevel = RoomControllerLevel.Rights;
+            Grant(RoomControllerLevel.Moderator);
         }
 
         return controllerLevel;

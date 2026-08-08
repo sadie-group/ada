@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Players;
+using Ada.Networking.Writers.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,11 +40,19 @@ public class RoomLikeEventHandler(IRoomRepository roomRepository,
         };
         
         client.Player.Player.RoomLikes.Add(roomLike);
-        
+
+        room.Room.PlayerLikes.Add(roomLike);
+
         var roomLikeEntity = mapper.Map<PlayerRoomLike>(roomLike);
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         dbContext.PlayerRoomLikes.Add(roomLikeEntity);
         await dbContext.SaveChangesAsync();
+
+        await room.BroadcastDataAsync(new RoomScoreWriter
+        {
+            Score = room.Room.PlayerLikes.Count,
+            CanUpvote = false
+        });
     }
 }
