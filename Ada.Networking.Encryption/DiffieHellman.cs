@@ -8,6 +8,9 @@ public class DiffieHellman
     private const int _dhPrimesBitSize = 256;
     private const int _dhKeyBitSize = 256;
 
+    public static int MaxBitSizeForRsaKey(int rsaKeyBytes)
+        => (int) ((rsaKeyBytes - 11) / Math.Log10(2));
+
     public BigInteger Prime { get; private set; }
     public BigInteger Generator { get; private set; }
 
