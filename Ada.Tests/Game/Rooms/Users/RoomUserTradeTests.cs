@@ -2,18 +2,18 @@ using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
-using Ada.Networking.Events;
+using Ada.Game.Rooms.Users;
 using Ada.Tests.Common;
 using Ada.Tests.Game.Catalog;
 using Moq;
 
-namespace Ada.Tests.Networking.Events;
+namespace Ada.Tests.Game.Rooms.Users;
 
 [TestFixture]
 public class RoomUserTradeTests
 {
-    private const long UserOneId = 1;
-    private const long UserTwoId = 2;
+    private const long _userOneId = 1;
+    private const long _userTwoId = 2;
 
     private SqliteTestDbFactory _dbFactory = null!;
     private Mock<IPlayerHelperService> _playerHelperService = null!;
@@ -31,7 +31,7 @@ public class RoomUserTradeTests
     [Test]
     public async Task SwapItems_PlacedItem_IsRejected()
     {
-        var item = ItemDto(10, UserOneId);
+        var item = ItemDto(10, _userOneId);
         item.PlacementData = new PlayerFurnitureItemPlacementDataDto { PlayerFurnitureItem = item };
 
         var trade = MakeTrade([item], oneInventory: [item], twoInventory: []);
@@ -43,7 +43,7 @@ public class RoomUserTradeTests
     [Test]
     public async Task SwapItems_ItemNoLongerInTheOfferersInventory_IsRejected()
     {
-        var item = ItemDto(10, UserOneId);
+        var item = ItemDto(10, _userOneId);
         var trade = MakeTrade([item], oneInventory: [], twoInventory: []);
 
         Assert.That(await trade.SwapItemsAsync(), Is.False);
@@ -61,7 +61,7 @@ public class RoomUserTradeTests
     [Test]
     public async Task SwapItems_RejectedSwap_NotifiesNobody()
     {
-        var item = ItemDto(10, UserOneId);
+        var item = ItemDto(10, _userOneId);
         var trade = MakeTrade([item], oneInventory: [], twoInventory: []);
 
         await trade.SwapItemsAsync();
@@ -91,8 +91,8 @@ public class RoomUserTradeTests
         {
             Users =
             [
-                MakeRoomUser(MakePlayerLogic(UserOneId, oneInventory)),
-                MakeRoomUser(MakePlayerLogic(UserTwoId, twoInventory))
+                MakeRoomUser(MakePlayerLogic(_userOneId, oneInventory)),
+                MakeRoomUser(MakePlayerLogic(_userTwoId, twoInventory))
             ],
             Items = offered
         };

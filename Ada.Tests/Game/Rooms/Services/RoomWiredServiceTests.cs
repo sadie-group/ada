@@ -18,7 +18,7 @@ public class RoomWiredServiceTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var furnitureItemHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var furnitureItemHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var wiredService = new RoomWiredService(dbFactory, furnitureItemHelperService, new RoomTileMapHelperService(), [], [],
             new WiredTimerService(),
             NullLogger<RoomWiredService>.Instance);
