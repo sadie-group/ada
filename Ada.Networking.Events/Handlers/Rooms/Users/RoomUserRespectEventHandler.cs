@@ -5,8 +5,9 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Db.Models.Players;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ public class RoomUserRespectEventHandler(
     IRoomRepository roomRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IDefersPersistence
 {
     public int TargetId { get; init; }
     
@@ -55,13 +56,19 @@ public class RoomUserRespectEventHandler(
 
         var respectEntity = mapper.Map<PlayerRespect>(respect);
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.PlayerRespects.Add(respectEntity);
-        await dbContext.SaveChangesAsync();
+        var respectPoints = playerData.RespectPoints;
+        var respectPlayerId = playerData.PlayerId;
 
-        await dbContext.PlayerData
-            .Where(x => x.PlayerId == playerData.PlayerId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.RespectPoints, playerData.RespectPoints));
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+            dbContext.PlayerRespects.Add(respectEntity);
+            await dbContext.SaveChangesAsync();
+
+            await dbContext.PlayerData
+                .Where(x => x.PlayerId == respectPlayerId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.RespectPoints, respectPoints));
+        };
 
         await room.BroadcastDataAsync(new RoomUserRespectWriter
         {
@@ -75,4 +82,8 @@ public class RoomUserRespectEventHandler(
             Action = (int) RoomUserAction.ThumbsUp
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

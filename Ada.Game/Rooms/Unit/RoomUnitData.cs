@@ -17,6 +17,10 @@ public class RoomUnitData(
     IRoomTileMapHelperService tileMapHelperService,
     IRoomPathFinderHelperService pathFinderHelperService) : IRoomUnitData
 {
+    protected IRoomTileMapHelperService TileMapHelperService { get; } = tileMapHelperService;
+
+    protected IRoomPathFinderHelperService PathFinderHelperService { get; } = pathFinderHelperService;
+
     public HDirection DirectionHead { get; set; } = directionHead;
     public HDirection Direction { get; set; } = direction;
     public bool CanWalk { get; set; } = true;
@@ -65,7 +69,7 @@ public class RoomUnitData(
             return;
         }
 
-        var tileItems = tileMapHelperService.GetItemsOnTilePosition(Point.X, Point.Y, room.Room.FurnitureItems);
+        var tileItems = TileMapHelperService.GetItemsOnTilePosition(Point.X, Point.Y, room.Room.FurnitureItems);
 
         if (tileItems.Count == 0)
         {
@@ -120,7 +124,7 @@ public class RoomUnitData(
 
     private void CalculatePath()
     {
-        PathPoints = pathFinderHelperService.BuildPathForWalk(
+        PathPoints = PathFinderHelperService.BuildPathForWalk(
             room,
             Point,
             PathGoal,
@@ -228,7 +232,7 @@ public class RoomUnitData(
             return;
         }
 
-        var topItemNextStep = tileMapHelperService
+        var topItemNextStep = TileMapHelperService
             .GetItemsOnTilePosition(nextStep.X, nextStep.Y, room.Room.FurnitureItems)
             .MaxBy(x => x.PositionZ);
 
@@ -243,7 +247,7 @@ public class RoomUnitData(
 
         AddStatus(RoomUserStatus.Move, $"{nextStep.X},{nextStep.Y},{zHeightNextStep}");
 
-        var newDirection = pathFinderHelperService.GetDirectionForNextStep(Point, nextStep);
+        var newDirection = PathFinderHelperService.GetDirectionForNextStep(Point, nextStep);
 
         Direction = newDirection;
         DirectionHead = newDirection;

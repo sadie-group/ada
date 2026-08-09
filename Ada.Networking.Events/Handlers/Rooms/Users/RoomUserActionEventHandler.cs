@@ -3,6 +3,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
