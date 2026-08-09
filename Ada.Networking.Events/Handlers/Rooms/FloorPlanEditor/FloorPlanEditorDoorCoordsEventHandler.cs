@@ -2,6 +2,7 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.FloorPlanEditor;
 
 namespace Ada.Networking.Events.Handlers.Rooms.FloorPlanEditor;

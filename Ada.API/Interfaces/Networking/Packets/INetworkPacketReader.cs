@@ -7,6 +7,5 @@ public interface INetworkPacketReader
     int ReadInt();
     short ReadShort();
     bool ReadBool();
-    long ReadLong();
     byte ReadByte();
 }

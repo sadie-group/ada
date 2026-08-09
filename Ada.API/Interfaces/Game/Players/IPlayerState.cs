@@ -5,6 +5,7 @@ namespace Ada.API.Interfaces.Game.Players;
 public interface IPlayerState
 {
     DateTime LastPlayerSearch { get; set; }
+    DateTime LastNavigatorSearch { get; set; }
     DateTime LastDirectMessage { get; set; }
     DateTime LastCatalogPurchase { get; set; }
     DateTime LastSubscriptionModification { get; set; }

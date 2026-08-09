@@ -207,4 +207,8 @@ public static class EventHandlerId
     public const short ModerationDefaultSanction = 1681;
     public const short CallForHelpFromIm = 3969;
     public const short GetCfhTopics = 3277;
+
+    public const short RoomUserKick = 1320;
+    public const short RoomUserBan = 1477;
+    public const short RoomUserUnban = 992;
 }

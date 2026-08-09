@@ -14,9 +14,6 @@ public sealed class NetworkPacketReader(ReadOnlyMemory<byte> body) : INetworkPac
     public int ReadInt()
         => BinaryPrimitives.ReadInt32BigEndian(Read(4));
 
-    public long ReadLong()
-        => BinaryPrimitives.ReadInt64BigEndian(Read(8));
-
     public short ReadShort()
         => BinaryPrimitives.ReadInt16BigEndian(Read(2));
 

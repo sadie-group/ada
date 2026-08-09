@@ -42,7 +42,18 @@ public class NetworkPacketWriter : INetworkPacketWriter
         _packet.Advance(sizeof(int));
     }
 
-    public void WriteLong(long data) => WriteInteger((int) data);
+    public void WriteLong(long data)
+    {
+        if (data is > int.MaxValue or < int.MinValue)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(data),
+                data,
+                "The client protocol carries this value as a 32-bit integer; writing it would silently truncate.");
+        }
+
+        WriteInteger((int) data);
+    }
 
     public void WriteBool(bool boolean)
     {

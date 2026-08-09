@@ -10,10 +10,19 @@ public static class EventSerializer
 {
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritableProperties = new();
 
+    public static Func<object, INetworkPacketReader, bool>? FastFill { get; set; }
+
     public static void SetPropertiesForEventHandler(object handler, INetworkPacketReader packetReader)
     {
+        if (FastFill is { } fastFill && fastFill(handler, packetReader))
+        {
+            return;
+        }
+
         FillProperties(handler, packetReader);
     }
+
+    public static int ReadCount(INetworkPacketReader packetReader) => ReadElementCount(packetReader, "list");
 
     private static PropertyInfo[] GetWritableProperties(Type type)
         => WritableProperties.GetOrAdd(type, t => t
