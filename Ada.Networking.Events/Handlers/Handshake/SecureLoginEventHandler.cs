@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -104,40 +105,8 @@ public class SecureLoginEventHandler(
 
         var ipAddress = client.IpAddress.ToString();
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        if (await dbContext.BannedIpAddresses.AnyAsync(x => x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        if (!await PassesBanChecksAsync(client, player, ipAddress))
         {
-            logger.LogWarning("Disconnected banned IP {@Ip}", ipAddress);
-            await client.DisposeAsync();
-            return;
-        }
-
-        var machineId = client.MachineId;
-
-        if (string.IsNullOrEmpty(machineId))
-        {
-            if (config.GetValue("PlayerOptions:RequireMachineId", true))
-            {
-                logger.LogWarning(
-                    "Rejected login for {Username} from {Ip}: no machine fingerprint was sent, so the " +
-                    "machine ban list cannot be enforced. Set PlayerOptions:RequireMachineId to false " +
-                    "if this client does not send the UniqueID packet.",
-                    player.Username, ipAddress);
-
-                await client.DisposeAsync();
-                return;
-            }
-
-            logger.LogWarning(
-                "Login for {Username} from {Ip} has no machine fingerprint; machine bans are not " +
-                "being enforced for this session.",
-                player.Username, ipAddress);
-        }
-        else if (await dbContext.BannedMachines.AnyAsync(x =>
-                     x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
-        {
-            logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
             await client.DisposeAsync();
             return;
         }
@@ -163,7 +132,7 @@ public class SecureLoginEventHandler(
 
         if (!resumed && !playerRepository.TryAddPlayer(playerLogic))
         {
-            logger.LogError($"Player {playerLogic.Player.Username} could not be registered");
+            logger.LogError("Player {Username} could not be registered", playerLogic.Player.Username);
             await client.DisposeAsync();
             return;
         }
@@ -183,6 +152,59 @@ public class SecureLoginEventHandler(
         await playerLoginPacketService.SendAsync(client, playerLogic);
         await PlayerSubscriptionPacketHelper.SendAsync(playerLogic);
 
+        await SendPostLoginNotificationsAsync(playerLogic, player);
+
+        await NotifySessionListenersAsync(client, playerLogic, resumed);
+
+        logger.LogInformation("Player {Username} logged in from {IpAddress} ({ElapsedMs}ms)", playerLogic.Player.Username, ipAddress, Math.Round(sw.Elapsed.TotalMilliseconds));
+    }
+
+    private async Task<bool> PassesBanChecksAsync(INetworkClient client, PlayerDto player, string ipAddress)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        if (await dbContext.BannedIpAddresses.AnyAsync(x =>
+                x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        {
+            logger.LogWarning("Disconnected banned IP {@Ip}", ipAddress);
+            return false;
+        }
+
+        var machineId = client.MachineId;
+
+        if (string.IsNullOrEmpty(machineId))
+        {
+            if (config.GetValue("PlayerOptions:RequireMachineId", true))
+            {
+                logger.LogWarning(
+                    "Rejected login for {Username} from {Ip}: no machine fingerprint was sent, so the " +
+                    "machine ban list cannot be enforced. Set PlayerOptions:RequireMachineId to false " +
+                    "if this client does not send the UniqueID packet.",
+                    player.Username, ipAddress);
+
+                return false;
+            }
+
+            logger.LogWarning(
+                "Login for {Username} from {Ip} has no machine fingerprint; machine bans are not " +
+                "being enforced for this session.",
+                player.Username, ipAddress);
+
+            return true;
+        }
+
+        if (await dbContext.BannedMachines.AnyAsync(x =>
+                x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+        {
+            logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task SendPostLoginNotificationsAsync(IPlayerLogic playerLogic, PlayerDto player)
+    {
         try
         {
             await playerHelperService.SendPlayerFriendListUpdate(playerLogic, playerRepository);
@@ -202,14 +224,9 @@ public class SecureLoginEventHandler(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Post-login notifications failed for {Username}; login stands.", playerLogic.Player.Username);
+            logger.LogError(e, "Post-login notifications failed for {Username}; login stands.",
+                playerLogic.Player.Username);
         }
-
-        client.Player = playerLogic;
-
-        await NotifySessionListenersAsync(client, playerLogic, resumed);
-
-        logger.LogInformation($"Player '{playerLogic.Player.Username}' has logged in from {ipAddress} ({Math.Round(sw.Elapsed.TotalMilliseconds)}ms)");
     }
 
     private async Task NotifySessionListenersAsync(INetworkClient client, IPlayerLogic player, bool resumed)
