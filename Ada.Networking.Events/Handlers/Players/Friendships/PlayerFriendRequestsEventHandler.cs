@@ -3,7 +3,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
-using Ada.Networking.Events.Dtos;
+using Ada.API.DTOs.Players.Friendships;
 using Ada.Networking.Writers.Players.Messenger;
 
 namespace Ada.Networking.Events.Handlers.Players.Friendships;

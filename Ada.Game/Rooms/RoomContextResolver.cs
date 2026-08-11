@@ -2,7 +2,7 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking.Client;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms;
 
 public static class RoomContextResolver
 {

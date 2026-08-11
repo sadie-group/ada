@@ -1,6 +1,6 @@
 using Ada.API.Interfaces.Game.Players.Friendships;
 
-namespace Ada.Networking.Events.Dtos;
+namespace Ada.API.DTOs.Players.Friendships;
 
 public class PlayerFriendshipRequestData : IPlayerFriendshipRequestData
 {

@@ -1,6 +1,7 @@
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
+using Ada.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking;
@@ -14,7 +15,7 @@ using Ada.Db.Models.Constants;
 using Ada.Networking.Writers.Rooms.Users;
 using Ada.Networking.Writers.Rooms.Users.Chat;
 
-namespace Ada.Networking.Events.Application;
+namespace Ada.Game.Rooms.Chat;
 
 public static class RoomChatService
 {

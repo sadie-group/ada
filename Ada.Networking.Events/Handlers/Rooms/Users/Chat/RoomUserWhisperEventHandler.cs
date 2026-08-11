@@ -1,6 +1,6 @@
 using Ada.API.DTOs.Rooms.Chat;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -9,8 +9,9 @@ using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
 using Ada.Db.Models.Constants;
-using Ada.Networking.Writers.Rooms.Users;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users.Chat;
+using Ada.Networking.Writers.Rooms.Users;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 

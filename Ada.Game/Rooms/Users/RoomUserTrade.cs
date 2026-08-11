@@ -8,7 +8,7 @@ using Ada.Networking.Writers.Rooms.Users.Trading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms.Users;
 
 public class RoomUserTrade(
     IPlayerHelperService playerHelperService,

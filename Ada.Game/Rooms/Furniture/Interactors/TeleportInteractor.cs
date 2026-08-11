@@ -7,7 +7,7 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Extensions;
 using Ada.Db;
-using Ada.Networking.Events;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;

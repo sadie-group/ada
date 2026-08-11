@@ -5,7 +5,7 @@ using Ada.Core.Shared.Extensions;
 using Ada.Core.Shared.Helpers;
 using Ada.Db.Models.Constants;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms.Wired;
 
 public static class WiredSettingsHelpers
 {

@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db.Models.Constants;
+using Ada.Game.Rooms.Wired;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
 

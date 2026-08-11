@@ -6,7 +6,7 @@ using Ada.API.Interfaces.Game.Players.Friendships;
 using Ada.API.Interfaces.Game.Players.Packets.Writers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Game.Players.Packets.Writers;
-using Ada.Networking.Events.Dtos;
+using Ada.API.DTOs.Players.Friendships;
 using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Friendships;

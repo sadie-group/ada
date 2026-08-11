@@ -2,10 +2,10 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Rooms;
-using Ada.Networking.Events;
+using Ada.Game.Rooms.Chat.Commands;
 using Moq;
 
-namespace Ada.Tests.Networking.Events;
+namespace Ada.Tests.Game.Rooms.Chat;
 
 [TestFixture]
 public class RoomCommandServiceTests

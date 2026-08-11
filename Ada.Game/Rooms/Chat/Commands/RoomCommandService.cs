@@ -2,7 +2,7 @@ using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Rooms;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms.Chat.Commands;
 
 public static class RoomCommandService
 {
