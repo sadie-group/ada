@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Server.Tasks;
@@ -17,21 +18,36 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
 
     private const int _maxRetainedMessagesPerRoom = 150;
 
+    private readonly ParallelOptions _parallelOptions = new()
+    {
+        MaxDegreeOfParallelism = Environment.ProcessorCount
+    };
+
     public async Task ExecuteAsync()
     {
-        var messagesToSave = new List<RoomChatMessageDto>();
+        var collected = new ConcurrentBag<List<RoomChatMessageDto>>();
 
-        foreach (var room in roomRepository.GetAllRooms())
-        {
-            await room.RunLockedAsync(() =>
+        await Parallel.ForEachAsync(
+            roomRepository.GetAllRooms(),
+            _parallelOptions,
+            async (room, _) =>
             {
-                messagesToSave.AddRange(room.Room.ChatMessages.Where(x => x.Id == 0));
+                await room.RunLockedAsync(() =>
+                {
+                    var pending = room.Room.ChatMessages.Where(x => x.Id == 0).ToList();
 
-                TrimPersistedMessages(room.Room.ChatMessages);
+                    if (pending.Count > 0)
+                    {
+                        collected.Add(pending);
+                    }
 
-                return Task.CompletedTask;
+                    TrimPersistedMessages(room.Room.ChatMessages);
+
+                    return Task.CompletedTask;
+                });
             });
-        }
+
+        var messagesToSave = collected.SelectMany(x => x).ToList();
 
         if (messagesToSave.Count == 0)
         {
