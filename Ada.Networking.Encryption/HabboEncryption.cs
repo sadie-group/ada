@@ -23,6 +23,16 @@ public class HabboEncryption
     {
         _crypto = new RsaCrypto(options.Value.E, options.Value.N, options.Value.D);
 
+        var maxParameterBits = DiffieHellman.MaxBitSizeForRsaKey(_crypto.BlockSize);
+
+        if (maxParameterBits < _diffieHellman.Prime.GetBitLength())
+        {
+            throw new InvalidOperationException(
+                $"Encryption:N is a {_crypto.BlockSize * 8}-bit RSA key, which can only sign " +
+                $"Diffie-Hellman parameters up to {maxParameterBits} bits, but the handshake uses " +
+                $"{_diffieHellman.Prime.GetBitLength()}-bit parameters. Configure a larger RSA key.");
+        }
+
         if (string.Equals(options.Value.N.Trim(), _publishedModulus, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogWarning(

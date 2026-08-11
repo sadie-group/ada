@@ -48,6 +48,44 @@ public class RsaCryptoTests
     }
 
     [Test]
+    public void Encrypt_MessageLongerThanTheKeyCanCarry_ThrowsRatherThanTruncating()
+    {
+        var crypto = new RsaCrypto(E, N, D);
+
+        var tooLong = Encoding.Default.GetBytes(new string('9', 54));
+
+        Assert.Throws<ArgumentException>(() => crypto.Encrypt(tooLong, true));
+    }
+
+    [Test]
+    public void Encrypt_MessageExactlyAtTheLimit_IsAccepted()
+    {
+        var crypto = new RsaCrypto(E, N, D);
+        var atLimit = Encoding.Default.GetBytes(new string('9', 53));
+
+        var roundTripped = Encoding.Default.GetString(
+            RsaClientEmulator.DecryptWithPublicKeyAndUnpadType1(crypto.Encrypt(atLimit, true), E, N));
+
+        Assert.That(roundTripped, Is.EqualTo(new string('9', 53)),
+            "a message that fits must survive the round trip intact");
+    }
+
+    [Test]
+    public void Decrypt_CiphertextWithLeadingZeroPadding_IsAccepted()
+    {
+        var crypto = new RsaCrypto(E, N, D);
+
+        var cipher = RsaClientEmulator.EncryptWithPublicKey(
+            Encoding.Default.GetBytes("round trip"), E, N);
+
+        var widened = new byte[cipher.Length + 1];
+        cipher.CopyTo(widened, 1);
+
+        Assert.That(Encoding.Default.GetString(crypto.Decrypt(widened, true)), Is.EqualTo("round trip"),
+            "a leading zero is an encoding artefact, not extra data");
+    }
+
+    [Test]
     public void Decrypt_InputLongerThanBlockSize_Throws()
     {
         var crypto = CreateCrypto();

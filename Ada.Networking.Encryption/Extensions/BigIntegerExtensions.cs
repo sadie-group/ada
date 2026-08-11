@@ -7,12 +7,9 @@ public static class BigIntegerExtensions
 {
     public static byte[] PerformCalculation(this byte[] src, RsaCalculateDelegate method)
     {
-        Array.Reverse(src);
-        BigInteger data = new(src);
+        var data = new BigInteger(src, isUnsigned: true, isBigEndian: true);
 
-        data = method(data);
-
-        var result = data.ToByteArray();
+        var result = method(data).ToByteArray();
         Array.Reverse(result);
 
         return result;
