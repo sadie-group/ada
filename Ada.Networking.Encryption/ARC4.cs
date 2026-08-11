@@ -11,7 +11,6 @@ public class Arc4
 
     public Arc4(byte[] key)
     {
-        _bytes = new byte[PoolSize];
         Initialize(key);
     }
 
