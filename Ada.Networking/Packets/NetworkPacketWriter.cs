@@ -86,4 +86,12 @@ public class NetworkPacketWriter : INetworkPacketWriter
 
         return _framedBytes = result;
     }
+
+    public int FramedLength => sizeof(int) + _packet.WrittenCount;
+
+    public void WriteFramedTo(Span<byte> destination)
+    {
+        BinaryPrimitives.WriteInt32BigEndian(destination, _packet.WrittenCount);
+        _packet.WrittenSpan.CopyTo(destination[sizeof(int)..]);
+    }
 }

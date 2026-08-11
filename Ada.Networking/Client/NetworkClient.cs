@@ -69,7 +69,7 @@ public class NetworkClient(
                 return;
             }
 
-            var length = writer.GetAllBytes().Length;
+            var length = writer.FramedLength;
 
             if (_outboxBytes + length > MaxOutboxBytes)
             {
@@ -170,11 +170,24 @@ public class NetworkClient(
 
         if (batch.Length == 1)
         {
-            await WebSocket.SendAsync(
-                batch[0].GetAllBytes(),
-                WebSocketMessageType.Binary,
-                true,
-                token);
+            var single = batch[0];
+            var singleLength = single.FramedLength;
+            var singleBuffer = ArrayPool<byte>.Shared.Rent(singleLength);
+
+            try
+            {
+                single.WriteFramedTo(singleBuffer.AsSpan(0, singleLength));
+
+                await WebSocket.SendAsync(
+                    singleBuffer.AsMemory(0, singleLength),
+                    WebSocketMessageType.Binary,
+                    true,
+                    token);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(singleBuffer);
+            }
 
             return;
         }
@@ -183,7 +196,7 @@ public class NetworkClient(
 
         foreach (var writer in batch)
         {
-            totalLength += writer.GetAllBytes().Length;
+            totalLength += writer.FramedLength;
         }
 
         var payload = ArrayPool<byte>.Shared.Rent(totalLength);
@@ -194,9 +207,9 @@ public class NetworkClient(
 
             foreach (var writer in batch)
             {
-                var bytes = writer.GetAllBytes();
-                bytes.CopyTo(payload.AsSpan(offset));
-                offset += bytes.Length;
+                var length = writer.FramedLength;
+                writer.WriteFramedTo(payload.AsSpan(offset, length));
+                offset += length;
             }
 
             await WebSocket.SendAsync(
