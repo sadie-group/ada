@@ -7,7 +7,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
 using Ada.Db.Models.Constants;
-using Ada.Networking.Events.Application;
+using Ada.Game.Rooms.Chat;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 

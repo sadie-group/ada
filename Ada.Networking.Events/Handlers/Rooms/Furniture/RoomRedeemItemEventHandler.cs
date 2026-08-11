@@ -12,9 +12,13 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 
 [PacketId(EventHandlerId.RedeemItem)]
 public class RoomRedeemItemEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 
     public async Task HandleAsync(INetworkClient client)
     {
@@ -89,11 +93,19 @@ public class RoomRedeemItemEventHandler(
             player.Player.FurnitureItems.Remove(inventoryItem);
         }
 
-        await dbContext.RoomFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.Id)
-            .ExecuteDeleteAsync();
+        var roomFurnitureItemId = roomFurnitureItem.Id;
+        var playerId = player.Player.Id;
 
-        await CreditBalanceAsync(dbContext, player.Player.Id, currency, value);
+        _persist = async () =>
+        {
+            await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+            await persistContext.RoomFurnitureItems
+                .Where(x => x.Id == roomFurnitureItemId)
+                .ExecuteDeleteAsync();
+
+            await CreditBalanceAsync(persistContext, playerId, currency, value);
+        };
 
         switch (currency)
         {
@@ -123,11 +135,6 @@ public class RoomRedeemItemEventHandler(
         }
     }
 
-    /// <summary>
-    /// Applies the payout as a relative increment. Writing the in-memory balances back as absolute
-    /// values clobbered anything that changed in between — a catalog purchase that had already
-    /// debited the stored balance was undone by the redemption, handing back the spent credits.
-    /// </summary>
     private static async Task CreditBalanceAsync(
         AdaDbContext dbContext,
         long playerId,

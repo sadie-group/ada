@@ -1,14 +1,15 @@
-using System.Drawing;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Players.Inventory;
-using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
+using Ada.Networking.Writers.Rooms;
 using Microsoft.EntityFrameworkCore;
+using System.Drawing;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Bots;
 
@@ -16,7 +17,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Bots;
 public class RoomPlayerBotPlacedEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
-    IRoomBotFactory roomBotFactory) : INetworkPacketEventHandler
+    IRoomBotFactory roomBotFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int Id { get; init; }
     public required int X { get; init; }
@@ -82,11 +83,14 @@ public class RoomPlayerBotPlacedEventHandler(
 
         bot.RoomId = room.Room.Id;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerBots
-            .Where(x => x.Id == bot.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.RoomId, room.Room.Id));
+            await dbContext.PlayerBots
+                .Where(x => x.Id == bot.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.RoomId, room.Room.Id));
+        };
 
         room.TileMap.AddUnitToMap(new Point(X, Y), roomBot);
 
@@ -105,4 +109,8 @@ public class RoomPlayerBotPlacedEventHandler(
             Id = bot.Id
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }
