@@ -50,7 +50,10 @@ public class NetworkClientRepository(
 
             if (roomUser != null)
             {
-                await roomUser.Room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
+                var room = roomUser.Room;
+
+                await room.RunLockedAsync(() =>
+                    room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true));
             }
 
             if (player != null)
