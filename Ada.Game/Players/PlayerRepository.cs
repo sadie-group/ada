@@ -20,6 +20,7 @@ public class PlayerRepository(
     IMapper mapper) : IPlayerRepository
 {
     private const int _slowLookupWarningMs = 300;
+    private const int _maxUsernameCacheSize = 50_000;
 
     private readonly ConcurrentDictionary<long, IPlayerLogic> _players = new();
     private readonly ConcurrentDictionary<long, string> _playerIdToUsernameCache = new();
@@ -209,7 +210,7 @@ public class PlayerRepository(
             .Select(x => x.Username)
             .FirstOrDefaultAsync();
 
-        if (!string.IsNullOrEmpty(username))
+        if (!string.IsNullOrEmpty(username) && _playerIdToUsernameCache.Count < _maxUsernameCacheSize)
         {
             _playerIdToUsernameCache[playerId] = username;
         }
@@ -253,7 +254,11 @@ public class PlayerRepository(
                 continue;
             }
 
-            _playerIdToUsernameCache[row.Id] = row.Username;
+            if (_playerIdToUsernameCache.Count < _maxUsernameCacheSize)
+            {
+                _playerIdToUsernameCache[row.Id] = row.Username;
+            }
+
             resolved[row.Id] = row.Username;
         }
 
