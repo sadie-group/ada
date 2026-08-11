@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Furniture;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 public class RoomDimmerSettingsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {

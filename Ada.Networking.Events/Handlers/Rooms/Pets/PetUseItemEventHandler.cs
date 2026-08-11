@@ -1,18 +1,19 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Pets;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetUseItem)]
 public class PetUseItemEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
     public required int PetId { get; init; }
@@ -101,8 +102,11 @@ public class PetUseItemEventHandler(
             System.Linq.Expressions.Expression<Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<Ada.Db.Models.Players.PlayerPet>,
                 Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<Ada.Db.Models.Players.PlayerPet>>> setter)
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            await dbContext.PlayerPets.Where(x => x.Id == pet.Id).ExecuteUpdateAsync(setter);
+            _persist = async () =>
+            {
+                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+                await dbContext.PlayerPets.Where(x => x.Id == pet.Id).ExecuteUpdateAsync(setter);
+            };
         }
 
         async Task BroadcastFigureAsync()
@@ -110,4 +114,8 @@ public class PetUseItemEventHandler(
             await room.BroadcastDataAsync(new RoomPetHorseFigureWriter { Pet = pet });
         }
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

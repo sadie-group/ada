@@ -5,6 +5,7 @@ using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Rooms.Users;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ namespace Ada.Networking.Events.Handlers.Players;
 [PacketId(EventHandlerId.PlayerChangedAppearance)]
 public class PlayerChangedAppearanceEventHandler(
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required string Gender { get; set; }
     public required string FigureCode { get; set; }
@@ -42,13 +43,16 @@ public class PlayerChangedAppearanceEventHandler(
         player.Player.AvatarData.Gender = gender;
         player.Player.AvatarData.FigureCode = figureCode;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerAvatarData
-            .Where(x => x.PlayerId == player.Player.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Gender, gender)
-                .SetProperty(x => x.FigureCode, figureCode));
+            await dbContext.PlayerAvatarData
+                .Where(x => x.PlayerId == player.Player.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Gender, gender)
+                    .SetProperty(x => x.FigureCode, figureCode));
+        };
         
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
         {
@@ -66,4 +70,8 @@ public class PlayerChangedAppearanceEventHandler(
             Users = [roomUser]
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -1,16 +1,17 @@
-using System.Drawing;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Pets;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Generic;
 using Ada.Networking.Writers.Players.Inventory;
 using Ada.Networking.Writers.Rooms.Pets;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using System.Drawing;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
@@ -19,7 +20,7 @@ public class PetPlaceEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
     IRoomPetFactory roomPetFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IDefersPersistence
 {
     private const int _maximumPetsPerRoom = 30;
 
@@ -49,10 +50,14 @@ public class PetPlaceEventHandler(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        Db.Models.Players.PlayerPet? pet;
 
-        var pet = await dbContext.PlayerPets
-            .FirstOrDefaultAsync(x => x.Id == Id && x.PlayerId == playerId && x.RoomId == null);
+        await using (var readContext = await dbContextFactory.CreateDbContextAsync())
+        {
+            pet = await readContext.PlayerPets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == Id && x.PlayerId == playerId && x.RoomId == null);
+        }
 
         if (pet == null)
         {
@@ -72,7 +77,25 @@ public class PetPlaceEventHandler(
         pet.X = X;
         pet.Y = Y;
         pet.Z = room.TileMap.ZMap[Y, X];
-        await dbContext.SaveChangesAsync();
+
+        var petId = pet.Id;
+        var placedRoomId = room.Room.Id;
+        var placedX = X;
+        var placedY = Y;
+        var placedZ = pet.Z;
+
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+            await dbContext.PlayerPets
+                .Where(x => x.Id == petId && x.RoomId == null)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.RoomId, placedRoomId)
+                    .SetProperty(x => x.X, placedX)
+                    .SetProperty(x => x.Y, placedY)
+                    .SetProperty(x => x.Z, placedZ));
+        };
 
         var petDto = mapper.Map<PlayerPetDto>(pet);
         petDto.OwnerName = roomUser.Player.Player.Username ?? "";
@@ -92,4 +115,8 @@ public class PetPlaceEventHandler(
 
         await client.WriteToStreamAsync(new PlayerInventoryRemovePetWriter { Id = pet.Id });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

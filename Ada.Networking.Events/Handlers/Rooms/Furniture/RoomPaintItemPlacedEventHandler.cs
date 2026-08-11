@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 [PacketId(EventHandlerId.RoomPaintItemPlaced)]
 public class RoomPaintItemPlacedEventHandler(
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public int ItemId { get; init; }
     
@@ -55,35 +55,38 @@ public class RoomPaintItemPlacedEventHandler(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        switch (playerItem.FurnitureItem.AssetName)
+        _persist = async () =>
         {
-            case "floor":
-                paintSettings.FloorPaint = playerItem.MetaData;
-                await dbContext.RoomPaintSettings
-                    .Where(x => x.RoomId == room.Room.Id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.FloorPaint, playerItem.MetaData));
-                break;
-            case "wallpaper":
-                paintSettings.WallPaint = playerItem.MetaData;
-                await dbContext.RoomPaintSettings
-                    .Where(x => x.RoomId == room.Room.Id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.WallPaint, playerItem.MetaData));
-                break;
-            case "landscape":
-                paintSettings.LandscapePaint = playerItem.MetaData;
-                await dbContext.RoomPaintSettings
-                    .Where(x => x.RoomId == room.Room.Id)
-                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.LandscapePaint, playerItem.MetaData));
-                break;
-        }
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        player.Player.FurnitureItems.Remove(playerItem);
+            switch (playerItem.FurnitureItem.AssetName)
+            {
+                case "floor":
+                    paintSettings.FloorPaint = playerItem.MetaData;
+                    await dbContext.RoomPaintSettings
+                        .Where(x => x.RoomId == room.Room.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.FloorPaint, playerItem.MetaData));
+                    break;
+                case "wallpaper":
+                    paintSettings.WallPaint = playerItem.MetaData;
+                    await dbContext.RoomPaintSettings
+                        .Where(x => x.RoomId == room.Room.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.WallPaint, playerItem.MetaData));
+                    break;
+                case "landscape":
+                    paintSettings.LandscapePaint = playerItem.MetaData;
+                    await dbContext.RoomPaintSettings
+                        .Where(x => x.RoomId == room.Room.Id)
+                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.LandscapePaint, playerItem.MetaData));
+                    break;
+            }
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == playerItem.Id)
-            .ExecuteDeleteAsync();
+            player.Player.FurnitureItems.Remove(playerItem);
+
+            await dbContext.PlayerFurnitureItems
+                .Where(x => x.Id == playerItem.Id)
+                .ExecuteDeleteAsync();
+        };
         
         await client.WriteToStreamAsync(new PlayerInventoryRemoveItemWriter
         {
@@ -96,4 +99,8 @@ public class RoomPaintItemPlacedEventHandler(
             Value = playerItem.MetaData
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

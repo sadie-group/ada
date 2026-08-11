@@ -21,7 +21,7 @@ public class RoomItemEjectedEventHandler(
     IRoomRepository roomRepository,
     IPlayerRepository playerRepository,
     IRoomFurnitureItemInteractorRepository interactorRepository,
-    IRoomTileMapHelperService tileMapHelperService) : INetworkPacketEventHandler
+    IRoomTileMapHelperService tileMapHelperService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public int Category { get; init; }
     public int ItemId { get; init; }
@@ -105,11 +105,14 @@ public class RoomItemEjectedEventHandler(
         itemRecord.PlacementData = null;
         roomFurnitureItem.PlayerFurnitureItem.PlacementData = null;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.RoomFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.Id)
-            .ExecuteDeleteAsync();
+            await dbContext.RoomFurnitureItems
+                .Where(x => x.Id == roomFurnitureItem.Id)
+                .ExecuteDeleteAsync();
+        };
 
         if (ownsItem)
         {
@@ -139,4 +142,8 @@ public class RoomItemEjectedEventHandler(
 
         await owner.NetworkObject.WriteToStreamAsync(new PlayerInventoryRefreshWriter());
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

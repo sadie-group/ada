@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class RoomDeleteEventHandler(
     IMapper mapper,
     IPlayerRepository playerRepository,
     IPlayerHelperService playerHelperService,
-    ILogger<RoomDeleteEventHandler> logger) : INetworkPacketEventHandler
+    ILogger<RoomDeleteEventHandler> logger) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int RoomId { get; init; }
     
@@ -40,10 +41,6 @@ public class RoomDeleteEventHandler(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.PlayerData
-            .Where(x => x.HomeRoomId == RoomId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, (int?) null));
 
         var updateMap = new Dictionary<IPlayerLogic, List<PlayerFurnitureItemDto>>();
 
@@ -77,13 +74,24 @@ public class RoomDeleteEventHandler(
             await room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
         }
 
-        await dbContext.RoomFurnitureItems
-            .Where(x => x.RoomId == room.Room.Id)
-            .ExecuteDeleteAsync();
+        var roomId = room.Room.Id;
 
-        await dbContext.Rooms
-            .Where(x => x.Id == room.Room.Id)
-            .ExecuteDeleteAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+            await dbContext.PlayerData
+                .Where(x => x.HomeRoomId == RoomId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, (int?) null));
+
+            await dbContext.RoomFurnitureItems
+                .Where(x => x.RoomId == roomId)
+                .ExecuteDeleteAsync();
+
+            await dbContext.Rooms
+                .Where(x => x.Id == roomId)
+                .ExecuteDeleteAsync();
+        };
 
         foreach (var (owner, items) in updateMap)
         {
@@ -100,4 +108,8 @@ public class RoomDeleteEventHandler(
             }
         }
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

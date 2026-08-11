@@ -4,7 +4,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
-using Ada.Networking.Events.Dtos;
+using Ada.API.DTOs.Players.Friendships;
 using Microsoft.EntityFrameworkCore;
 using PlayerFriendship = Ada.Db.Models.Players.PlayerFriendship;
 
@@ -15,7 +15,7 @@ public class PlayerAcceptFriendRequestEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IPlayerHelperService playerHelperService)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IDefersPersistence
 {
     public List<int> Ids { get; set; } = [];
     
@@ -50,11 +50,14 @@ public class PlayerAcceptFriendRequestEventHandler(
 
         request.Status = PlayerFriendshipStatus.Accepted;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.Set<PlayerFriendship>()
-            .Where(x => x.OriginPlayerId == originId && x.TargetPlayerId == playerId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, PlayerFriendshipStatus.Accepted));
+            await dbContext.Set<PlayerFriendship>()
+                .Where(x => x.OriginPlayerId == originId && x.TargetPlayerId == playerId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, PlayerFriendshipStatus.Accepted));
+        };
         
         var targetPlayer = playerRepository.GetPlayerLogicById(originId);
         var targetOnline = targetPlayer != null;
@@ -124,4 +127,8 @@ public class PlayerAcceptFriendRequestEventHandler(
             ]);
         }
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -5,8 +5,9 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Extensions;
-using Ada.Db;
 using Ada.Db.Models.Constants;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,7 @@ public class PlayerChangedMottoEventHandler(
     IRoomRepository roomRepository, 
     ServerPlayerConstants constants,
     IWordFilterService wordFilterService,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required string Motto { get; set; }
     
@@ -41,11 +42,14 @@ public class PlayerChangedMottoEventHandler(
 
         player.Player.AvatarData.Motto = newMotto;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerAvatarData
-            .Where(x => x.PlayerId == player.Player.Id)
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.Motto, newMotto));
+            await dbContext.PlayerAvatarData
+                .Where(x => x.PlayerId == player.Player.Id)
+                .ExecuteUpdateAsync(x => x.SetProperty(p => p.Motto, newMotto));
+        };
 
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
         {
@@ -57,4 +61,8 @@ public class PlayerChangedMottoEventHandler(
             Users = [roomUser]
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }
