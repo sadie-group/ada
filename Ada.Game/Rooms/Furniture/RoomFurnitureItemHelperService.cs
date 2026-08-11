@@ -14,8 +14,7 @@ namespace Ada.Game.Rooms.Furniture;
 
 public class RoomFurnitureItemHelperService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IPlayerRepository playerRepository,
-    IMapper mapper) : IRoomFurnitureItemHelperService
+    IPlayerRepository playerRepository) : IRoomFurnitureItemHelperService
 {
     public async Task CycleInteractionStateForItemAsync(
         IRoomLogic room, 

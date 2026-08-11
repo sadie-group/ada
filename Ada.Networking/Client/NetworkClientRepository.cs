@@ -13,7 +13,6 @@ public class NetworkClientRepository(
     IPlayerRepository playerRepository,
     IPlayerPresenceStore playerPresenceStore,
     IPlayerHelperService playerHelperService,
-    IMapper mapper,
     IEnumerable<IPlayerSessionListener> sessionListeners) : INetworkClientRepository
 {
     private readonly ConcurrentDictionary<Guid, INetworkClient> _clients = new();
