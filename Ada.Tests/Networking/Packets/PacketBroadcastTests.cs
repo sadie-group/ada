@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Packets;
@@ -18,7 +19,7 @@ public class PacketBroadcastTests
 
     private sealed class FixedIdMap(short outgoingId) : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;

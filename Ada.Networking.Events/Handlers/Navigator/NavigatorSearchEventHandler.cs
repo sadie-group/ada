@@ -6,21 +6,17 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
-using Ada.Db.Models.Navigator;
+using Ada.Core.Shared.Constants;
 using Ada.Networking.Writers.Navigator;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Navigator;
 
 [PacketId(EventHandlerId.NavigatorSearch)]
 public class NavigatorSearchEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    INavigatorTabProvider navigatorTabProvider,
     INavigatorRoomProvider navigatorRoomProvider,
     IRoomRepository roomRepository,
-    IPlayerRepository playerRepository,
-    IMapper mapper)
+    IPlayerRepository playerRepository)
     : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TabName { get; set; }
@@ -33,18 +29,17 @@ public class NavigatorSearchEventHandler(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        if ((DateTime.UtcNow - client.Player.State.LastNavigatorSearch).TotalMilliseconds <
+            CooldownIntervals.NavigatorSearch)
+        {
+            return;
+        }
 
-        var tab = await dbContext.Set<NavigatorTab>()
-            .Include(x => x.Categories)
-            .FirstOrDefaultAsync(x => x.Name == TabName);
+        client.Player.State.LastNavigatorSearch = DateTime.UtcNow;
 
-        var dbCategories = tab?
-            .Categories
-            .OrderBy(x => x.OrderId)
-            .ToList() ?? [];
-
-        var categories = mapper.Map<List<NavigatorCategoryDto>>(dbCategories);
+        // Tab layout is operator-edited reference data, so it comes from a cache rather than a
+        // fresh query on every message.
+        var categories = await navigatorTabProvider.GetCategoriesForTabAsync(TabName);
 
         var categoryRoomMap = new Dictionary<NavigatorCategoryDto, List<RoomDto>>();
 

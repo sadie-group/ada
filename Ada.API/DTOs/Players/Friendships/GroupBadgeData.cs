@@ -1,6 +1,6 @@
 using Ada.API.Interfaces.Networking.Events.Dtos;
 
-namespace Ada.Networking.Events.Dtos;
+namespace Ada.API.DTOs.Players.Friendships;
 
 public class GroupBadgeData : IGroupBadgeData
 {

@@ -11,6 +11,7 @@ public static class NavigatorServiceCollection
         var assemblies = AppDomain.CurrentDomain.GetAssemblies();
         
         serviceCollection.AddTransient<INavigatorRoomProvider, NavigatorRoomProvider>();
+        serviceCollection.AddSingleton<INavigatorTabProvider, NavigatorTabProvider>();
         
         serviceCollection.Scan(scan => scan
             .FromAssemblies(assemblies)

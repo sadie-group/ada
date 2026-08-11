@@ -9,7 +9,8 @@ public interface INetworkClient : IAsyncDisposable, INetworkObject
     IRoomUser? RoomUser { get; set; }
     string? MachineId { get; set; }
     bool EncryptionEnabled { get; }
-    void EnableEncryption(byte[] sharedKey);
+
+    bool TryApplyNegotiatedKey(byte[] sharedKey);
     DateTime LastPing { get; set; }
     DateTime LastPong { get; set; }
 }

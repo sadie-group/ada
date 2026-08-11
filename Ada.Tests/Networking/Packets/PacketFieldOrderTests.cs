@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Buffers.Binary;
 using System.Text;
 using Ada.API;
@@ -27,7 +28,7 @@ public class PacketFieldOrderTests
 
     private sealed class FixedIdMap : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
