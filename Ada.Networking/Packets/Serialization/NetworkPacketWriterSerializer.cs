@@ -23,7 +23,6 @@ namespace Ada.Networking.Packets.Serialization
 
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> propertyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> attributedPropertyCache = new();
-        private static readonly ConcurrentDictionary<Type, Action<object>?> onConfigureRulesCache = new();
         private static readonly ConcurrentDictionary<Type, Action<object, INetworkPacketWriter>?> onSerializeCache = new();
 
         private static PropertyInfo[] GetCachedProperties(Type type)
@@ -32,29 +31,6 @@ namespace Ada.Networking.Packets.Serialization
                 .Where(p => p.DeclaringType != typeof(AbstractPacketWriter))
                 .OrderBy(p => p.MetadataToken)
                 .ToArray());
-        }
-
-        private static void InvokeOnConfigureRules(object packet)
-        {
-            (packet as AbstractPacketWriter)?.ResetRules();
-
-            var invoker = onConfigureRulesCache.GetOrAdd(packet.GetType(), static t =>
-            {
-                var method = t.GetMethod("OnConfigureRules");
-
-                if (method == null || method.GetBaseDefinition().DeclaringType == method.DeclaringType)
-                {
-                    return null;
-                }
-
-                var packetParam = Expression.Parameter(typeof(object));
-
-                return Expression.Lambda<Action<object>>(
-                    Expression.Call(Expression.Convert(packetParam, t), method),
-                    packetParam).Compile();
-            });
-
-            invoker?.Invoke(packet);
         }
 
         private static bool InvokeOnSerializeIfExists(object packet, INetworkPacketWriter writer)
@@ -141,40 +117,9 @@ namespace Ada.Networking.Packets.Serialization
                     GetCachedProperties(t).Where(p => Attribute.IsDefined(p, typeof(PacketDataAttribute))).ToArray())
                 : GetCachedProperties(packet.GetType());
 
-            var abstractWriter  = packet as AbstractPacketWriter;
-            var conversionRules = abstractWriter?.ConversionRules;
-            var insteadRules    = abstractWriter?.InsteadRulesSerialize;
-            var afterRules      = abstractWriter?.AfterRulesSerialize;
-
             foreach (var property in props)
             {
-                if (conversionRules != null && conversionRules.TryGetValue(property.Name, out var conv))
-                {
-                    var raw = PropertyAccessorCache.GetValue(property, packet);
-
-                    if (raw == null)
-                    {
-                        WriteProperty(property, writer, packet);
-                        continue;
-                    }
-
-                    var converted = conv.Value(raw);
-                    WriteType(conv.Key, converted, writer);
-                    continue;
-                }
-
-                if (insteadRules != null && insteadRules.TryGetValue(property.Name, out var instead))
-                {
-                    instead(writer);
-                    continue;
-                }
-
                 WriteProperty(property, writer, packet);
-
-                if (afterRules != null && afterRules.TryGetValue(property.Name, out var after))
-                {
-                    after(writer);
-                }
             }
         }
 
@@ -194,7 +139,11 @@ namespace Ada.Networking.Packets.Serialization
                 return writer;
             }
 
-            InvokeOnConfigureRules(packet);
+            if (PacketWriterFastPath.Handler is { } fastPath && fastPath(packet, writer))
+            {
+                return writer;
+            }
+
             AddObjectToWriter(packet, writer);
 
             return writer;
@@ -308,6 +257,18 @@ namespace Ada.Networking.Packets.Serialization
                     return;
                 }
 
+                if (element != null && primitiveWriters.TryGetValue(element, out var writeElement))
+                {
+                    writer.WriteInteger(collection.Count);
+
+                    foreach (var item in collection)
+                    {
+                        writeElement(item!, writer);
+                    }
+
+                    return;
+                }
+
                 WriteArbitraryListPropertyToWriter(property, writer, packet);
                 return;
             }
@@ -318,14 +279,6 @@ namespace Ada.Networking.Packets.Serialization
             }
 
             AddObjectToWriter(value, writer, true);
-        }
-
-        private static void WriteType(Type type, object value, INetworkPacketWriter writer)
-        {
-            if (primitiveWriters.TryGetValue(type, out var action))
-            {
-                action(value, writer);
-            }
         }
     }
 }

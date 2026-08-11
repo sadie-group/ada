@@ -35,28 +35,6 @@ public class NetworkPacketWriterSerializerTests
         }
     }
 
-    [PacketId(45)]
-    private class ConvertedPacket : AbstractPacketWriter
-    {
-        public int Number { get; init; }
-
-        public override void OnConfigureRules()
-        {
-            Convert<string>(GetType().GetProperty(nameof(Number))!, value => $"n{value}");
-        }
-    }
-
-    [PacketId(46)]
-    private class OverriddenPacket : AbstractPacketWriter
-    {
-        public int Number { get; init; }
-
-        public override void OnConfigureRules()
-        {
-            Override(GetType().GetProperty(nameof(Number))!, writer => writer.WriteInteger(-1));
-        }
-    }
-
     private class NoAttributePacket : AbstractPacketWriter;
 
     private static byte[] Payload(object packet)
@@ -130,23 +108,5 @@ public class NetworkPacketWriterSerializerTests
             Assert.That(value, Is.EqualTo(99));
             Assert.That(payload, Has.Length.EqualTo(2 + 4), "only the custom int should follow the packet id");
         });
-    }
-
-    [Test]
-    public void Serialize_ConversionRule_WritesConvertedType()
-    {
-        var payload = Payload(new ConvertedPacket { Number = 8 });
-
-        var reader = new NetworkPacketReader(payload.AsMemory(2));
-        Assert.That(reader.ReadString(), Is.EqualTo("n8"));
-    }
-
-    [Test]
-    public void Serialize_OverrideRule_ReplacesPropertyValue()
-    {
-        var payload = Payload(new OverriddenPacket { Number = 8 });
-
-        var reader = new NetworkPacketReader(payload.AsMemory(2));
-        Assert.That(reader.ReadInt(), Is.EqualTo(-1));
     }
 }

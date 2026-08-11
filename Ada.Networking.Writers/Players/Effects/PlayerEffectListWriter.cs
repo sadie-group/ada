@@ -1,4 +1,5 @@
 ﻿using Ada.API.Interfaces.Game.Players.Effects;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
@@ -9,21 +10,18 @@ public class PlayerEffectListWriter : AbstractPacketWriter
 {
     public required List<IPlayerEffect> Effects { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(Effects), writer =>
-        {
-            writer.WriteInteger(Effects.Count);
+        writer.WriteInteger(Effects.Count);
 
-            foreach (var effect in Effects)
-            {
-                writer.WriteInteger(effect.Id);
-                writer.WriteInteger(0);
-                writer.WriteInteger(effect.Duration);
-                writer.WriteInteger(-1);
-                writer.WriteInteger(0);
-                writer.WriteBool(effect.Duration == -1);
-            }
-        });
+        foreach (var effect in Effects)
+        {
+            writer.WriteInteger(effect.Id);
+            writer.WriteInteger(0);
+            writer.WriteInteger(effect.Duration);
+            writer.WriteInteger(-1);
+            writer.WriteInteger(0);
+            writer.WriteBool(effect.Duration == -1);
+        }
     }
 }

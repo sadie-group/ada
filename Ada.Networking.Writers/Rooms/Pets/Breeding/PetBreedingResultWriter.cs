@@ -14,30 +14,27 @@ public class PetBreedingResultWriter : AbstractPacketWriter
     public required PlayerPetDto PetTwo { get; init; }
     public required IReadOnlyDictionary<int, (int Percentage, IReadOnlyList<int> Breeds)> RarityLevels { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(NestId), writer => writer.WriteInteger(NestId));
-        Override(nameof(PetType), _ => { });
-        Override(nameof(PetOne), writer => WriteBreedingPet(writer, PetOne));
-        Override(nameof(PetTwo), writer => WriteBreedingPet(writer, PetTwo));
-        Override(nameof(RarityLevels), writer =>
+        writer.WriteInteger(NestId);
+        WriteBreedingPet(writer, PetOne);
+        WriteBreedingPet(writer, PetTwo);
+        writer.WriteInteger(RarityLevels.Count);
+
+        foreach (var level in RarityLevels.OrderByDescending(x => x.Key))
         {
-            writer.WriteInteger(RarityLevels.Count);
+            writer.WriteInteger(level.Value.Percentage);
+            writer.WriteInteger(level.Value.Breeds.Count);
 
-            foreach (var level in RarityLevels.OrderByDescending(x => x.Key))
+            foreach (var breed in level.Value.Breeds)
             {
-                writer.WriteInteger(level.Value.Percentage);
-                writer.WriteInteger(level.Value.Breeds.Count);
-
-                foreach (var breed in level.Value.Breeds)
-                {
-                    writer.WriteInteger(breed);
-                }
+                writer.WriteInteger(breed);
             }
+        }
 
-            writer.WriteInteger(PetType);
-        });
+        writer.WriteInteger(PetType);
     }
+
 
     private static void WriteBreedingPet(INetworkPacketWriter writer, PlayerPetDto pet)
     {

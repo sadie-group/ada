@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
@@ -21,19 +22,24 @@ public class RoomFloorItemUpdatedWriter : AbstractPacketWriter
     public required int InteractionModes { get; init; }
     public required long OwnerId { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Convert<string>(nameof(PositionZ), o => ((double)o).ToString("0.00"));
-        Convert<int>(nameof(InteractionModes), o => (int)o > 1 ? 1 : 0);
-        
-        Override(nameof(ObjectData), writer =>
+        writer.WriteLong(Id);
+        writer.WriteInteger(AssetId);
+        writer.WriteInteger(PositionX);
+        writer.WriteInteger(PositionY);
+        writer.WriteInteger(Direction);
+        writer.WriteString(PositionZ.ToString("0.00"));
+        writer.WriteString(StackHeight ?? "");
+        writer.WriteInteger(Extra);
+        writer.WriteInteger(ObjectDataKey);
+
+        if (ObjectDataKey == (int) Core.Enums.Miscellaneous.ObjectDataKey.LegacyKey)
         {
-            if (ObjectDataKey == (int)Core.Enums.Miscellaneous.ObjectDataKey.LegacyKey)
-            {
-                writer.WriteString(MetaData);
-                return;
-            }
-            
+            writer.WriteString(MetaData);
+        }
+        else
+        {
             writer.WriteInteger(ObjectData.Count);
 
             foreach (var pair in ObjectData)
@@ -41,8 +47,10 @@ public class RoomFloorItemUpdatedWriter : AbstractPacketWriter
                 writer.WriteString(pair.Key);
                 writer.WriteString(pair.Value);
             }
-        });
-        
-        Override(nameof(MetaData), _ => {});
+        }
+
+        writer.WriteInteger(Expires);
+        writer.WriteInteger(InteractionModes > 1 ? 1 : 0);
+        writer.WriteLong(OwnerId);
     }
 }
