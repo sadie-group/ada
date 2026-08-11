@@ -20,5 +20,7 @@ public interface IRoomLogic : IAsyncDisposable
     void QueueBroadcast(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null);
     void FlushQueuedBroadcasts();
     Task RunLockedAsync(Func<Task> action);
-    ValueTask DisposeAsync();
+    long LockHeldForMilliseconds => 0;
+    bool IsDisposed { get; }
+    new ValueTask DisposeAsync();
 }

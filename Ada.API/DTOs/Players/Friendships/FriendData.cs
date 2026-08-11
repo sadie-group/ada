@@ -1,7 +1,7 @@
 using Ada.API.Interfaces.Game.Players.Friendships;
 using Ada.Core.Enums.Game.Players;
 
-namespace Ada.Networking.Events.Dtos;
+namespace Ada.API.DTOs.Players.Friendships;
 
 public class FriendData : PlayerFriendshipRequestData, IFriendData
 {
