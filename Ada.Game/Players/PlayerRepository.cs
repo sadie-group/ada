@@ -5,6 +5,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db;
 using Ada.Core.Enums.Game.Players;
+using Ada.Core.Shared.Constants;
 using Ada.Db.Models.Players;
 using Ada.Networking.Packets.Serialization;
 using AutoMapper;
@@ -153,6 +154,11 @@ public class PlayerRepository(
 
     public async Task<List<PlayerDto>> GetPlayersForSearchAsync(string searchQuery, long[] excludeIds)
     {
+        if (searchQuery.Length < SearchLimits.MinPlayerQueryLength)
+        {
+            return [];
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         var players = await dbContext
@@ -160,8 +166,10 @@ public class PlayerRepository(
             .AsNoTracking()
             .Include(x => x.AvatarData)
             .Where(x =>
-                x.Username.Contains(searchQuery) &&
+                x.Username.StartsWith(searchQuery) &&
                 !excludeIds.Contains(x.Id))
+            .OrderBy(x => x.Username)
+            .Take(SearchLimits.MaxPlayerResults)
             .ToListAsync();
 
         return mapper.Map<List<PlayerDto>>(players);

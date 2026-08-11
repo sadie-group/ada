@@ -3,6 +3,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db.Models.Players;
 using Ada.Core.Enums.Game.Players;
+using Ada.Core.Shared.Constants;
 using Ada.Game.Players;
 using Ada.Tests.Common;
 using AutoMapper;
@@ -246,6 +247,67 @@ public class PlayerRepositoryTests
         var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         var players = await repository.GetPlayersForSearchAsync("alph", [2]);
+
+        Assert.That(players.Select(p => p.Username), Is.EqualTo(new[] { "alpha" }));
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_QueryShorterThanMinimum_SkipsTheDatabase()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 1, Username = "alpha", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        Assert.That(await repository.GetPlayersForSearchAsync("al", []), Is.Empty);
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_ManyMatches_IsCapped()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            for (var i = 0; i < SearchLimits.MaxPlayerResults + 25; i++)
+            {
+                context.Players.Add(new Player
+                {
+                    Id = i + 1,
+                    Username = $"alpha{i:D3}",
+                    Email = "e",
+                    Password = "p"
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        var players = await repository.GetPlayersForSearchAsync("alpha", []);
+
+        Assert.That(players, Has.Count.EqualTo(SearchLimits.MaxPlayerResults));
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_MatchesOnPrefixOnly()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.AddRange(
+                new Player { Id = 1, Username = "alpha", Email = "e", Password = "p" },
+                new Player { Id = 2, Username = "notalpha", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        var players = await repository.GetPlayersForSearchAsync("alpha", []);
 
         Assert.That(players.Select(p => p.Username), Is.EqualTo(new[] { "alpha" }));
     }

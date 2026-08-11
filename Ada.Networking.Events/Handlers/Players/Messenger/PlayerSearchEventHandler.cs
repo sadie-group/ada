@@ -27,12 +27,13 @@ public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INet
         
         client.Player.State.LastPlayerSearch = DateTime.UtcNow;
 
-        if (string.IsNullOrEmpty(SearchQuery))
+        SearchQuery = SearchQuery?.Trim().Truncate(20);
+
+        if (string.IsNullOrEmpty(SearchQuery) ||
+            SearchQuery.Length < SearchLimits.MinPlayerQueryLength)
         {
             return;
         }
-
-        SearchQuery = SearchQuery.Truncate(20);
 
         var outgoingFriends = client
             .Player!
