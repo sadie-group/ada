@@ -5,7 +5,7 @@ internal class SimplePriorityQueue<T>(IComparer<T>? comparer = null) : IModelAPr
     private readonly List<T> _innerList = [];
     private readonly IComparer<T> _comparer = comparer ?? Comparer<T>.Default;
 
-    public T Peek()
+    public T? Peek()
     {
         return _innerList.Count > 0 ? _innerList[0] : default;
     }
