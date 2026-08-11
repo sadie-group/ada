@@ -91,6 +91,24 @@ public class GeneratedPacketWriterParityTests
         });
     }
 
+    [Test]
+    public void WriteFramedTo_IsByteIdentical_ToGetAllBytes()
+    {
+        var writer = new NetworkPacketWriter();
+        writer.WriteShort(3);
+        writer.WriteInteger(42);
+        writer.WriteString("hello world");
+        writer.WriteLong(7);
+        writer.WriteBool(true);
+        writer.WriteByte(9);
+
+        var expected = writer.GetAllBytes();
+        var framed = new byte[writer.FramedLength];
+        writer.WriteFramedTo(framed);
+
+        Assert.That(framed, Is.EqualTo(expected));
+    }
+
     private static void Populate(object target, int depth)
     {
         foreach (var property in target.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
