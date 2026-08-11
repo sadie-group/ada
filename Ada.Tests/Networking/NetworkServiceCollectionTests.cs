@@ -20,6 +20,7 @@ public class NetworkServiceCollectionTests
             {
                 ["NetworkOptions:Host"] = "127.0.0.1",
                 ["NetworkOptions:Port"] = "30000",
+                ["NetworkOptions:AllowInsecureTransport"] = "true",
                 ["NetworkOptions:PacketOptions:BufferByteSize"] = "2048",
                 ["NetworkOptions:PacketOptions:FrameLengthByteCount"] = "4",
                 ["NetworkOptions:PacketOptions:NotifyMissingPacket"] = "true"

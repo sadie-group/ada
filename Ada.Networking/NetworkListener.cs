@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
 using Ada.API.Interfaces.Networking.Client;
+using Ada.Networking.Client;
 using Ada.Networking.Options;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -22,6 +23,8 @@ public class NetworkListener(
 
     private readonly ConcurrentDictionary<IPAddress, int> _connectionsPerAddress = new();
     private int _connections;
+
+    internal ClientAddressResolver AddressResolver { get; } = new(options.Value.TrustedProxies);
 
     internal bool TryReserveSlot(IPAddress ip)
     {
@@ -124,6 +127,22 @@ public class NetworkListener(
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(_options.AllowedOrigins))
+        {
+            logger.LogWarning(
+                "NetworkOptions:AllowedOrigins is empty, so a socket opened from any web page is " +
+                "accepted. List the origins your client is served from to close that off.");
+        }
+
+        if (!AddressResolver.HasTrustedProxies)
+        {
+            logger.LogInformation(
+                "NetworkOptions:TrustedProxies is empty, so the peer address is used as the client " +
+                "address and X-Forwarded-For is ignored. If a reverse proxy terminates TLS in front " +
+                "of this listener, set it — otherwise every client counts as the proxy's address and " +
+                "the per-address connection cap, login throttle and address bans stop discriminating.");
+        }
+
         var builder = WebApplication.CreateBuilder();
 
         builder.WebHost.ConfigureKestrel(k =>
@@ -175,7 +194,9 @@ public class NetworkListener(
                 return;
             }
 
-            var ip = ctx.Connection.RemoteIpAddress ?? IPAddress.None;
+            var ip = AddressResolver.Resolve(
+                ctx.Connection.RemoteIpAddress,
+                ctx.Request.Headers["X-Forwarded-For"].ToString());
 
             if (!TryReserveSlot(ip))
             {

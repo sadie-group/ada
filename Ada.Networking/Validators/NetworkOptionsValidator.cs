@@ -29,6 +29,14 @@ public class NetworkOptionsValidator : IValidateOptions<NetworkOptions>
                 $"{nameof(NetworkOptions)} 'MaxConnectionsPerAddress' cannot be negative; use 0 to disable the limit.");
         }
 
+        if (!options.UseWss && !options.AllowInsecureTransport)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(NetworkOptions)} 'UseWss' is false, so logins are refused to keep SSO tokens " +
+                "off a plaintext wire, and no client will be able to connect. Enable 'UseWss' with a " +
+                "'CertificateFile', or set 'AllowInsecureTransport' to accept the risk on a trusted network.");
+        }
+
         if (options.MaxConnections > 0 &&
             options.MaxConnectionsPerAddress > options.MaxConnections)
         {

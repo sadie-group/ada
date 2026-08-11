@@ -10,4 +10,6 @@ public class NetworkOptions
     public string? AllowedOrigins { get; init; }
     public int MaxConnections { get; init; } = 5000;
     public int MaxConnectionsPerAddress { get; init; } = 20;
+
+    public string? TrustedProxies { get; init; }
 }

@@ -34,19 +34,7 @@ public class NetworkClient(
 
     public bool EncryptionEnabled => networkOptions.Value.UseWss;
 
-    public void EnableEncryption(byte[] sharedKey)
-    {
-        if (networkOptions.Value.UseWss)
-        {
-            return;
-        }
-
-        logger.LogWarning(
-            "Client {Guid} completed the Diffie-Hellman handshake but the listener is plaintext; " +
-            "the negotiated key is not applied to the stream and traffic is readable on the wire. " +
-            "Set NetworkOptions:UseWss to secure it.",
-            Guid);
-    }
+    public bool TryApplyNegotiatedKey(byte[] sharedKey) => false;
 
     public DateTime LastPing { get; set; } = DateTime.UtcNow;
     public DateTime LastPong { get; set; } = DateTime.UtcNow;
