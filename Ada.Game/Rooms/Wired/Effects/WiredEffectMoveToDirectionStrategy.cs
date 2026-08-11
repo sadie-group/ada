@@ -28,7 +28,7 @@ public class WiredEffectMoveToDirectionStrategy(
         if (await TryMoveInDirectionAsync(room, item, opposite))
         {
             item.Direction = opposite;
-            await furnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
+            await FurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
         }
     }
 }

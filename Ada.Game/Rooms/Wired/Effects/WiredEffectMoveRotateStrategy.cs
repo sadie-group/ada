@@ -42,11 +42,11 @@ public class WiredEffectMoveRotateStrategy(
             };
 
             item.Direction = (HDirection)(((int)item.Direction + step + 8) % 8);
-            await furnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
+            await FurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
         }
         else if (!moved)
         {
-            await furnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
+            await FurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
         }
     }
 }
