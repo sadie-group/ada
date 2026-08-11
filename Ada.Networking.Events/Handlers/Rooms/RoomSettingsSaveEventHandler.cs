@@ -7,6 +7,7 @@ using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Extensions;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Rooms;
@@ -20,7 +21,7 @@ public class RoomSettingsSaveEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
     ServerRoomConstants roomConstants,
-    IWordFilterService wordFilterService) : INetworkPacketEventHandler
+    IWordFilterService wordFilterService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public long RoomId { get; init; }
     public required string Name { get; init; }
@@ -184,41 +185,47 @@ public class RoomSettingsSaveEventHandler(
         UpdateSettings(settings);
         UpdateChatSettings(chatSettings);
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        var roomId = room.Room.Id;
+        var tagNames = room.Room.Tags.Select(x => x.Name).ToList();
 
-        await dbContext.Rooms
-            .Where(x => x.Id == room.Room.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Name, room.Room.Name)
-                .SetProperty(x => x.Description, room.Room.Description)
-                .SetProperty(x => x.MaxUsersAllowed, room.Room.MaxUsersAllowed));
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.RoomSettings
-            .Where(x => x.Id == settings.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.AccessType, settings.AccessType)
-                .SetProperty(x => x.Password, settings.Password)
-                .SetProperty(x => x.TradeOption, settings.TradeOption)
-                .SetProperty(x => x.AllowPets, settings.AllowPets)
-                .SetProperty(x => x.CanPetsEat, settings.CanPetsEat)
-                .SetProperty(x => x.CanUsersOverlap, settings.CanUsersOverlap)
-                .SetProperty(x => x.HideWalls, settings.HideWalls)
-                .SetProperty(x => x.WallThickness, settings.WallThickness)
-                .SetProperty(x => x.FloorThickness, settings.FloorThickness)
-                .SetProperty(x => x.WhoCanMute, settings.WhoCanMute)
-                .SetProperty(x => x.WhoCanKick, settings.WhoCanKick)
-                .SetProperty(x => x.WhoCanBan, settings.WhoCanBan));
+            await dbContext.Rooms
+                .Where(x => x.Id == room.Room.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Name, room.Room.Name)
+                    .SetProperty(x => x.Description, room.Room.Description)
+                    .SetProperty(x => x.MaxUsersAllowed, room.Room.MaxUsersAllowed));
 
-        await dbContext.RoomChatSettings
-            .Where(x => x.Id == chatSettings.Id)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.ChatType, chatSettings.ChatType)
-                .SetProperty(x => x.ChatWeight, chatSettings.ChatWeight)
-                .SetProperty(x => x.ChatSpeed, chatSettings.ChatSpeed)
-                .SetProperty(x => x.ChatDistance, chatSettings.ChatDistance)
-                .SetProperty(x => x.ChatProtection, chatSettings.ChatProtection));
+            await dbContext.RoomSettings
+                .Where(x => x.Id == settings.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.AccessType, settings.AccessType)
+                    .SetProperty(x => x.Password, settings.Password)
+                    .SetProperty(x => x.TradeOption, settings.TradeOption)
+                    .SetProperty(x => x.AllowPets, settings.AllowPets)
+                    .SetProperty(x => x.CanPetsEat, settings.CanPetsEat)
+                    .SetProperty(x => x.CanUsersOverlap, settings.CanUsersOverlap)
+                    .SetProperty(x => x.HideWalls, settings.HideWalls)
+                    .SetProperty(x => x.WallThickness, settings.WallThickness)
+                    .SetProperty(x => x.FloorThickness, settings.FloorThickness)
+                    .SetProperty(x => x.WhoCanMute, settings.WhoCanMute)
+                    .SetProperty(x => x.WhoCanKick, settings.WhoCanKick)
+                    .SetProperty(x => x.WhoCanBan, settings.WhoCanBan));
 
-        await SaveTagsAsync(dbContext, room.Room.Id, room.Room.Tags.Select(x => x.Name).ToList());
+            await dbContext.RoomChatSettings
+                .Where(x => x.Id == chatSettings.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.ChatType, chatSettings.ChatType)
+                    .SetProperty(x => x.ChatWeight, chatSettings.ChatWeight)
+                    .SetProperty(x => x.ChatSpeed, chatSettings.ChatSpeed)
+                    .SetProperty(x => x.ChatDistance, chatSettings.ChatDistance)
+                    .SetProperty(x => x.ChatProtection, chatSettings.ChatProtection));
+
+            await SaveTagsAsync(dbContext, roomId, tagNames);
+        };
 
         await BroadcastUpdatesAsync(room);
 
@@ -252,7 +259,7 @@ public class RoomSettingsSaveEventHandler(
     private void UpdateSettings(RoomSettingsDto settings)
     {
         settings.AccessType = (RoomAccessType) AccessType;
-        settings.Password = Password;
+        settings.Password = string.IsNullOrEmpty(Password) ? "" : RoomPasswordHasher.Hash(Password);
         settings.TradeOption = (RoomTradeOption) TradeOption;
         settings.AllowPets = AllowPets;
         settings.CanPetsEat = CanPetsEat;
@@ -308,4 +315,8 @@ public class RoomSettingsSaveEventHandler(
         await room.BroadcastDataAsync(settingsWriter);
         await room.BroadcastDataAsync(settingsUpdatedWriter);
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

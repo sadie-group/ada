@@ -3,10 +3,10 @@ using Ada.API.DTOs.Server;
 using Ada.API.Interfaces.Game.WordFilter;
 using Ada.Core.Enums.Game.WordFilter;
 using Ada.Db.Models.Constants;
-using Ada.Networking.Events;
+using Ada.Game.Rooms.Wired;
 using Moq;
 
-namespace Ada.Tests.Networking.Events;
+namespace Ada.Tests.Game.Rooms.Wired;
 
 [TestFixture]
 public class WiredSettingsHelpersTests

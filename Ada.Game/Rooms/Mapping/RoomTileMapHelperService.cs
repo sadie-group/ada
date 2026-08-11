@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using Ada.API.Collections;
@@ -124,7 +125,8 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
     private sealed class TileItemIndex
     {
         public required int Revision { get; init; }
-        public required IReadOnlyDictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>> ItemsByTile
+
+        public required ConcurrentDictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>> ItemsByTile
         {
             get;
             init;
@@ -153,7 +155,9 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
         var (revision, snapshot) = CollectionRevision.SnapshotOf(items);
 
-        if (current != null && current.Revision == revision)
+        if (current != null &&
+            revision != CollectionRevision.Untracked &&
+            current.Revision == revision)
         {
             return current;
         }
@@ -187,7 +191,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
             return false;
         }
 
-        var itemsByTile = new Dictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>>(index.ItemsByTile);
+        var itemsByTile = index.ItemsByTile;
 
         foreach (var point in oldPoints)
         {
@@ -200,7 +204,7 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
             if (replacement.Length == 0)
             {
-                itemsByTile.Remove(point);
+                itemsByTile.TryRemove(point, out _);
             }
             else
             {
@@ -223,12 +227,6 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
 
             itemsByTile[point] = [..tileItems, item];
         }
-
-        slot.Current = new TileItemIndex
-        {
-            Revision = index.Revision,
-            ItemsByTile = itemsByTile
-        };
 
         return true;
     }
@@ -283,9 +281,11 @@ public class RoomTileMapHelperService : IRoomTileMapHelperService
         return new TileItemIndex
         {
             Revision = revision,
-            ItemsByTile = itemsByTile.ToDictionary(
-                x => x.Key,
-                x => (IReadOnlyList<PlayerFurnitureItemPlacementDataDto>) x.Value.ToArray())
+            ItemsByTile = new ConcurrentDictionary<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>>(
+                itemsByTile.Select(x =>
+                    new KeyValuePair<Point, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>>(
+                        x.Key,
+                        x.Value.ToArray())))
         };
     }
 

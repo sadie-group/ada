@@ -665,6 +665,72 @@ public class RoomTileMapHelperServiceTests
             "a reader's result must not change under it when the index absorbs a move");
     }
 
+    [Test]
+    public void TryMoveItemInIndex_LeavesUntouchedTilesAlone()
+    {
+        var moving = MockFurnitureItem(1, 1);
+        var bystander = MockFurnitureItem(8, 8);
+
+        var items = new RevisionedCollection<PlayerFurnitureItemPlacementDataDto> { moving, bystander };
+
+        var bystanderBefore = _tileMapHelperService.GetItemsOnTilePosition(8, 8, items);
+
+        moving.PositionX = 2;
+
+        var moved = _tileMapHelperService.TryMoveItemInIndex(
+            items, moving, [new Point(1, 1)], [new Point(2, 1)]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(moved, Is.True);
+            Assert.That(_tileMapHelperService.GetItemsOnTilePosition(8, 8, items), Is.SameAs(bystanderBefore),
+                "an unrelated tile must not be reallocated to absorb a move elsewhere");
+            Assert.That(_tileMapHelperService.GetItemsOnTilePosition(1, 1, items), Is.Empty);
+            Assert.That(_tileMapHelperService.GetItemsOnTilePosition(2, 1, items), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void TryMoveItemInIndex_MultiTileItem_UpdatesEveryTileOfTheFootprint()
+    {
+        var item = MockLongFurnitureItem(1, 1);
+        var items = new RevisionedCollection<PlayerFurnitureItemPlacementDataDto> { item };
+
+        var oldPoints = _tileMapHelperService.GetPointsForPlacement(
+            1, 1,
+            item.PlayerFurnitureItem.FurnitureItem.TileSpanX,
+            item.PlayerFurnitureItem.FurnitureItem.TileSpanY,
+            item.Direction);
+
+        _tileMapHelperService.GetItemsOnTilePosition(oldPoints[0].X, oldPoints[0].Y, items);
+
+        item.PositionX = 5;
+        item.PositionY = 5;
+
+        var newPoints = _tileMapHelperService.GetPointsForPlacement(
+            5, 5,
+            item.PlayerFurnitureItem.FurnitureItem.TileSpanX,
+            item.PlayerFurnitureItem.FurnitureItem.TileSpanY,
+            item.Direction);
+
+        Assert.That(_tileMapHelperService.TryMoveItemInIndex(items, item, oldPoints, newPoints), Is.True);
+
+        Assert.Multiple(() =>
+        {
+            foreach (var point in oldPoints)
+            {
+                Assert.That(_tileMapHelperService.GetItemsOnTilePosition(point.X, point.Y, items), Is.Empty,
+                    $"tile {point} should no longer carry the item");
+            }
+
+            foreach (var point in newPoints)
+            {
+                Assert.That(_tileMapHelperService.GetItemsOnTilePosition(point.X, point.Y, items),
+                    Has.Count.EqualTo(1), $"tile {point} should now carry the item");
+            }
+        });
+    }
+
     private static PlayerFurnitureItemPlacementDataDto MockLongFurnitureItem(int x = 0,
         int y = 0)
     {

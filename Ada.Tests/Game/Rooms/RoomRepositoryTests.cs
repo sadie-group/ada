@@ -146,6 +146,59 @@ public class RoomRepositoryTests
     }
 
     [Test]
+    public void GetOrAddRoom_ExistingInstanceIsDisposed_SwapsInTheLiveOne()
+    {
+        var repository = new RoomRepository();
+
+        var unloaded = CreateRoom(1);
+        unloaded.SetupGet(x => x.IsDisposed).Returns(true);
+
+        var replacement = CreateRoom(1);
+
+        repository.AddRoom(unloaded.Object);
+
+        var resolved = repository.GetOrAddRoom(replacement.Object);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolved, Is.SameAs(replacement.Object));
+            Assert.That(repository.TryGetRoomById(1), Is.SameAs(replacement.Object));
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void GetAllRooms_ReflectsAddsAndRemoves()
+    {
+        var repository = new RoomRepository();
+        var room = CreateRoom(1);
+
+        Assert.That(repository.GetAllRooms(), Is.Empty);
+
+        repository.AddRoom(room.Object);
+        Assert.That(repository.GetAllRooms(), Is.EquivalentTo(new[] { room.Object }));
+
+        repository.GetOrAddRoom(CreateRoom(2).Object);
+        Assert.That(repository.GetAllRooms().Count(), Is.EqualTo(2));
+
+        repository.TryRemove(1, out _);
+        Assert.That(repository.GetAllRooms().Select(x => x.Room.Id), Is.EqualTo(new[] { 2 }));
+    }
+
+    [Test]
+    public void GetAllRooms_SameSnapshotBetweenMutations()
+    {
+        var repository = new RoomRepository();
+        repository.AddRoom(CreateRoom(1).Object);
+
+        var first = repository.GetAllRooms();
+        var second = repository.GetAllRooms();
+
+        Assert.That(first, Is.SameAs(second),
+            "the game loop sweeps this ten times a second; it must not allocate a list per pass");
+    }
+
+    [Test]
     public async Task DisposeAsync_DisposesAllRoomsAndClears()
     {
         var repository = new RoomRepository();
