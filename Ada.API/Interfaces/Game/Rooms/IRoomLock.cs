@@ -5,4 +5,6 @@ public interface IRoomLock
     ValueTask AcquireAsync();
 
     void Release();
+
+    long HeldForMilliseconds => 0;
 }
