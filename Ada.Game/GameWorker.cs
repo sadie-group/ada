@@ -204,8 +204,24 @@ namespace Ada.Game
 
             foreach (var obj in toFlush)
             {
-                _ = obj.FlushAsync();
+                ObserveFlush(obj.FlushAsync(), room.Room.Id);
             }
+        }
+
+        private void ObserveFlush(Task flush, int roomId)
+        {
+            if (flush.IsCompletedSuccessfully)
+            {
+                return;
+            }
+
+            _ = flush.ContinueWith(
+                (t, state) => logger.LogError(
+                    t.Exception, "Flush failed for a client in room {RoomId}", state),
+                roomId,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
     }
 }
