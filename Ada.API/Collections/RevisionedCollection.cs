@@ -101,6 +101,8 @@ public sealed class RevisionedCollection<T> : ICollection<T>
 
 public static class CollectionRevision
 {
+    public const int Untracked = -1;
+
     public static (int Revision, IReadOnlyList<T> Items) SnapshotOf<T>(ICollection<T> items)
     {
         if (items is RevisionedCollection<T> revisioned)
@@ -109,9 +111,9 @@ public static class CollectionRevision
             return (snapshot.Revision, snapshot.Items);
         }
 
-        return (items.Count, items.ToArray());
+        return (Untracked, items.ToArray());
     }
 
     public static bool IsCurrent<T>(ICollection<T> items, int revision) =>
-        revision == (items is RevisionedCollection<T> revisioned ? revisioned.Revision : items.Count);
+        items is RevisionedCollection<T> revisioned && revision == revisioned.Revision;
 }

@@ -65,7 +65,7 @@ public class RevisionedCollectionTests
     }
 
     [Test]
-    public void SnapshotOf_PlainCollection_FallsBackToCountAndCopies()
+    public void SnapshotOf_PlainCollection_ReportsUntrackedAndCopies()
     {
         var list = new List<string> { "a" };
         var (revision, items) = CollectionRevision.SnapshotOf(list);
@@ -74,9 +74,35 @@ public class RevisionedCollectionTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(revision, Is.EqualTo(1));
+            Assert.That(revision, Is.EqualTo(CollectionRevision.Untracked));
             Assert.That(items, Has.Count.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void IsCurrent_PlainCollection_IsNeverCurrent()
+    {
+        var list = new List<string> { "a", "b" };
+        var (revision, _) = CollectionRevision.SnapshotOf(list);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(CollectionRevision.IsCurrent(list, revision), Is.False);
+            Assert.That(CollectionRevision.IsCurrent(list, list.Count), Is.False);
+        });
+    }
+
+    [Test]
+    public void IsCurrent_RevisionedCollection_TracksMutations()
+    {
+        var collection = new RevisionedCollection<string> { "a" };
+        var (revision, _) = CollectionRevision.SnapshotOf(collection);
+
+        Assert.That(CollectionRevision.IsCurrent(collection, revision), Is.True);
+
+        collection.Add("b");
+
+        Assert.That(CollectionRevision.IsCurrent(collection, revision), Is.False);
     }
 
     [Test]
