@@ -61,6 +61,80 @@ public class PacketHandlerFactoryTests
             Is.Not.SameAs(factory.Create(typeof(ParameterlessHandler))));
     }
 
+    public interface IUnregisteredDependency;
+
+    public class HandlerWithUnregisteredDependency(IUnregisteredDependency dependency) : INetworkPacketEventHandler
+    {
+        public IUnregisteredDependency Dependency { get; } = dependency;
+
+        public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
+    }
+
+    public class HandlerWithTwoConstructors : INetworkPacketEventHandler
+    {
+        public IDependency? Dependency { get; }
+
+        public HandlerWithTwoConstructors()
+        {
+        }
+
+        public HandlerWithTwoConstructors(IDependency dependency)
+        {
+            Dependency = dependency;
+        }
+
+        public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
+    }
+
+    public class HandlerWithMarkedConstructor : INetworkPacketEventHandler
+    {
+        public IDependency? Dependency { get; }
+
+        public HandlerWithMarkedConstructor()
+        {
+        }
+
+        [ActivatorUtilitiesConstructor]
+        public HandlerWithMarkedConstructor(IDependency dependency)
+        {
+            Dependency = dependency;
+        }
+
+        public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
+    }
+
+    [Test]
+    public void Create_MissingDependency_ThrowsNamingTheService()
+    {
+        var factory = CreateFactory();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => factory.Create(typeof(HandlerWithUnregisteredDependency)));
+
+        Assert.That(exception!.Message, Does.Contain(nameof(IUnregisteredDependency)));
+    }
+
+    [Test]
+    public void Create_AmbiguousConstructors_ThrowsNamingTheHandler()
+    {
+        var factory = CreateFactory();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => factory.Create(typeof(HandlerWithTwoConstructors)));
+
+        Assert.That(exception!.Message, Does.Contain(nameof(HandlerWithTwoConstructors)));
+    }
+
+    [Test]
+    public void Create_MarkedConstructor_ResolvesTheMarkedOne()
+    {
+        var factory = CreateFactory();
+
+        var handler = (HandlerWithMarkedConstructor) factory.Create(typeof(HandlerWithMarkedConstructor));
+
+        Assert.That(handler.Dependency, Is.InstanceOf<Dependency>());
+    }
+
     [Test]
     public void Create_TypeNotSeenBefore_BuildsFactoryOnDemand()
     {
