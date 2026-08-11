@@ -12,9 +12,15 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Ada.Networking.SourceGen\Ada.Networking.SourceGen.csproj"
+                        OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="AutoMapper" />
       <ProjectReference Include="..\Ada.API\Ada.API.csproj" />
       <ProjectReference Include="..\Ada.Db\Ada.Db.csproj" />
+    <ProjectReference Include="..\Ada.Game\Ada.Game.csproj" />
       <ProjectReference Include="..\Ada.Networking.Encryption\Ada.Networking.Encryption.csproj" />
       <PackageReference Include="Scrutor" />
       <PackageReference Include="Serilog" />

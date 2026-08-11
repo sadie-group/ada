@@ -8,12 +8,6 @@
 
     <ItemGroup>
         <PackageReference Include="AutoMapper" />
-        <PackageReference Include="Fleck" />
-        <PackageReference Include="Microsoft.Extensions.Configuration" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-        <PackageReference Include="Microsoft.Extensions.Logging" />
         <ProjectReference Include="..\Ada.API\Ada.API.csproj" />
         <ProjectReference Include="..\Ada.Networking.Encryption\Ada.Networking.Encryption.csproj" />
         <PackageReference Include="Serilog" />
