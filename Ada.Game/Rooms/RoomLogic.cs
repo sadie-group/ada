@@ -32,19 +32,32 @@ public class RoomLogic(
 
     private static readonly AsyncLocal<ImmutableHashSet<RoomLogic>?> HeldRooms = new();
 
+    private sealed class LockAcquisition
+    {
+        public int ActiveReentrantBodies;
+    }
+
+    private static readonly AsyncLocal<LockAcquisition?> Acquisition = new();
+    private static readonly AsyncLocal<int> ReentrancyDepth = new();
+
     public async Task RunLockedAsync(Func<Task> action)
     {
         var held = HeldRooms.Value ?? ImmutableHashSet<RoomLogic>.Empty;
 
         if (held.Contains(this))
         {
-            await action();
+            await RunReentrantAsync(action);
             return;
         }
 
         await roomLock.AcquireAsync();
 
+        var acquisition = Acquisition.Value;
+        var depth = ReentrancyDepth.Value;
+
         HeldRooms.Value = held.Add(this);
+        Acquisition.Value = new LockAcquisition();
+        ReentrancyDepth.Value = 0;
 
         try
         {
@@ -53,9 +66,46 @@ public class RoomLogic(
         finally
         {
             HeldRooms.Value = held;
+            Acquisition.Value = acquisition;
+            ReentrancyDepth.Value = depth;
             roomLock.Release();
         }
     }
+
+    private async Task RunReentrantAsync(Func<Task> action)
+    {
+        var acquisition = Acquisition.Value;
+
+        if (acquisition == null)
+        {
+            await action();
+            return;
+        }
+
+        var depthBefore = ReentrancyDepth.Value;
+        var active = Interlocked.Increment(ref acquisition.ActiveReentrantBodies);
+
+        if (active > depthBefore + 1)
+        {
+            ConcurrentReentryDetected?.Invoke(Room.Id, active);
+        }
+
+        ReentrancyDepth.Value = depthBefore + 1;
+
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            ReentrancyDepth.Value = depthBefore;
+            Interlocked.Decrement(ref acquisition.ActiveReentrantBodies);
+        }
+    }
+
+    public static event Action<int, int>? ConcurrentReentryDetected;
+
+    public long LockHeldForMilliseconds => roomLock.HeldForMilliseconds;
 
     private volatile bool _disposed;
 

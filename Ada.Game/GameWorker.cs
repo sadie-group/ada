@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.WebSockets;
 using Ada.API;
@@ -44,8 +45,8 @@ namespace Ada.Game
             return Task.CompletedTask;
         }
 
-        private const int PassIntervalMilliseconds = 100;
-        private const int PassesPerTick = 5;
+        private const int _passIntervalMilliseconds = 100;
+        private const int _passesPerTick = 5;
 
         private async Task GameLoopAsync(CancellationToken token)
         {
@@ -61,7 +62,7 @@ namespace Ada.Game
             {
                 sw.Restart();
 
-                var fullTick = pass++ % PassesPerTick == 0;
+                var fullTick = pass++ % _passesPerTick == 0;
 
                 try
                 {
@@ -81,7 +82,7 @@ namespace Ada.Game
 
                 sw.Stop();
 
-                var delay = PassIntervalMilliseconds - (int)sw.ElapsedMilliseconds;
+                var delay = _passIntervalMilliseconds - (int)sw.ElapsedMilliseconds;
 
                 if (delay < 0)
                 {
@@ -117,8 +118,49 @@ namespace Ada.Game
             }
         }
 
+        private const int _stuckLockWarnAfterMilliseconds = 30_000;
+        private const int _stuckLockRewarnEveryMilliseconds = 60_000;
+
+        private readonly ConcurrentDictionary<int, long> _stuckLockLastWarned = new();
+
+        private void WarnIfLockLooksStuck(IRoomLogic room)
+        {
+            var heldFor = room.LockHeldForMilliseconds;
+
+            if (heldFor < _stuckLockWarnAfterMilliseconds)
+            {
+                if (heldFor == 0)
+                {
+                    _stuckLockLastWarned.TryRemove(room.Room.Id, out _);
+                }
+
+                return;
+            }
+
+            var now = Environment.TickCount64;
+
+            if (_stuckLockLastWarned.TryGetValue(room.Room.Id, out var lastWarned) &&
+                now - lastWarned < _stuckLockRewarnEveryMilliseconds)
+            {
+                return;
+            }
+
+            if (!_stuckLockLastWarned.TryUpdate(room.Room.Id, now, lastWarned) &&
+                !_stuckLockLastWarned.TryAdd(room.Room.Id, now))
+            {
+                return;
+            }
+
+            logger.LogWarning(
+                "Room {RoomId} has held its lock for {HeldForMs}ms; a packet handler is most likely stuck and this room is costing a parallel slot every tick",
+                room.Room.Id,
+                heldFor);
+        }
+
         private async Task TickRoomAsync(IRoomLogic room, bool fullTick)
         {
+            WarnIfLockLooksStuck(room);
+
             if (room.UserRepository.Count == 0)
             {
                 room.UserRepository.NoUsersSince ??= DateTime.UtcNow;
