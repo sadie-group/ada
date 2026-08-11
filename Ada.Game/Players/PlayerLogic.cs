@@ -96,7 +96,7 @@ public class PlayerLogic(
 
     public ValueTask DisposeAsync()
     {
-        logger.LogInformation($"Player '{Player.Username}' has logged out");
+        logger.LogInformation("Player {Username} has logged out", Player.Username);
         return ValueTask.CompletedTask;
     }
 

@@ -65,7 +65,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
         if (!result || roomUser == null)
         {
-            logger.LogError($"Failed to remove a room user");
+            logger.LogError("Failed to remove a room user");
             return;
         }
 
@@ -176,7 +176,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
         }
         catch (Exception e)
         {
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Failed to broadcast walking-user updates");
         }
     }
 
@@ -241,7 +241,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
         }
         catch (Exception e)
         {
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Room periodic user check failed");
         }
     }
 

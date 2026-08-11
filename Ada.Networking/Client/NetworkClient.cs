@@ -138,7 +138,7 @@ public class NetworkClient(
 
             WebSocket.Abort();
 
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Outbound pump failed for client {Guid}, connection aborted", Guid);
         }
     }
 

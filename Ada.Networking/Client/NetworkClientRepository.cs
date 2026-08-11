@@ -100,7 +100,7 @@ public class NetworkClientRepository(
             return;
         }
 
-        logger.LogWarning($"Disconnecting {idleClients.Count} idle players");
+        logger.LogWarning("Disconnecting {Count} idle players", idleClients.Count);
 
         var throttler = new SemaphoreSlim(10);
 
