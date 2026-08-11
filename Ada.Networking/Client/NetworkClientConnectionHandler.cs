@@ -13,6 +13,7 @@ public class NetworkClientConnectionHandler(
     INetworkClientRepository clientRepository,
     IWebSocketMessageReader webSocketMessageReader,
     PacketDispatcher packetDispatcher,
+    IPacketRateThrottle packetRateThrottle,
     IClientDisposalService clientDisposalService)
     : INetworkClientConnectionHandler
 {
@@ -42,6 +43,19 @@ public class NetworkClientConnectionHandler(
                     continue;
                 }
 
+                if (!packetRateThrottle.TryConsume(client.Guid))
+                {
+                    ReturnBuffer(buffer);
+
+                    logger.LogWarning(
+                        "Client {Guid} from {Ip} exceeded its packet budget; closing the connection",
+                        client.Guid,
+                        client.IpAddress);
+
+                    client.WebSocket.Abort();
+                    break;
+                }
+
                 INetworkPacket packet;
 
                 try
@@ -63,6 +77,8 @@ public class NetworkClientConnectionHandler(
         }
         finally
         {
+            packetRateThrottle.Forget(client.Guid);
+
             await clientDisposalService.HandleDisconnectAsync(client);
         }
     }

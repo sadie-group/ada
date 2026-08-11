@@ -19,8 +19,12 @@ namespace Ada.Networking.Events.Handlers.Rooms.FloorPlanEditor;
 [PacketId(EventHandlerId.FloorPlanEditorSave)]
 public partial class FloorPlanEditorSaveEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
+
     public required string HeightMap { get; init; }
     public required int DoorX { get; init; }
     public required int DoorY { get; init; }
@@ -87,9 +91,17 @@ public partial class FloorPlanEditorSaveEventHandler(
 
             room.Room.LayoutId = layoutEntity.Id;
 
-            await dbContext.Rooms
-                .Where(x => x.Id == room.Room.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.LayoutId, layoutEntity.Id));
+            var newLayoutId = layoutEntity.Id;
+            var roomId = room.Room.Id;
+
+            _persist = async () =>
+            {
+                await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+                await persistContext.Rooms
+                    .Where(x => x.Id == roomId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.LayoutId, newLayoutId));
+            };
         }
         else
         {
@@ -98,13 +110,20 @@ public partial class FloorPlanEditorSaveEventHandler(
             room.Room.Layout.DoorY = DoorY;
             room.Room.Layout.Heightmap = HeightMap;
 
-            await dbContext.RoomLayouts
-                .Where(x => x.Id == room.Room.Layout.Id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.DoorDirection, DoorDirection)
-                    .SetProperty(x => x.DoorX, DoorX)
-                    .SetProperty(x => x.DoorY, DoorY)
-                    .SetProperty(x => x.Heightmap, HeightMap));
+            var layoutId = room.Room.Layout.Id;
+
+            _persist = async () =>
+            {
+                await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+                await persistContext.RoomLayouts
+                    .Where(x => x.Id == layoutId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.DoorDirection, DoorDirection)
+                        .SetProperty(x => x.DoorX, DoorX)
+                        .SetProperty(x => x.DoorY, DoorY)
+                        .SetProperty(x => x.Heightmap, HeightMap));
+            };
         }
 
         var playersToForward = new List<IPlayerLogic>();

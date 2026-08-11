@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Filters;
@@ -34,7 +35,7 @@ public class ClientPacketHandler(
                         .FireAndForget(logger, "missing-packet notification");
                 }
 
-                logger.LogWarning($"Couldn't resolve packet event handler for header '{packet.PacketId}'");
+                logger.LogWarning("Couldn't resolve packet event handler for header {Header}", packet.PacketId);
                 return;
             }
 
@@ -83,7 +84,7 @@ public class ClientPacketHandler(
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug($"Packet '{eventHandler.GetType().Name}' blocked by filter '{filter.GetType().Name}'");
+                    logger.LogDebug("Packet {Packet} blocked by filter {Filter}", eventHandler.GetType().Name, filter.GetType().Name);
                 }
                 return;
             }
@@ -153,7 +154,7 @@ public class ClientPacketHandler(
 
     private async Task RejectAsync(INetworkPacketEventHandler eventHandler, INetworkClient client)
     {
-        logger.LogWarning($"Rejected packet '{eventHandler.GetType().Name}' (authenticated: {client.Player != null})");
+        logger.LogWarning("Rejected packet {Packet} (authenticated: {Authenticated})", eventHandler.GetType().Name, client.Player != null);
 
         try
         {
@@ -161,7 +162,7 @@ public class ClientPacketHandler(
         }
         catch (Exception e)
         {
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Failed to send rejection for packet {Packet}", eventHandler.GetType().Name);
         }
     }
 
@@ -169,8 +170,10 @@ public class ClientPacketHandler(
     {
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug($"Executing packet '{eventHandler.GetType().Name}'");
+            logger.LogDebug("Executing packet {Packet}", eventHandler.GetType().Name);
         }
+
+        var startedAt = Stopwatch.GetTimestamp();
 
         try
         {
@@ -194,8 +197,29 @@ public class ClientPacketHandler(
         }
         catch (Exception e)
         {
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Unhandled exception executing packet {Packet}", eventHandler.GetType().Name);
         }
+        finally
+        {
+            WarnIfSlow(eventHandler, startedAt);
+        }
+    }
+
+    private const int _slowHandlerThresholdMilliseconds = 1_000;
+
+    private void WarnIfSlow(INetworkPacketEventHandler eventHandler, long startedAt)
+    {
+        var elapsed = Stopwatch.GetElapsedTime(startedAt);
+
+        if (elapsed.TotalMilliseconds < _slowHandlerThresholdMilliseconds)
+        {
+            return;
+        }
+
+        logger.LogWarning(
+            "Handler '{Handler}' took {ElapsedMs}ms",
+            eventHandler.GetType().Name,
+            (long) elapsed.TotalMilliseconds);
     }
 
     private async Task PersistAsync(IDefersPersistence deferred)
