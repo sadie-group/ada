@@ -1,24 +1,26 @@
-using Ada.Db;
-using System.Security.Cryptography;
-using System.Text;
 using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Generic;
-using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Doorbell;
 using Ada.Networking.Writers.Rooms.Users;
+using Ada.Networking.Writers.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 
@@ -135,9 +137,7 @@ public class RoomLoadedEventHandler(
                     return false;
                 }
 
-                if (CryptographicOperations.FixedTimeEquals(
-                        Encoding.UTF8.GetBytes(settings.Password ?? string.Empty),
-                        Encoding.UTF8.GetBytes(password)))
+                if (RoomPasswordHasher.Verify(settings.Password, password))
                 {
                     return true;
                 }
