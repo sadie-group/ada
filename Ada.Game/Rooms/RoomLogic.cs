@@ -57,8 +57,25 @@ public class RoomLogic(
         }
     }
 
+    private volatile bool _disposed;
+
+    public bool IsDisposed => _disposed;
+
     public async ValueTask DisposeAsync()
     {
+        await RunLockedAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+
+            await UserRepository.DisposeAsync();
+            await BotRepository.DisposeAsync();
+            await PetRepository.DisposeAsync();
+        });
     }
 
     public Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null)

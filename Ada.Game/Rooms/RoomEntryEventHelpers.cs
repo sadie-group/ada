@@ -12,11 +12,12 @@ using Ada.Core.Enums.Miscellaneous;
 using Ada.Db;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Rooms;
+using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms;
 
 public static class RoomEntryEventHelpers
 {
@@ -100,8 +101,16 @@ public static class RoomEntryEventHelpers
         IRoomUser roomUser = null!;
         var added = false;
 
+        var roomWasUnloaded = false;
+
         await room.RunLockedAsync(async () =>
         {
+            if (room.IsDisposed)
+            {
+                roomWasUnloaded = true;
+                return;
+            }
+
             roomUser = RoomHelpers.CreateUserForEntry(roomUserFactory, room, player, entryPoint, (HDirection) entryDirection);
             roomUser.ApplyFlatCtrlStatus();
 
@@ -139,11 +148,22 @@ public static class RoomEntryEventHelpers
             await SendRoomEntryPacketsToUserAsync(client, room);
         });
 
+        if (roomWasUnloaded)
+        {
+            Log.Warning(
+                "Room {RoomId} was unloaded while player {PlayerId} was entering it; sending them " +
+                "back to the hotel view so the next attempt loads a live instance.",
+                room.Room.Id, player.Player.Id);
+
+            await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+            return;
+        }
+
         if (!added)
         {
             return;
         }
-        
+
         var friends = player
             .GetMergedFriendships();
         
@@ -157,44 +177,62 @@ public static class RoomEntryEventHelpers
         await RoomHelpers.CreateRoomVisitForPlayerAsync(player, room.Room.Id, dbContextFactory, mapper);
         
         await Task.Delay(100);
-        
-        await room.RunLockedAsync(async () =>
+
+        await room.RunLockedAsync(() => AnnounceArrivalAsync(room, player, roomUser, wiredService));
+    }
+
+    private static async Task AnnounceArrivalAsync(
+        IRoomLogic room,
+        IPlayerLogic player,
+        IRoomUser roomUser,
+        IRoomWiredService wiredService)
+    {
+        await SendMutualIgnoreStatesAsync(room, player);
+        await RunEnterRoomWiredTriggersAsync(room, roomUser, wiredService);
+    }
+
+    private static async Task SendMutualIgnoreStatesAsync(IRoomLogic room, IPlayerLogic player)
+    {
+        foreach (var user in room.UserRepository.GetAll())
         {
-            foreach (var user in room.UserRepository.GetAll())
+            if (user.Player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == player.Player.Id))
             {
-                if (user.Player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == player.Player.Id))
-                {
-                    await user.Player.NetworkObject!.WriteToStreamAsync(
-                        new PlayerIgnoreStateWriter
-                        {
-                            State = (int) PlayerIgnoreState.Ignored,
-                            Username = player.Player.Username
-                        });
-                }
-
-                if (player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == user.Player.Player.Id))
-                {
-                    await player.NetworkObject!.WriteToStreamAsync(
-                        new PlayerIgnoreStateWriter
-                        {
-                            State = (int) PlayerIgnoreState.Ignored,
-                            Username = user.Player.Player.Username
-                        });
-                }
+                await user.Player.NetworkObject!.WriteToStreamAsync(
+                    new PlayerIgnoreStateWriter
+                    {
+                        State = (int) PlayerIgnoreState.Ignored,
+                        Username = player.Player.Username
+                    });
             }
 
-            var matchingWiredTriggers = room.Room.FurnitureItems
-                .Where(x =>
-                    x
-                        .PlayerFurnitureItem
-                        .FurnitureItem.InteractionType == FurnitureItemInteractionType.WiredTriggerEnterRoom)
-                .ToList();
-
-            foreach (var trigger in matchingWiredTriggers)
+            if (player.Player.OutgoingIgnores.Any(pi => pi.TargetPlayerId == user.Player.Player.Id))
             {
-                await wiredService.RunTriggerForRoomAsync(room, trigger, roomUser);
+                await player.NetworkObject!.WriteToStreamAsync(
+                    new PlayerIgnoreStateWriter
+                    {
+                        State = (int) PlayerIgnoreState.Ignored,
+                        Username = user.Player.Player.Username
+                    });
             }
-        });
+        }
+    }
+
+    private static async Task RunEnterRoomWiredTriggersAsync(
+        IRoomLogic room,
+        IRoomUser roomUser,
+        IRoomWiredService wiredService)
+    {
+        var matchingWiredTriggers = room.Room.FurnitureItems
+            .Where(x =>
+                x
+                    .PlayerFurnitureItem
+                    .FurnitureItem.InteractionType == FurnitureItemInteractionType.WiredTriggerEnterRoom)
+            .ToList();
+
+        foreach (var trigger in matchingWiredTriggers)
+        {
+            await wiredService.RunTriggerForRoomAsync(room, trigger, roomUser);
+        }
     }
 
     private static async Task SendRoomEntryPacketsToUserAsync(INetworkClient client, IRoomLogic room)

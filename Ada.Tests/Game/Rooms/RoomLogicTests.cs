@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.Game.Rooms.Locking;
 using Ada.API;
 using Ada.API.DTOs.Players;
@@ -21,7 +22,7 @@ public class RoomLogicTests
 {
     private sealed class FixedIdMap : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
@@ -284,5 +285,77 @@ public class RoomLogicTests
         await logic.BroadcastDataAsync(new StubPacketWriter(), Array.Empty<long>());
 
         firstNetwork.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
+    }
+
+    [Test]
+    public async Task DisposeAsync_ReleasesTheRoomsRepositories()
+    {
+        var userRepository = new Mock<IRoomUserRepository>();
+        var botRepository = new Mock<IRoomBotRepository>();
+        var petRepository = new Mock<IRoomPetRepository>();
+
+        var logic = new RoomLogic(
+            new RoomDto(),
+            Mock.Of<IRoomTileMap>(),
+            Mock.Of<IRoomPathFinder>(),
+            userRepository.Object,
+            botRepository.Object,
+            petRepository.Object,
+            new InProcessRoomLock())
+        {
+            Name = "",
+            Description = ""
+        };
+
+        Assert.That(logic.IsDisposed, Is.False);
+
+        await logic.DisposeAsync();
+
+        Assert.That(logic.IsDisposed, Is.True);
+        userRepository.Verify(x => x.DisposeAsync(), Times.Once);
+        botRepository.Verify(x => x.DisposeAsync(), Times.Once);
+        petRepository.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task DisposeAsync_CalledTwice_ReleasesOnlyOnce()
+    {
+        var userRepository = new Mock<IRoomUserRepository>();
+
+        var logic = new RoomLogic(
+            new RoomDto(),
+            Mock.Of<IRoomTileMap>(),
+            Mock.Of<IRoomPathFinder>(),
+            userRepository.Object,
+            Mock.Of<IRoomBotRepository>(),
+            Mock.Of<IRoomPetRepository>(),
+            new InProcessRoomLock())
+        {
+            Name = "",
+            Description = ""
+        };
+
+        await logic.DisposeAsync();
+        await logic.DisposeAsync();
+
+        userRepository.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task RunLockedAsync_StillWorksAfterDisposal()
+    {
+        var logic = CreateLogic();
+
+        await logic.DisposeAsync();
+
+        var ran = false;
+
+        await logic.RunLockedAsync(() =>
+        {
+            ran = true;
+            return Task.CompletedTask;
+        });
+
+        Assert.That(ran, Is.True);
     }
 }

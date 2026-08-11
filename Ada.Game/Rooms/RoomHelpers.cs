@@ -14,7 +14,7 @@ using Ada.Db.Models.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ada.Networking.Events;
+namespace Ada.Game.Rooms;
 
 public static class RoomHelpers
 {
@@ -28,9 +28,14 @@ public static class RoomHelpers
     {
         var memoryValue = roomRepository.TryGetRoomById(id);
 
-        if (memoryValue != null)
+        if (memoryValue is { IsDisposed: false })
         {
             return Task.FromResult<IRoomLogic?>(memoryValue);
+        }
+
+        if (memoryValue is { IsDisposed: true })
+        {
+            roomRepository.TryRemove(id, out _);
         }
 
         return InFlightLoads.GetOrAdd(
@@ -63,7 +68,7 @@ public static class RoomHelpers
     {
         var memoryValue = roomRepository.TryGetRoomById(id);
 
-        if (memoryValue != null)
+        if (memoryValue is { IsDisposed: false })
         {
             return memoryValue;
         }
