@@ -90,6 +90,7 @@ public class NetworkClientConnectionHandlerTests
             repository.Object,
             reader.Object,
             new PacketDispatcher(packetHandler.Object, NullLogger<PacketDispatcher>.Instance),
+            new PacketRateThrottle(),
             disposal.Object);
 
         await handler.HandleClientAsync(client.Object, CancellationToken.None);
@@ -116,6 +117,7 @@ public class NetworkClientConnectionHandlerTests
             repository.Object,
             reader.Object,
             new PacketDispatcher(Mock.Of<INetworkPacketHandler>(), NullLogger<PacketDispatcher>.Instance),
+            new PacketRateThrottle(),
             disposal.Object);
 
         await handler.HandleClientAsync(client.Object, new CancellationToken(true));

@@ -127,13 +127,9 @@ public class NetworkClientExtendedTests
     }
 
     [Test]
-    public void EncryptionEnabled_PlaintextTransport_StaysFalseAfterHandshake()
+    public void EncryptionEnabled_PlaintextTransport_IsFalse()
     {
         var client = CreateClient(new FakeWebSocket());
-
-        Assert.That(client.EncryptionEnabled, Is.False);
-
-        client.EnableEncryption([1, 2, 3]);
 
         Assert.That(client.EncryptionEnabled, Is.False);
     }
@@ -176,8 +172,11 @@ public class NetworkClientExtendedTests
         var socket = new FakeWebSocket();
         var client = CreateClient(socket);
 
+        const int hugeLength = 9 * 1024 * 1024;
+
         var huge = new Mock<INetworkPacketWriter>();
-        huge.Setup(w => w.GetAllBytes()).Returns(new byte[9 * 1024 * 1024]);
+        huge.SetupGet(w => w.FramedLength).Returns(hugeLength);
+        huge.Setup(w => w.GetAllBytes()).Returns(new byte[hugeLength]);
 
         client.QueueOutbound(huge.Object);
         client.QueueOutbound(huge.Object);
@@ -307,6 +306,29 @@ public class NetworkClientRepositoryExtendedTests
         roomUserRepository.Setup(r => r.TryRemoveAsync(10, true, true)).Returns(Task.CompletedTask);
         var room = new Mock<IRoomLogic>();
         room.SetupGet(r => r.UserRepository).Returns(roomUserRepository.Object);
+
+        var lockHeld = false;
+        var removedUnderLock = false;
+
+        roomUserRepository.Setup(r => r.TryRemoveAsync(10, true, true))
+            .Callback(() => removedUnderLock = lockHeld)
+            .Returns(Task.CompletedTask);
+
+        room.Setup(r => r.RunLockedAsync(It.IsAny<Func<Task>>()))
+            .Returns(async (Func<Task> action) =>
+            {
+                lockHeld = true;
+
+                try
+                {
+                    await action();
+                }
+                finally
+                {
+                    lockHeld = false;
+                }
+            });
+
         var roomUser = new Mock<IRoomUser>();
         roomUser.SetupGet(u => u.Room).Returns(room.Object);
         roomUser.SetupGet(u => u.Player).Returns(player.Object);
@@ -324,7 +346,6 @@ public class NetworkClientRepositoryExtendedTests
             playerRepository.Object,
             Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>(),
             [goodListener.Object, badListener.Object]);
 
         var client = MakeClient(guid, player.Object, roomUser.Object);
@@ -340,6 +361,8 @@ public class NetworkClientRepositoryExtendedTests
         goodListener.Verify(l => l.OnDisconnectedAsync(player.Object, roomUser.Object), Times.Once);
         badListener.Verify(l => l.OnDisconnectedAsync(player.Object, roomUser.Object), Times.Once);
         roomUserRepository.Verify(r => r.TryRemoveAsync(10, true, true), Times.Once);
+        Assert.That(removedUnderLock, Is.True,
+            "the disconnect path must hold the room lock while it mutates the room, or it races the game loop");
         client.Verify(c => c.DisposeAsync(), Times.Never);
     }
 
@@ -360,7 +383,6 @@ public class NetworkClientRepositoryExtendedTests
             playerRepository.Object,
             Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);
@@ -392,7 +414,6 @@ public class NetworkClientRepositoryExtendedTests
             playerRepository.Object,
             Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);
@@ -425,7 +446,6 @@ public class NetworkClientRepositoryExtendedTests
             playerRepository.Object,
             Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);

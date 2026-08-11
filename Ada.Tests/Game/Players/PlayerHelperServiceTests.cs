@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.API;
 using Ada.API.DTOs;
 using Ada.API.DTOs.Players;
@@ -48,7 +49,7 @@ public class PlayerHelperServiceTests
 
         private sealed class AlwaysMappedIdMap : IPacketIdMap
         {
-            public bool TryGetHandlerType(short packetId, out Type? handlerType)
+            public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
             {
                 handlerType = null;
                 return false;

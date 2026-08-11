@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
@@ -22,7 +23,7 @@ public class RoomUserRepositoryTests
 {
     private sealed class FixedIdMap : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
