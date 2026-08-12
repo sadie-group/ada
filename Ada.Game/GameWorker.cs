@@ -187,8 +187,6 @@ namespace Ada.Game
                 return;
             }
 
-            List<INetworkObject>? toFlush = null;
-
             await room.RunLockedAsync(async () =>
             {
                 if (fullTick)
@@ -205,26 +203,18 @@ namespace Ada.Game
 
                 foreach (var user in room.UserRepository.GetAll())
                 {
-                    var obj = user.NetworkObject;
-
-                    if (obj.WebSocket is not { State: WebSocketState.Open })
+                    if (user.NetworkObject.WebSocket is not { State: WebSocketState.Open })
                     {
                         await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
-                        continue;
                     }
-
-                    (toFlush ??= []).Add(obj);
                 }
             });
 
-            if (toFlush == null)
-            {
-                return;
-            }
+            var connected = room.UserRepository.GetNetworkObjects();
 
-            foreach (var obj in toFlush)
+            for (var i = 0; i < connected.Count; i++)
             {
-                ObserveFlush(obj.FlushAsync(), room.Room.Id);
+                ObserveFlush(connected[i].FlushAsync(), room.Room.Id);
             }
         }
 
