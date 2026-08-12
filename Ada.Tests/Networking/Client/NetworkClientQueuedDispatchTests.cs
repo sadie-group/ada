@@ -68,14 +68,16 @@ public class NetworkClientQueuedDispatchTests
     private static NetworkClientConnectionHandler Handler(
         IWebSocketMessageReader reader,
         INetworkPacketHandler packetHandler,
-        IPacketRateThrottle? throttle = null)
+        IPacketRateThrottle? throttle = null,
+        TimeSpan? queueWaitTimeout = null)
         => new(
             NullLogger<NetworkClientConnectionHandler>.Instance,
             Mock.Of<INetworkClientRepository>(),
             reader,
             new PacketDispatcher(packetHandler, NullLogger<PacketDispatcher>.Instance),
             throttle ?? new NeverThrottled(),
-            Mock.Of<IClientDisposalService>());
+            Mock.Of<IClientDisposalService>(),
+            queueWaitTimeout);
 
     private static (Mock<IPacketCodec> Codec, Func<short, INetworkPacket> Make) SequentialCodec()
     {
@@ -198,7 +200,7 @@ public class NetworkClientQueuedDispatchTests
     }
 
     [Test]
-    public async Task QueueOverflow_AbortsTheConnectionInsteadOfGrowing()
+    public async Task FullQueue_AppliesBackpressureInsteadOfBufferingWithoutBound()
     {
         var socket = new ScriptedWebSocket();
         var (codec, _) = SequentialCodec();
@@ -211,7 +213,7 @@ public class NetworkClientQueuedDispatchTests
         reader.Setup(r => r.ReadMessageAsync(socket, It.IsAny<CancellationToken>()))
             .Returns(() =>
             {
-                frames++;
+                Interlocked.Increment(ref frames);
                 return new ValueTask<(byte[], int)>((new byte[] { 1 }, 1));
             });
 
@@ -221,30 +223,69 @@ public class NetworkClientQueuedDispatchTests
             .Setup(h => h.HandleAsync(It.IsAny<INetworkClient>(), It.IsAny<INetworkPacket>()))
             .Returns(async (INetworkClient _, INetworkPacket _) =>
             {
-                handled++;
+                Interlocked.Increment(ref handled);
                 await release.Task;
             });
 
         var run = Handler(reader.Object, packetHandler.Object).HandleClientAsync(client.Object, CancellationToken.None);
 
-        await TestContext.Out.WriteLineAsync("waiting for the queue to fill");
+        await Task.Delay(250);
 
-        var waited = 0;
+        var readAfterStall = Volatile.Read(ref frames);
 
-        while (socket.Aborts == 0 && waited < 5000)
-        {
-            await Task.Delay(10);
-            waited += 10;
-        }
+        await Task.Delay(250);
 
         Assert.Multiple(() =>
         {
-            Assert.That(socket.Aborts, Is.EqualTo(1), "a client that outruns the queue is disconnected");
-            Assert.That(handled, Is.EqualTo(1), "the consumer is still stuck on the first packet");
-            Assert.That(frames, Is.LessThan(1_000), "the read loop stops instead of buffering without bound");
+            Assert.That(Volatile.Read(ref frames), Is.EqualTo(readAfterStall),
+                "once the queue is full the read loop must stop pulling frames off the socket");
+            Assert.That(readAfterStall, Is.LessThanOrEqualTo(300),
+                "the queue caps how far ahead a client can run");
+            Assert.That(Volatile.Read(ref handled), Is.EqualTo(1), "the consumer is still on the first packet");
+            Assert.That(socket.Aborts, Is.Zero, "a client that is merely fast must not be disconnected");
         });
 
         release.SetResult();
+        socket.CurrentState = WebSocketState.Closed;
+
+        await run.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task StuckHandler_ClosesTheConnectionOnceTheQueueStaysFull()
+    {
+        var socket = new ScriptedWebSocket();
+        var (codec, _) = SequentialCodec();
+        var client = MakeClient(Guid.NewGuid(), socket, codec.Object);
+
+        var stuck = new TaskCompletionSource();
+
+        var reader = new Mock<IWebSocketMessageReader>();
+        reader.Setup(r => r.ReadMessageAsync(socket, It.IsAny<CancellationToken>()))
+            .Returns(() => new ValueTask<(byte[], int)>((new byte[] { 1 }, 1)));
+
+        var packetHandler = new Mock<INetworkPacketHandler>();
+        packetHandler
+            .Setup(h => h.HandleAsync(It.IsAny<INetworkClient>(), It.IsAny<INetworkPacket>()))
+            .Returns(() => stuck.Task);
+
+        var handler = Handler(
+            reader.Object,
+            packetHandler.Object,
+            queueWaitTimeout: TimeSpan.FromMilliseconds(250));
+
+        var run = handler.HandleClientAsync(client.Object, CancellationToken.None);
+
+        var completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(5)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(completed, Is.SameAs(run), "the read loop must give up on a stuck consumer");
+            Assert.That(socket.Aborts, Is.EqualTo(1),
+                "a handler that never returns must not hold the connection open forever");
+        });
+
+        stuck.SetResult();
 
         await run.WaitAsync(TimeSpan.FromSeconds(5));
     }

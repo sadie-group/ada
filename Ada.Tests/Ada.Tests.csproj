@@ -29,6 +29,7 @@
       <ProjectReference Include="..\Ada.Networking.Encryption\Ada.Networking.Encryption.csproj" />
       <ProjectReference Include="..\Ada.Networking.Events\Ada.Networking.Events.csproj" />
       <ProjectReference Include="..\Ada.Networking.Writers\Ada.Networking.Writers.csproj" />
+      <ProjectReference Include="..\Ada.Server\Ada.Server.csproj" />
     </ItemGroup>
 
     <ItemGroup>
