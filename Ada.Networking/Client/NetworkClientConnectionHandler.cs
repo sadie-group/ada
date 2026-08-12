@@ -19,6 +19,8 @@ public class NetworkClientConnectionHandler(
 {
     private const int _queueCapacity = 256;
 
+    private static readonly TimeSpan _queueWaitTimeout = TimeSpan.FromSeconds(10);
+
     public async Task HandleClientAsync(INetworkClient client, CancellationToken ct)
     {
         clientRepository.AddClient(client.Guid, client);
@@ -97,16 +99,50 @@ public class NetworkClientConnectionHandler(
                 continue;
             }
 
+            if (await TryWaitForRoomAsync(client, writer, packet, ct))
+            {
+                continue;
+            }
+
+            break;
+        }
+    }
+
+    private async Task<bool> TryWaitForRoomAsync(
+        INetworkClient client,
+        ChannelWriter<INetworkPacket> writer,
+        INetworkPacket packet,
+        CancellationToken ct)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        timeout.CancelAfter(_queueWaitTimeout);
+
+        try
+        {
+            await writer.WriteAsync(packet, timeout.Token);
+            return true;
+        }
+        catch (Exception e) when (e is OperationCanceledException or ChannelClosedException)
+        {
             PacketBufferPool.Release(packet);
 
+            if (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+
             logger.LogWarning(
-                "Client {Guid} from {Ip} outran its {Capacity}-packet queue; closing the connection",
+                "Client {Guid} from {Ip} filled its {Capacity}-packet queue for {TimeoutSeconds}s; " +
+                "a handler is stuck, so the connection is being closed",
                 client.Guid,
                 client.IpAddress,
-                _queueCapacity);
+                _queueCapacity,
+                _queueWaitTimeout.TotalSeconds);
 
             client.WebSocket.Abort();
-            break;
+
+            return false;
         }
     }
 
