@@ -10,8 +10,9 @@ namespace Ada.Networking.Events.Handlers.Moderation;
 [PacketId(EventHandlerId.ModToolsSanctionBan)]
 public class ModToolSanctionBanEventHandler(
     IModToolRepository modToolRepository,
-    IPlayerRepository playerRepository)
-    : INetworkPacketEventHandler
+    IPlayerRepository playerRepository,
+    IModerationAuditService moderationAuditService)
+: INetworkPacketEventHandler
 {
     public int UserId { get; set; }
     public string Message { get; set; } = "";
@@ -41,7 +42,15 @@ public class ModToolSanctionBanEventHandler(
         {
             networkObject.WebSocket.Abort();
         }
-    }
+    
+        await moderationAuditService.RecordAsync(
+            client.Player!.Player.Id,
+            client.Player.Player.Username,
+            "ban",
+            UserId,
+            null,
+            Message);
+}
 
     private static DateTimeOffset? ExpiryFor(int banType)
     {

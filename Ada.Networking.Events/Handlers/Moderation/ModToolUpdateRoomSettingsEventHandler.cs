@@ -1,3 +1,4 @@
+using Ada.API.Interfaces.Game.Moderation;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -12,7 +13,8 @@ namespace Ada.Networking.Events.Handlers.Moderation;
 [PacketId(EventHandlerId.ModToolsUpdateRoomSettings)]
 public class ModToolUpdateRoomSettingsEventHandler(
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
+    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IModerationAuditService moderationAuditService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public int RoomId { get; set; }
     public int LockDoor { get; set; }
@@ -70,7 +72,14 @@ public class ModToolUpdateRoomSettingsEventHandler(
                     .ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, room.Room.Name));
             };
         }
-    }
+    
+        await moderationAuditService.RecordAsync(
+            client.Player!.Player.Id,
+            client.Player.Player.Username,
+            "room-settings",
+            null,
+            RoomId);
+}
 
     private Func<Task>? _persist;
 

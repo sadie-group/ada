@@ -1,3 +1,4 @@
+using Ada.API.Interfaces.Game.Moderation;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
@@ -10,8 +11,9 @@ namespace Ada.Networking.Events.Handlers.Moderation;
 [PacketId(EventHandlerId.ModToolsKickUser)]
 public class ModToolKickUserEventHandler(
     IPlayerRepository playerRepository,
-    IRoomRepository roomRepository)
-    : INetworkPacketEventHandler
+    IRoomRepository roomRepository,
+    IModerationAuditService moderationAuditService)
+: INetworkPacketEventHandler
 {
     public int UserId { get; set; }
     public string Message { get; set; } = "";
@@ -38,5 +40,13 @@ public class ModToolKickUserEventHandler(
         }
 
         await room.UserRepository.TryRemoveAsync(UserId, true, true);
-    }
+    
+        await moderationAuditService.RecordAsync(
+            client.Player!.Player.Id,
+            client.Player.Player.Username,
+            "kick",
+            UserId,
+            null,
+            Message);
+}
 }

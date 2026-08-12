@@ -228,6 +228,42 @@ public class ModerationTicketService(IDbContextFactory<AdaDbContext> dbContextFa
         return ticket;
     }
 
+    public async Task<ModerationTicketDto?> TryChangeTopicAsync(int ticketId, long moderatorId, int categoryId)
+    {
+        if (!_tickets.TryGetValue(ticketId, out var ticket) ||
+            ticket.State == ModerationTicketState.Closed)
+        {
+            return null;
+        }
+
+        if (ticket.State == ModerationTicketState.Picked && ticket.PickedByPlayerId != moderatorId)
+        {
+            return null;
+        }
+
+        var topics = await GetTopicsAsync();
+
+        if (topics.All(x => x.Id != categoryId))
+        {
+            return null;
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var updated = await dbContext.ModerationTickets
+            .Where(x => x.Id == ticketId && x.State != ModerationTicketState.Closed)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CategoryId, categoryId));
+
+        if (updated == 0)
+        {
+            return null;
+        }
+
+        _tickets[ticketId] = ticket with { CategoryId = categoryId };
+
+        return _tickets[ticketId];
+    }
+
     private IReadOnlyList<ModerationCfhTopicDto>? _topics;
 
     public async Task<IReadOnlyList<ModerationCfhTopicDto>> GetTopicsAsync()

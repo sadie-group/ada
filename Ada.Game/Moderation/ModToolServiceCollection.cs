@@ -9,5 +9,6 @@ public static class ModToolServiceCollection
     {
         serviceCollection.AddSingleton<IModToolRepository, ModToolRepository>();
         serviceCollection.AddSingleton<IModerationTicketService, ModerationTicketService>();
+        serviceCollection.AddSingleton<IModerationAuditService, ModerationAuditService>();
     }
 }
