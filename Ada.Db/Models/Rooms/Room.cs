@@ -8,6 +8,7 @@ namespace Ada.Db.Models.Rooms;
 public class Room
 {
     public int Id { get; init; }
+    public string? Thumbnail { get; set; }
     public required string Name { get; set; }
     public int LayoutId { get; set; }
     public RoomLayout? Layout { get; set; }
@@ -15,7 +16,7 @@ public class Room
     public Player? Owner { get; set; }
     public int MaxUsersAllowed { get; set; }
     public required string Description { get; set; }
-    public bool IsMuted { get; init; }
+    public bool IsMuted { get; set; }
     public RoomSettings? Settings { get; set; }
     public RoomPaintSettings? PaintSettings { get; set; }
     public RoomChatSettings? ChatSettings{ get; set; }
