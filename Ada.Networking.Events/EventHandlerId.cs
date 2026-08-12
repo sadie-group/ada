@@ -265,4 +265,12 @@ public static class EventHandlerId
     public const short JukeboxLoadDiscs = 2304;
     public const short JukeboxAddDisc = 753;
     public const short JukeboxRemoveDisc = 3050;
+    public const short CameraRenderRoom = 3226;
+    public const short CameraPublishPhoto = 3959;
+    public const short CameraPurchasePhoto = 2408;
+    public const short CameraReportPhoto = 2492;
+    public const short RoomBotOpenAction = 1986;
+    public const short RoomBotSaveAction = 2624;
+    public const short RoomPromotionPurchase = 777;
+    public const short RoomPromotionEdit = 3991;
 }
