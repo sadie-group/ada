@@ -1,6 +1,6 @@
 using Ada.API.DTOs.Server;
 using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Server.Tasks;
 using Ada.Core.Players;
@@ -14,29 +14,31 @@ namespace Ada.Server.Tasks.Game.Players;
 
 public class PlayerCurrencyRewardsTask(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    List<ServerPeriodicCurrencyReward> rewards, 
+    List<ServerPeriodicCurrencyReward> rewards,
     IPlayerRepository playerRepository,
     ServerSettings serverSettings,
-    IRoomUserRepository roomUserRepository,
+    IRoomRepository roomRepository,
     IMapper mapper) : IServerTask
 {
+    private const int _retainedLogsPerType = 1;
+
     public TimeSpan PeriodicInterval => TimeSpan.FromSeconds(1);
     public long LastExecutedTicks { get; set; }
 
     private readonly Dictionary<int, DateTime> _lastProcessed = rewards
-        .ToDictionary(k => k.Id, _ => DateTime.Now);
-    
+        .ToDictionary(k => k.Id, _ => DateTime.UtcNow);
+
     public async Task ExecuteAsync()
     {
         var rewardsToCheck = serverSettings.FairCurrencyRewards
             ? rewards
             : rewards
-                .Where(r => (DateTime.Now - _lastProcessed[r.Id]).TotalSeconds >= r.IntervalSeconds);
-        
+                .Where(r => (DateTime.UtcNow - _lastProcessed[r.Id]).TotalSeconds >= r.IntervalSeconds);
+
         foreach (var reward in rewardsToCheck)
         {
             await CheckRewardsForPlayersAsync(reward);
-            _lastProcessed[reward.Id] = DateTime.Now;
+            _lastProcessed[reward.Id] = DateTime.UtcNow;
         }
     }
 
@@ -44,17 +46,17 @@ public class PlayerCurrencyRewardsTask(
     {
         var players = playerRepository.GetAll();
         var logs = new List<ServerPeriodicCurrencyRewardLogDto>();
-        
+
+        var rewardedPlayerIds = new List<long>();
+
         foreach (var player in players)
         {
-            var failIdleCheck = reward.SkipIdle && 
-                roomUserRepository.TryGetById(player.Player.Id, out var roomUser) && 
-                roomUser!.IsIdle;
-            
-            var failRoomCheck = reward.SkipHotelView && 
+            var failIdleCheck = reward.SkipIdle && IsIdleInRoom(player);
+
+            var failRoomCheck = reward.SkipHotelView &&
                 player.State.CurrentRoomId == 0;
-         
-            if ((serverSettings.FairCurrencyRewards && 
+
+            if ((serverSettings.FairCurrencyRewards &&
                  !player.DeservesReward(reward.Type, reward.IntervalSeconds)) ||
                 failIdleCheck ||
                 failRoomCheck)
@@ -71,52 +73,136 @@ public class PlayerCurrencyRewardsTask(
                 Amount = reward.Amount,
                 CreatedAt = DateTime.Now
             };
-            
+
             player.Player.RewardLogs.Add(log);
+            TrimRewardLogs(player.Player.RewardLogs, reward.Type);
+
             logs.Add(log);
+            rewardedPlayerIds.Add(player.Player.Id);
+        }
+
+        if (logs.Count == 0)
+        {
+            return;
         }
 
         var entityLogs = mapper.Map<List<ServerPeriodicCurrencyRewardLog>>(logs);
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.ServerPeriodicCurrencyRewardLogs.AddRangeAsync(entityLogs);
+        dbContext.ServerPeriodicCurrencyRewardLogs.AddRange(entityLogs);
         await dbContext.SaveChangesAsync();
+
+        await PersistBalancesAsync(dbContext, reward, rewardedPlayerIds);
+    }
+
+    private static async Task PersistBalancesAsync(
+        AdaDbContext dbContext,
+        ServerPeriodicCurrencyReward reward,
+        List<long> playerIds)
+    {
+        if (playerIds.Count == 0)
+        {
+            return;
+        }
+
+        var amount = reward.Amount;
+
+        var query = dbContext.PlayerData.Where(x => playerIds.Contains(x.PlayerId));
+
+        switch (reward.Type)
+        {
+            case "credits":
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.CreditBalance, x => x.CreditBalance + amount));
+                break;
+            case "pixels":
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.PixelBalance, x => x.PixelBalance + amount));
+                break;
+            case "seasonal":
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.SeasonalBalance, x => x.SeasonalBalance + amount));
+                break;
+        }
+    }
+
+    private bool IsIdleInRoom(IPlayerLogic player)
+    {
+        var room = roomRepository.TryGetRoomById(player.State.CurrentRoomId);
+
+        return room != null &&
+               room.UserRepository.TryGetById(player.Player.Id, out var roomUser) &&
+               roomUser is { IsIdle: true };
+    }
+
+    private static void TrimRewardLogs(ICollection<ServerPeriodicCurrencyRewardLogDto> logs, string? type)
+    {
+        List<ServerPeriodicCurrencyRewardLogDto>? ofType = null;
+
+        foreach (var log in logs)
+        {
+            if (log.Type == type)
+            {
+                (ofType ??= []).Add(log);
+            }
+        }
+
+        var overflow = (ofType?.Count ?? 0) - _retainedLogsPerType;
+
+        if (overflow <= 0)
+        {
+            return;
+        }
+
+        ofType!.Sort(static (a, b) => a.CreatedAt.CompareTo(b.CreatedAt));
+
+        for (var i = 0; i < overflow; i++)
+        {
+            logs.Remove(ofType[i]);
+        }
     }
 
     private static async Task RewardPlayerAsync(IPlayerLogic player, ServerPeriodicCurrencyReward reward)
     {
+        var data = player.Player.Data;
+
+        if (data == null)
+        {
+            return;
+        }
+
         AbstractPacketWriter? writer = null;
-        
+
         switch (reward.Type)
         {
             case "credits":
-                player.Player.Data.CreditBalance += reward.Amount;
-                
+                data.CreditBalance += reward.Amount;
+
                 writer = new PlayerCreditsBalanceWriter
                 {
-                    Credits = player.Player.Data.CreditBalance
+                    Credits = data.CreditBalance
                 };
                 break;
             case "pixels":
-                player.Player.Data.PixelBalance += reward.Amount;
-                
+                data.PixelBalance += reward.Amount;
+
                 writer = new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
-    player.Player.Data.PixelBalance,
-    player.Player.Data.SeasonalBalance,
-    player.Player.Data.GotwPoints)
+    data.PixelBalance,
+    data.SeasonalBalance,
+    data.GotwPoints)
                 };
                 break;
             case "seasonal":
-                player.Player.Data.SeasonalBalance += reward.Amount;
-                
+                data.SeasonalBalance += reward.Amount;
+
                 writer = new PlayerActivityPointsBalanceWriter
                 {
                     Currencies = PlayerCurrencyMapper.FromBalances(
-                        player.Player.Data.PixelBalance,
-                        player.Player.Data.SeasonalBalance,
-                        player.Player.Data.GotwPoints)
+                        data.PixelBalance,
+                        data.SeasonalBalance,
+                        data.GotwPoints)
                 };
                 break;
         }

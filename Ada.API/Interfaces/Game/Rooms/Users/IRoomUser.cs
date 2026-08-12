@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+using Ada.Core.Enums.Game.Rooms.Users;
+using System.Drawing;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Unit;
 using Ada.Core.Enums.Game.Rooms;
@@ -15,6 +16,7 @@ public interface IRoomUser : IRoomUnit, IAsyncDisposable
     IRoomUserTrade? Trade { get; set; }
     int TradeStatus { get; set; }
     int ActiveEffectId { get; set; }
+    Task SetEffectAsync(RoomUserEffect effect);
     IRoomLogic Room { get; }
     RoomControllerLevel ControllerLevel { get; set; }
     INetworkObject NetworkObject { get; }

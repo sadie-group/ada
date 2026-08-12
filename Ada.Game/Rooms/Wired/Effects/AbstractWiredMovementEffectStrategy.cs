@@ -13,6 +13,10 @@ public abstract class AbstractWiredMovementEffectStrategy(
     IRoomTileMapHelperService tileMapHelperService,
     IRoomFurnitureItemHelperService furnitureItemHelperService) : IWiredEffectStrategy
 {
+    protected IRoomTileMapHelperService TileMapHelperService { get; } = tileMapHelperService;
+
+    protected IRoomFurnitureItemHelperService FurnitureItemHelperService { get; } = furnitureItemHelperService;
+
     public abstract string InteractionType { get; }
 
     public async Task ExecuteAsync(
@@ -50,9 +54,9 @@ public abstract class AbstractWiredMovementEffectStrategy(
         PlayerFurnitureItemPlacementDataDto item,
         HDirection direction)
     {
-        var nextPoint = tileMapHelperService.GetPointInFront(item.PositionX, item.PositionY, direction);
+        var nextPoint = TileMapHelperService.GetPointInFront(item.PositionX, item.PositionY, direction);
 
-        if (!tileMapHelperService.CanPlaceAt(
+        if (!TileMapHelperService.CanPlaceAt(
                 [nextPoint],
                 room.TileMap,
                 room.Room.FurnitureItems.Except([item]).ToList()))
@@ -63,9 +67,9 @@ public abstract class AbstractWiredMovementEffectStrategy(
         item.PositionX = nextPoint.X;
         item.PositionY = nextPoint.Y;
 
-        tileMapHelperService.InvalidateItemIndex(room.Room.FurnitureItems);
+        TileMapHelperService.InvalidateItemIndex(room.Room.FurnitureItems);
 
-        await furnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
+        await FurnitureItemHelperService.BroadcastItemUpdateToRoomAsync(room, item);
         return true;
     }
 

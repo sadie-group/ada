@@ -1,9 +1,9 @@
-﻿using Ada.API.Interfaces.Game.Players.Friendships;
+using Ada.API.Interfaces.Game.Players.Friendships;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
-using Ada.Networking.Events.Dtos;
+using Ada.API.DTOs.Players.Friendships;
 using Ada.Networking.Writers.Players.Messenger;
 
 namespace Ada.Networking.Events.Handlers.Players.Friendships;
@@ -13,6 +13,11 @@ public class PlayerFriendRequestsEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var friendRequests = client
             .Player
             .Player
@@ -34,7 +39,7 @@ public class PlayerFriendRequestsEventHandler : INetworkPacketEventHandler
             requests.Add(new PlayerFriendshipRequestData
             {
                 Username = data.Username,
-                FigureCode = data.AvatarData.FigureCode
+                FigureCode = data.AvatarData?.FigureCode ?? string.Empty
             });
         }
 

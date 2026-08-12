@@ -25,4 +25,27 @@ public class WiredTimerService : IWiredTimerService
             .GetOrAdd(roomId, _ => new ConcurrentDictionary<int, bool>())
             .TryAdd(itemId, true);
     }
+
+    public int RetainOnly(IReadOnlySet<long> liveRoomIds)
+    {
+        var released = 0;
+
+        foreach (var roomId in _startedAt.Keys)
+        {
+            if (!liveRoomIds.Contains(roomId) && _startedAt.TryRemove(roomId, out _))
+            {
+                released++;
+            }
+        }
+
+        foreach (var roomId in _firedItems.Keys)
+        {
+            if (!liveRoomIds.Contains(roomId))
+            {
+                _firedItems.TryRemove(roomId, out _);
+            }
+        }
+
+        return released;
+    }
 }

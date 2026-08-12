@@ -2,12 +2,12 @@ namespace Ada.API.DTOs.Players;
 
 public record PlayerGameSettingsDto
 {
-    public int SystemVolume { get; init; }
-    public int FurnitureVolume { get; init; }
-    public int TraxVolume { get; init; }
-    public bool PreferOldChat { get; init; }
-    public bool BlockRoomInvites { get; init; }
-    public bool BlockCameraFollow { get; init; }
-    public int UiFlags { get; init; }
-    public bool ShowNotifications { get; init; }
+    public int SystemVolume { get; set; }
+    public int FurnitureVolume { get; set; }
+    public int TraxVolume { get; set; }
+    public bool PreferOldChat { get; set; }
+    public bool BlockRoomInvites { get; set; }
+    public bool BlockCameraFollow { get; set; }
+    public int UiFlags { get; set; }
+    public bool ShowNotifications { get; set; }
 }

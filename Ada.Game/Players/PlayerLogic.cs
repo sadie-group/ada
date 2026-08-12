@@ -96,19 +96,24 @@ public class PlayerLogic(
 
     public ValueTask DisposeAsync()
     {
-        logger.LogInformation($"Player '{Player.Username}' has logged out");
+        logger.LogInformation("Player {Username} has logged out", Player.Username);
         return ValueTask.CompletedTask;
     }
 
     public bool DeservesReward(string? rewardType, int intervalInSeconds)
     {
-        var lastReward = Player
-            .RewardLogs
-            .OrderByDescending(x => x.CreatedAt)
-            .FirstOrDefault(x => x.Type == rewardType);
+        DateTimeOffset? lastRewardAt = null;
 
-        return lastReward == null ||
-               lastReward.CreatedAt < DateTime.Now.AddSeconds(-intervalInSeconds);
+        foreach (var log in Player.RewardLogs)
+        {
+            if (log.Type == rewardType && (lastRewardAt == null || log.CreatedAt > lastRewardAt))
+            {
+                lastRewardAt = log.CreatedAt;
+            }
+        }
+
+        return lastRewardAt == null ||
+               lastRewardAt < DateTime.Now.AddSeconds(-intervalInSeconds);
     }
 
     public async Task SendAlertAsync(string message)

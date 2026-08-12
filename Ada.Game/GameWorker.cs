@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.WebSockets;
 using Ada.API;
@@ -21,7 +22,14 @@ namespace Ada.Game
             _cts = new CancellationTokenSource();
             _thread = new Thread(() =>
             {
-                GameLoopAsync(_cts.Token).GetAwaiter().GetResult();
+                try
+                {
+                    GameLoopAsync(_cts.Token).GetAwaiter().GetResult();
+                }
+                catch (Exception e)
+                {
+                    logger.LogCritical(e, "Game loop terminated");
+                }
             })
             {
                 IsBackground = true
@@ -37,15 +45,15 @@ namespace Ada.Game
             return Task.CompletedTask;
         }
 
-        private const int PassIntervalMilliseconds = 100;
-        private const int PassesPerTick = 5;
+        private const int _passIntervalMilliseconds = 100;
+        private const int _passesPerTick = 5;
 
         private async Task GameLoopAsync(CancellationToken token)
         {
             var sw = new Stopwatch();
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                MaxDegreeOfParallelism = Environment.ProcessorCount * 2,
                 CancellationToken = token
             };
             var pass = 0;
@@ -54,23 +62,27 @@ namespace Ada.Game
             {
                 sw.Restart();
 
-                var fullTick = pass++ % PassesPerTick == 0;
+                var fullTick = pass++ % _passesPerTick == 0;
 
                 try
                 {
                     await Parallel.ForEachAsync(
-                        roomRepository.GetAllRooms(),
+                        CollectActiveRooms(),
                         parallelOptions,
-                        async (room, _) => await TickRoomAsync(room, fullTick));
+                        (room, _) => TickRoomSafelyAsync(room, fullTick));
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Game loop tick failed");
+                }
 
                 sw.Stop();
 
-                var delay = PassIntervalMilliseconds - (int)sw.ElapsedMilliseconds;
+                var delay = _passIntervalMilliseconds - (int)sw.ElapsedMilliseconds;
 
                 if (delay < 0)
                 {
@@ -90,15 +102,90 @@ namespace Ada.Game
             }
         }
 
+        private readonly List<IRoomLogic> _activeRooms = [];
+
+        internal List<IRoomLogic> CollectActiveRooms()
+        {
+            _activeRooms.Clear();
+
+            foreach (var room in roomRepository.GetAllRooms())
+            {
+                if (room.UserRepository.Count == 0)
+                {
+                    room.UserRepository.NoUsersSince ??= DateTime.UtcNow;
+                    continue;
+                }
+
+                _activeRooms.Add(room);
+            }
+
+            return _activeRooms;
+        }
+
+        private async ValueTask TickRoomSafelyAsync(IRoomLogic room, bool fullTick)
+        {
+            try
+            {
+                await TickRoomAsync(room, fullTick);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Tick failed for room {RoomId}", room.Room.Id);
+            }
+        }
+
+        private const int _stuckLockWarnAfterMilliseconds = 30_000;
+        private const int _stuckLockRewarnEveryMilliseconds = 60_000;
+
+        private readonly ConcurrentDictionary<int, long> _stuckLockLastWarned = new();
+
+        private void WarnIfLockLooksStuck(IRoomLogic room)
+        {
+            var heldFor = room.LockHeldForMilliseconds;
+
+            if (heldFor < _stuckLockWarnAfterMilliseconds)
+            {
+                if (heldFor == 0)
+                {
+                    _stuckLockLastWarned.TryRemove(room.Room.Id, out _);
+                }
+
+                return;
+            }
+
+            var now = Environment.TickCount64;
+
+            if (_stuckLockLastWarned.TryGetValue(room.Room.Id, out var lastWarned) &&
+                now - lastWarned < _stuckLockRewarnEveryMilliseconds)
+            {
+                return;
+            }
+
+            if (!_stuckLockLastWarned.TryUpdate(room.Room.Id, now, lastWarned) &&
+                !_stuckLockLastWarned.TryAdd(room.Room.Id, now))
+            {
+                return;
+            }
+
+            logger.LogWarning(
+                "Room {RoomId} has held its lock for {HeldForMs}ms; a packet handler is most likely stuck and this room is costing a parallel slot every tick",
+                room.Room.Id,
+                heldFor);
+        }
+
         private async Task TickRoomAsync(IRoomLogic room, bool fullTick)
         {
+            WarnIfLockLooksStuck(room);
+
             if (room.UserRepository.Count == 0)
             {
                 room.UserRepository.NoUsersSince ??= DateTime.UtcNow;
                 return;
             }
-
-            List<INetworkObject>? toFlush = null;
 
             await room.RunLockedAsync(async () =>
             {
@@ -116,27 +203,35 @@ namespace Ada.Game
 
                 foreach (var user in room.UserRepository.GetAll())
                 {
-                    var obj = user.NetworkObject;
-
-                    if (obj.WebSocket is not { State: WebSocketState.Open })
+                    if (user.NetworkObject.WebSocket is not { State: WebSocketState.Open })
                     {
                         await room.UserRepository.TryRemoveAsync(user.Player.Player.Id, true);
-                        continue;
                     }
-
-                    (toFlush ??= []).Add(obj);
                 }
             });
 
-            if (toFlush == null)
+            var connected = room.UserRepository.GetNetworkObjects();
+
+            for (var i = 0; i < connected.Count; i++)
+            {
+                ObserveFlush(connected[i].FlushAsync(), room.Room.Id);
+            }
+        }
+
+        private void ObserveFlush(Task flush, int roomId)
+        {
+            if (flush.IsCompletedSuccessfully)
             {
                 return;
             }
 
-            foreach (var obj in toFlush)
-            {
-                _ = obj.FlushAsync();
-            }
+            _ = flush.ContinueWith(
+                (t, state) => logger.LogError(
+                    t.Exception, "Flush failed for a client in room {RoomId}", state),
+                roomId,
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
     }
 }

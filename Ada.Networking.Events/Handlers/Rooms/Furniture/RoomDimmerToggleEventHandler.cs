@@ -1,10 +1,11 @@
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
@@ -13,8 +14,11 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 public class RoomDimmerToggleEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService)
+    : INetworkPacketEventHandler, IManagesOwnRoomLock, IDefersPersistence
 {
+    private Func<Task>? _persist;
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _) ||
@@ -25,37 +29,60 @@ public class RoomDimmerToggleEventHandler(
             return;
         }
 
-        var dimmer = room
-            .Room.FurnitureItems
-            .FirstOrDefault(x => x.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Dimmer);
+        var roomId = room.Room.Id;
+        var presetId = room.Room.DimmerSettings.PresetId;
 
-        if (dimmer == null)
-        {
-            return;
-        }
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        var preset = dbContext.RoomDimmerPresets
-            .FirstOrDefault(x => x.RoomId == room.Room.Id && x.PresetId == room.Room.DimmerSettings.PresetId);
+        var preset = await ReadPresetAsync(roomId, presetId);
 
         if (preset == null)
         {
             return;
         }
-        
-        room.Room.DimmerSettings.Enabled = !room.Room.DimmerSettings.Enabled;
 
-        var enabled = room.Room.DimmerSettings.Enabled ? 2 : 1;
-        var bgOnly = preset.BackgroundOnly ? 2 : 0;
-        
-        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(
-            room, 
-            dimmer, 
-            $"{enabled},{preset.PresetId},{bgOnly},{preset.Color},{preset.Intensity}");
-        
-        await dbContext.RoomDimmerSettings
-            .Where(x => x.RoomId == room.Room.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, room.Room.DimmerSettings.Enabled));
+        var enabledAfterToggle = false;
+
+        await room.RunLockedAsync(async () =>
+        {
+            var dimmer = room
+                .Room.FurnitureItems
+                .FirstOrDefault(x =>
+                    x.PlayerFurnitureItem.FurnitureItem.InteractionType == FurnitureItemInteractionType.Dimmer);
+
+            if (dimmer == null || room.Room.DimmerSettings == null)
+            {
+                return;
+            }
+
+            room.Room.DimmerSettings.Enabled = !room.Room.DimmerSettings.Enabled;
+            enabledAfterToggle = room.Room.DimmerSettings.Enabled;
+
+            var enabled = enabledAfterToggle ? 2 : 1;
+            var bgOnly = preset.BackgroundOnly ? 2 : 0;
+
+            await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(
+                room,
+                dimmer,
+                $"{enabled},{preset.PresetId},{bgOnly},{preset.Color},{preset.Intensity}");
+
+            _persist = async () =>
+            {
+                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+                await dbContext.RoomDimmerSettings
+                    .Where(x => x.RoomId == roomId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.Enabled, enabledAfterToggle));
+            };
+        });
     }
+
+    private async Task<Db.Models.Rooms.RoomDimmerPreset?> ReadPresetAsync(int roomId, int presetId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.RoomDimmerPresets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.RoomId == roomId && x.PresetId == presetId);
+    }
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

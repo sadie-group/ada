@@ -1,15 +1,46 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 using Ada.Networking.Encryption.Extensions;
 using Ada.Options.Options;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Encryption;
 
-public class HabboEncryption(IOptions<EncryptionOptions> options)
+public class HabboEncryption
 {
-    private readonly RsaCrypto _crypto = new(options.Value.E, options.Value.N, options.Value.D);
+    private const string _publishedModulus =
+        "0086851DD364D5C5CECE3C883171CC6DDC5760779B992482BD1E20DD296888DF91B33B936A7B93F06D29E8870F70" +
+        "3A216257DEC7C81DE0058FEA4CC5116F75E6EFC4E9113513E45357DC3FD43D4EFAB5963EF178B78BD61E81A14C60" +
+        "3B24C8BCCE0A12230B320045498EDC29282FF0603BC7B7DAE8FC1B05B52B2F301A9DC783B7";
+
+    private readonly RsaCrypto _crypto;
     private readonly DiffieHellman _diffieHellman = new();
+
+    public HabboEncryption(IOptions<EncryptionOptions> options, ILogger<HabboEncryption> logger)
+    {
+        _crypto = new RsaCrypto(options.Value.E, options.Value.N, options.Value.D);
+
+        var maxParameterBits = DiffieHellman.MaxBitSizeForRsaKey(_crypto.BlockSize);
+
+        if (maxParameterBits < _diffieHellman.Prime.GetBitLength())
+        {
+            throw new InvalidOperationException(
+                $"Encryption:N is a {_crypto.BlockSize * 8}-bit RSA key, which can only sign " +
+                $"Diffie-Hellman parameters up to {maxParameterBits} bits, but the handshake uses " +
+                $"{_diffieHellman.Prime.GetBitLength()}-bit parameters. Configure a larger RSA key.");
+        }
+
+        if (string.Equals(options.Value.N.Trim(), _publishedModulus, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Encryption:N is the published example RSA key, whose private exponent is public. The " +
+                "Diffie-Hellman handshake it signs provides no authentication. Generate your own " +
+                "keypair (and rely on NetworkOptions:UseWss for confidentiality).");
+        }
+    }
 
     private string GetRsaEncryptedString(string message)
     {
@@ -45,13 +76,31 @@ public class HabboEncryption(IOptions<EncryptionOptions> options)
         return GetRsaEncryptedString(key);
     }
 
-    public byte[] CalculateDiffieHellmanSharedKey(string publicKey)
+    public bool TryCalculateDiffieHellmanSharedKey(string publicKey, [NotNullWhen(true)] out byte[]? sharedKey)
     {
-        publicKey = GetRsaDecryptedString(publicKey);
-        var sharedKey = _diffieHellman.CalculateSharedKey(BigInteger.Parse(publicKey));
-        var result = sharedKey.ToByteArray();
+        sharedKey = null;
+
+        string decrypted;
+
+        try
+        {
+            decrypted = GetRsaDecryptedString(publicKey);
+        }
+        catch (Exception e) when (e is CryptographicException or ArgumentException or IndexOutOfRangeException)
+        {
+            return false;
+        }
+
+        if (!BigInteger.TryParse(decrypted, out var peerKey) ||
+            !_diffieHellman.TryCalculateSharedKey(peerKey, out var shared))
+        {
+            return false;
+        }
+
+        var result = shared.ToByteArray();
         Array.Reverse(result);
 
-        return result;
+        sharedKey = result;
+        return true;
     }
 }

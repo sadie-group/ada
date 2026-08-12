@@ -3,11 +3,12 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserSign)]
-public class RoomUserSignEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserSignEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int SignId { get; init; }
     
@@ -19,7 +20,7 @@ public class RoomUserSignEventHandler(IRoomRepository roomRepository) : INetwork
         }
 
         roomUser.AddStatus(RoomUserStatus.Sign, SignId.ToString());
-        roomUser.SignSet = DateTime.Now;
+        roomUser.SignSet = DateTime.UtcNow;
         
         return Task.CompletedTask;
     }

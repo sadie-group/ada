@@ -1,17 +1,19 @@
-using System.Drawing;
-using System.Text.RegularExpressions;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Pets;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
+using Ada.Core.Shared.Helpers;
 using Ada.Db.Models.Players;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Furniture;
 using Ada.Networking.Writers.Rooms.Pets;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using System.Drawing;
+using System.Text.RegularExpressions;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
@@ -20,9 +22,13 @@ public partial class PetPackageNameEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
     IRoomPetFactory roomPetFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IDefersPersistence
 {
-    private static readonly Dictionary<string, int> PackagePetTypes = new()
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
+
+    private static readonly Dictionary<string, int> _packagePetTypes = new()
     {
         ["val11_present"] = 11,
         ["gnome_box"] = 26,
@@ -49,7 +55,7 @@ public partial class PetPackageNameEventHandler(
             return;
         }
 
-        if (!ValidNameRegex().IsMatch(Name))
+        if (Name.Length > PetHelpers.MaximumNameLength || !ValidNameRegex().IsMatch(Name))
         {
             await client.WriteToStreamAsync(new PetPackageNameValidationWriter
             {
@@ -63,7 +69,7 @@ public partial class PetPackageNameEventHandler(
 
         var assetName = (item.PlayerFurnitureItem.FurnitureItem.AssetName ?? "").ToLower();
 
-        if (!PackagePetTypes.TryGetValue(assetName, out var petType))
+        if (!_packagePetTypes.TryGetValue(assetName, out var petType))
         {
             return;
         }
@@ -89,13 +95,21 @@ public partial class PetPackageNameEventHandler(
         dbContext.PlayerPets.Add(pet);
         await dbContext.SaveChangesAsync();
 
-        await dbContext.RoomFurnitureItems
-            .Where(x => x.Id == item.Id)
-            .ExecuteDeleteAsync();
+        var roomFurnitureItemId = item.Id;
+        var playerFurnitureItemId = item.PlayerFurnitureItem.Id;
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == item.PlayerFurnitureItem.Id)
-            .ExecuteDeleteAsync();
+        _persist = async () =>
+        {
+            await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+            await persistContext.RoomFurnitureItems
+                .Where(x => x.Id == roomFurnitureItemId)
+                .ExecuteDeleteAsync();
+
+            await persistContext.PlayerFurnitureItems
+                .Where(x => x.Id == playerFurnitureItemId)
+                .ExecuteDeleteAsync();
+        };
 
         room.Room.FurnitureItems.Remove(item);
 

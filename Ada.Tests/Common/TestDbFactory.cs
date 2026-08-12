@@ -1,5 +1,4 @@
 using Ada.Db;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Ada.Tests.Common;

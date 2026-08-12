@@ -27,18 +27,16 @@ public class RoomPetRepository : IRoomPetRepository
 
     public async Task RunPeriodicCheckAsync()
     {
-        try
+        foreach (var pet in _pets.Values)
         {
-            var pets = _pets.Values;
-
-            foreach (var pet in pets)
+            try
             {
                 await pet.RunPeriodicCheckAsync();
             }
-        }
-        catch (Exception e)
-        {
-            Log.Logger.Error(e.ToString());
+            catch (Exception e)
+            {
+                Log.Logger.Error(e, "Periodic check failed for a pet");
+            }
         }
     }
 

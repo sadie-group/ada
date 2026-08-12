@@ -9,9 +9,18 @@ public class NetworkPacketWriter : INetworkPacketWriter
 {
     private readonly ArrayBufferWriter<byte> _packet = new();
 
+    private const int _maxStringByteLength = short.MaxValue;
+
     public void WriteString(string data)
     {
         var count = Encoding.UTF8.GetByteCount(data);
+
+        if (count > _maxStringByteLength)
+        {
+            throw new InvalidOperationException(
+                $"String of {count} byte(s) exceeds the {_maxStringByteLength}-byte packet string limit.");
+        }
+
         WriteShort((short) count);
 
         var span = _packet.GetSpan(count);
@@ -33,7 +42,18 @@ public class NetworkPacketWriter : INetworkPacketWriter
         _packet.Advance(sizeof(int));
     }
 
-    public void WriteLong(long data) => WriteInteger((int) data);
+    public void WriteLong(long data)
+    {
+        if (data is > int.MaxValue or < int.MinValue)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(data),
+                data,
+                "The client protocol carries this value as a 32-bit integer; writing it would silently truncate.");
+        }
+
+        WriteInteger((int) data);
+    }
 
     public void WriteBool(bool boolean)
     {
@@ -65,5 +85,13 @@ public class NetworkPacketWriter : INetworkPacketWriter
         _packet.WrittenSpan.CopyTo(result.AsSpan(sizeof(int)));
 
         return _framedBytes = result;
+    }
+
+    public int FramedLength => sizeof(int) + _packet.WrittenCount;
+
+    public void WriteFramedTo(Span<byte> destination)
+    {
+        BinaryPrimitives.WriteInt32BigEndian(destination, _packet.WrittenCount);
+        _packet.WrittenSpan.CopyTo(destination[sizeof(int)..]);
     }
 }

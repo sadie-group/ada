@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Packets;
@@ -18,7 +19,7 @@ public class PacketBroadcastTests
 
     private sealed class FixedIdMap(short outgoingId) : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
@@ -82,9 +83,11 @@ public class PacketBroadcastTests
         var recipients = new[] { new RecordingRecipient(codec), new RecordingRecipient(codec) };
 
         PacketBroadcast.Queue(new BroadcastWriter { Value = 7 }, recipients);
-
-        Assert.That(codec.WritersCreated, Is.EqualTo(1));
-        Assert.That(recipients[0].Queued.Single(), Is.SameAs(recipients[1].Queued.Single()));
+        Assert.Multiple(() =>
+        {
+            Assert.That(codec.WritersCreated, Is.EqualTo(1));
+            Assert.That(recipients[0].Queued.Single(), Is.SameAs(recipients[1].Queued.Single()));
+        });
     }
 
     [Test]
@@ -102,12 +105,14 @@ public class PacketBroadcastTests
         };
 
         PacketBroadcast.Queue(new BroadcastWriter { Value = 7 }, recipients);
+        Assert.Multiple(() =>
+        {
+            Assert.That(production.WritersCreated, Is.EqualTo(1));
+            Assert.That(legacy.WritersCreated, Is.EqualTo(1));
 
-        Assert.That(production.WritersCreated, Is.EqualTo(1));
-        Assert.That(legacy.WritersCreated, Is.EqualTo(1));
-
-        Assert.That(recipients[0].Queued.Single(), Is.SameAs(recipients[2].Queued.Single()));
-        Assert.That(recipients[1].Queued.Single(), Is.SameAs(recipients[3].Queued.Single()));
+            Assert.That(recipients[0].Queued.Single(), Is.SameAs(recipients[2].Queued.Single()));
+            Assert.That(recipients[1].Queued.Single(), Is.SameAs(recipients[3].Queued.Single()));
+        });
         Assert.That(recipients[0].Queued.Single(), Is.Not.SameAs(recipients[1].Queued.Single()));
     }
 
@@ -121,9 +126,11 @@ public class PacketBroadcastTests
         var second = new RecordingRecipient(legacy);
 
         PacketBroadcast.Queue(new BroadcastWriter { Value = 7 }, new[] { first, second });
-
-        Assert.That(HeaderOf(first.Queued.Single()), Is.EqualTo((short)1));
-        Assert.That(HeaderOf(second.Queued.Single()), Is.EqualTo((short)2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(HeaderOf(first.Queued.Single()), Is.EqualTo((short)1));
+            Assert.That(HeaderOf(second.Queued.Single()), Is.EqualTo((short)2));
+        });
     }
 
     [Test]
@@ -149,10 +156,12 @@ public class PacketBroadcastTests
             new RecordingRecipient(production)
         };
 
-        await PacketBroadcast.SendAsync(new BroadcastWriter { Value = 7 }, recipients);
-
-        Assert.That(production.WritersCreated, Is.EqualTo(1));
-        Assert.That(legacy.WritersCreated, Is.EqualTo(1));
+        PacketBroadcast.SendAndFlush(new BroadcastWriter { Value = 7 }, recipients);
+        Assert.Multiple(() =>
+        {
+            Assert.That(production.WritersCreated, Is.EqualTo(1));
+            Assert.That(legacy.WritersCreated, Is.EqualTo(1));
+        });
     }
 
     private static short HeaderOf(INetworkPacketWriter writer)

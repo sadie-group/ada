@@ -1,4 +1,4 @@
-﻿using Ada.API;
+using Ada.API;
 using Ada.API.DTOs.Catalog;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
@@ -29,7 +29,7 @@ public class PlayerClubOffersWriter : AbstractPacketWriter
                 .AddDays(RemainingDays);
             
             writer.WriteInteger(offer.Id);
-            writer.WriteString(offer.Name);
+            writer.WriteString(offer.Name ?? string.Empty);
             writer.WriteBool(Unused);
             writer.WriteInteger(offer.CostCredits); 
             writer.WriteInteger(offer.CostPoints);

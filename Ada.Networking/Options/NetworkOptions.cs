@@ -6,4 +6,10 @@ public class NetworkOptions
     public int Port { get; init; }
     public bool UseWss { get; init; }
     public string? CertificateFile { get; init; }
+    public bool AllowInsecureTransport { get; init; }
+    public string? AllowedOrigins { get; init; }
+    public int MaxConnections { get; init; } = 5000;
+    public int MaxConnectionsPerAddress { get; init; } = 20;
+
+    public string? TrustedProxies { get; init; }
 }

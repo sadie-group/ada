@@ -5,8 +5,10 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 
@@ -15,7 +17,9 @@ public class RoomDeleteEventHandler(
     IRoomRepository roomRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
-    IPlayerRepository playerRepository) : INetworkPacketEventHandler
+    IPlayerRepository playerRepository,
+    IPlayerHelperService playerHelperService,
+    ILogger<RoomDeleteEventHandler> logger) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int RoomId { get; init; }
     
@@ -37,8 +41,6 @@ public class RoomDeleteEventHandler(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.Database.ExecuteSqlRawAsync("UPDATE player_data SET home_room_id = NULL WHERE home_room_id = {0}", RoomId);
 
         var updateMap = new Dictionary<IPlayerLogic, List<PlayerFurnitureItemDto>>();
 
@@ -67,17 +69,47 @@ public class RoomDeleteEventHandler(
             return;
         }
 
-        await dbContext.RoomFurnitureItems
-            .Where(x => x.RoomId == room.Room.Id)
-            .ExecuteDeleteAsync();
-
-        await dbContext.Rooms
-            .Where(x => x.Id == room.Room.Id)
-            .ExecuteDeleteAsync();
-
         foreach (var roomUser in room.UserRepository.GetAll())
         {
-            await room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id);
+            await room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
+        }
+
+        var roomId = room.Room.Id;
+
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+            await dbContext.PlayerData
+                .Where(x => x.HomeRoomId == RoomId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, (int?) null));
+
+            await dbContext.RoomFurnitureItems
+                .Where(x => x.RoomId == roomId)
+                .ExecuteDeleteAsync();
+
+            await dbContext.Rooms
+                .Where(x => x.Id == roomId)
+                .ExecuteDeleteAsync();
+        };
+
+        foreach (var (owner, items) in updateMap)
+        {
+            try
+            {
+                await playerHelperService.SendUnseenInventoryItemsAsync(owner, items);
+                await playerHelperService.RefreshInventoryAsync(owner);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Failed to refresh inventory for player {PlayerId} after room {RoomId} was deleted",
+                    owner.Player.Id, RoomId);
+            }
         }
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

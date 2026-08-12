@@ -2,15 +2,13 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users.Trading;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;
 
 [PacketId(EventHandlerId.RoomUserTradeConfirm)]
-public class RoomUserTradeConfirmEventHandler(IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+public class RoomUserTradeConfirmEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
@@ -34,10 +32,15 @@ public class RoomUserTradeConfirmEventHandler(IRoomRepository roomRepository,
 
         if (roomUser.Trade.Users.All(x => x.TradeStatus == 2))
         {
+            var swapped = await roomUser.Trade.SwapItemsAsync();
+
             await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCloseWindowWriter());
-            await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCompletedWriter());
-            await roomUser.Trade.SwapItemsAsync();
-            
+
+            if (swapped)
+            {
+                await roomUser.Trade.BroadcastToUsersAsync(new RoomUserTradeCompletedWriter());
+            }
+
             foreach (var user in roomUser.Trade.Users)
             {
                 user.Trade = null;

@@ -5,8 +5,11 @@ namespace Ada.Networking.Encryption;
 
 public class DiffieHellman
 {
-    private const int DhPrimesBitSize = 128;
-    private const int DhKeyBitSize = 128;
+    private const int _dhPrimesBitSize = 256;
+    private const int _dhKeyBitSize = 256;
+
+    public static int MaxBitSizeForRsaKey(int rsaKeyBytes)
+        => (int) ((rsaKeyBytes - 11) / Math.Log10(2));
 
     public BigInteger Prime { get; private set; }
     public BigInteger Generator { get; private set; }
@@ -29,20 +32,38 @@ public class DiffieHellman
 
     private void GeneratePrimes()
     {
-        Prime = BigIntegerExtensions.GeneratePseudoPrime(DhPrimesBitSize, 10);
-        Generator = BigIntegerExtensions.GeneratePseudoPrime(DhPrimesBitSize, 10);
+        Prime = BigIntegerExtensions.GeneratePseudoPrime(_dhPrimesBitSize, 10);
+        Generator = BigIntegerExtensions.GeneratePseudoPrime(_dhPrimesBitSize, 10);
 
-        if (Generator > Prime) (Generator, Prime) = (Prime, Generator);
+        if (Generator > Prime)
+        {
+            (Generator, Prime) = (Prime, Generator);
+        }
     }
 
     private void GenerateKeys()
     {
-        _privateKey = BigIntegerExtensions.GeneratePseudoPrime(DhKeyBitSize, 10);
+        _privateKey = BigIntegerExtensions.GeneratePseudoPrime(_dhKeyBitSize, 10);
         PublicKey = BigInteger.ModPow(Generator, _privateKey, Prime);
     }
 
-    public BigInteger CalculateSharedKey(BigInteger publicKey)
+    public bool TryCalculateSharedKey(BigInteger publicKey, out BigInteger sharedKey)
     {
-        return BigInteger.ModPow(publicKey, _privateKey, Prime);
+        sharedKey = BigInteger.Zero;
+
+        if (publicKey <= BigInteger.One || publicKey >= Prime - BigInteger.One)
+        {
+            return false;
+        }
+
+        var candidate = BigInteger.ModPow(publicKey, _privateKey, Prime);
+
+        if (candidate <= BigInteger.One || candidate == Prime - BigInteger.One)
+        {
+            return false;
+        }
+
+        sharedKey = candidate;
+        return true;
     }
 }

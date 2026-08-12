@@ -1,13 +1,14 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Players.Inventory;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
@@ -15,7 +16,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 public class PetPickupEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int Id { get; init; }
 
@@ -55,7 +56,17 @@ public class PetPickupEventHandler(
         }
 
         pet.RoomId = null;
-        await dbContext.SaveChangesAsync();
+
+        var petId = pet.Id;
+
+        _persist = async () =>
+        {
+            await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+            await persistContext.PlayerPets
+                .Where(x => x.Id == petId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.RoomId, (int?) null));
+        };
 
         await room.BroadcastDataAsync(new RoomUserLeftWriter
         {
@@ -67,4 +78,8 @@ public class PetPickupEventHandler(
             Pet = mapper.Map<PlayerPetDto>(pet),
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

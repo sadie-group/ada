@@ -6,7 +6,6 @@ using Ada.Game.Players;
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ada.Tests.Game.Mappers;
 

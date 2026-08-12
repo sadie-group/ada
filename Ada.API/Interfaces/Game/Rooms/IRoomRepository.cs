@@ -6,6 +6,7 @@ public interface IRoomRepository
 {
     IRoomLogic? TryGetRoomById(long id);
     void AddRoom(IRoomLogic roomLogic);
+    IRoomLogic GetOrAddRoom(IRoomLogic roomLogic);
     List<RoomDto> GetPopularRooms(int amount);
     int Count { get; }
     IEnumerable<IRoomLogic> GetAllRooms();

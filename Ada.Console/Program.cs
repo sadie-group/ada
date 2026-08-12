@@ -1,3 +1,4 @@
+using BenchmarkDotNet.Running;
 ﻿using Ada.Console.Services;
 using Ada.Server;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,8 +9,17 @@ namespace Ada.Console;
 
 internal static class Program
 {
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
+        if (args.Contains("--benchmark"))
+        {
+            BenchmarkSwitcher
+                .FromAssembly(typeof(Program).Assembly)
+                .Run(args.Where(x => x != "--benchmark").ToArray());
+
+            return;
+        }
+
         AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionTrapper;
 
         var host = Host.CreateDefaultBuilder()

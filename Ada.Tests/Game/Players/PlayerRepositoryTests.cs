@@ -2,6 +2,8 @@ using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db.Models.Players;
+using Ada.Core.Enums.Game.Players;
+using Ada.Core.Shared.Constants;
 using Ada.Game.Players;
 using Ada.Tests.Common;
 using AutoMapper;
@@ -57,10 +59,40 @@ public class PlayerRepositoryTests
     private sealed class StubPacketWriter : AbstractPacketWriter;
 
     [Test]
+    public async Task GetAcceptedFriendshipCountAsync_OfflinePlayer_CountsFromTheDatabase()
+    {
+        using var factory = new SqliteTestDbFactory();
+
+        using (var db = factory.CreateDbContext())
+        {
+            for (var id = 1; id <= 4; id++)
+            {
+                db.Players.Add(new global::Ada.Db.Models.Players.Player
+                {
+                    Id = id, Username = $"p{id}", Email = "", Password = ""
+                });
+            }
+
+            db.SaveChanges();
+
+            db.Set<global::Ada.Db.Models.Players.PlayerFriendship>().AddRange(
+                new() { OriginPlayerId = 1, TargetPlayerId = 2, Status = PlayerFriendshipStatus.Accepted },
+                new() { OriginPlayerId = 3, TargetPlayerId = 1, Status = PlayerFriendshipStatus.Accepted },
+                new() { OriginPlayerId = 4, TargetPlayerId = 1, Status = PlayerFriendshipStatus.Pending });
+
+            db.SaveChanges();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        Assert.That(await repository.GetAcceptedFriendshipCountAsync(1), Is.EqualTo(2));
+    }
+
+    [Test]
     public void GetPlayerLogicById_Known_ReturnsLogic()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         var logic = CreateLogic(1, "alice").Object;
 
         Assert.Multiple(() =>
@@ -75,7 +107,7 @@ public class PlayerRepositoryTests
     public void GetPlayerLogicByUsername_Known_ReturnsLogic()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         var logic = CreateLogic(1, "alice").Object;
         repository.TryAddPlayer(logic);
 
@@ -90,7 +122,7 @@ public class PlayerRepositoryTests
     public void TryAddPlayer_DuplicateId_ReturnsFalse()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         repository.TryAddPlayer(CreateLogic(1, "alice").Object);
 
         Assert.Multiple(() =>
@@ -105,7 +137,7 @@ public class PlayerRepositoryTests
     public async Task TryRemovePlayerAsync_Known_DisposesAndRemoves()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         var logic = CreateLogic(1, "alice");
         repository.TryAddPlayer(logic.Object);
 
@@ -123,7 +155,7 @@ public class PlayerRepositoryTests
     public async Task TryRemovePlayerAsync_Unknown_ReturnsFalse()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         Assert.That(await repository.TryRemovePlayerAsync(404), Is.False);
     }
@@ -132,7 +164,7 @@ public class PlayerRepositoryTests
     public async Task GetPlayerByIdAsync_Online_ReturnsCachedPlayer()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         var logic = CreateLogic(1, "alice").Object;
         repository.TryAddPlayer(logic);
 
@@ -151,7 +183,7 @@ public class PlayerRepositoryTests
             await context.SaveChangesAsync();
         }
 
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         var player = await repository.GetPlayerByIdAsync(7);
 
@@ -163,7 +195,7 @@ public class PlayerRepositoryTests
     public async Task GetPlayerByIdAsync_UnknownId_ReturnsNull()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         Assert.That(await repository.GetPlayerByIdAsync(404), Is.Null);
     }
@@ -172,7 +204,7 @@ public class PlayerRepositoryTests
     public async Task GetPlayerByUsernameAsync_Online_MapsLogic()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
         var logic = CreateLogic(1, "alice").Object;
         repository.TryAddPlayer(logic);
 
@@ -191,7 +223,7 @@ public class PlayerRepositoryTests
             await context.SaveChangesAsync();
         }
 
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         var player = await repository.GetPlayerByUsernameAsync("offline");
 
@@ -212,9 +244,70 @@ public class PlayerRepositoryTests
             await context.SaveChangesAsync();
         }
 
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         var players = await repository.GetPlayersForSearchAsync("alph", [2]);
+
+        Assert.That(players.Select(p => p.Username), Is.EqualTo(new[] { "alpha" }));
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_QueryShorterThanMinimum_SkipsTheDatabase()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 1, Username = "alpha", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        Assert.That(await repository.GetPlayersForSearchAsync("al", []), Is.Empty);
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_ManyMatches_IsCapped()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            for (var i = 0; i < SearchLimits.MaxPlayerResults + 25; i++)
+            {
+                context.Players.Add(new Player
+                {
+                    Id = i + 1,
+                    Username = $"alpha{i:D3}",
+                    Email = "e",
+                    Password = "p"
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        var players = await repository.GetPlayersForSearchAsync("alpha", []);
+
+        Assert.That(players, Has.Count.EqualTo(SearchLimits.MaxPlayerResults));
+    }
+
+    [Test]
+    public async Task GetPlayersForSearchAsync_MatchesOnPrefixOnly()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.AddRange(
+                new Player { Id = 1, Username = "alpha", Email = "e", Password = "p" },
+                new Player { Id = 2, Username = "notalpha", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        var players = await repository.GetPlayersForSearchAsync("alpha", []);
 
         Assert.That(players.Select(p => p.Username), Is.EqualTo(new[] { "alpha" }));
     }
@@ -236,7 +329,7 @@ public class PlayerRepositoryTests
             await context.SaveChangesAsync();
         }
 
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         var relationships = await repository.GetRelationshipsForPlayerAsync(1);
 
@@ -247,7 +340,7 @@ public class PlayerRepositoryTests
     public void BroadcastDataAsync_NoPlayers_Completes()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         Assert.DoesNotThrowAsync(() => repository.BroadcastDataAsync(new StubPacketWriter()));
     }
@@ -262,7 +355,7 @@ public class PlayerRepositoryTests
             await context.SaveChangesAsync();
         }
 
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         Assert.That(await repository.GetPlayerUsernameByIdAsync(5), Is.EqualTo("cached"));
 
@@ -279,8 +372,56 @@ public class PlayerRepositoryTests
     public async Task GetPlayerUsernameByIdAsync_Unknown_ReturnsNull()
     {
         using var factory = new SqliteTestDbFactory();
-        var repository = new PlayerRepository(factory, CreateMapperMock().Object);
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
 
         Assert.That(await repository.GetPlayerUsernameByIdAsync(404), Is.Null);
+    }
+
+    [Test]
+    public async Task GetPlayerUsernamesByIdsAsync_ResolvesKnownIdsAndOmitsUnknownOnes()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 1, Username = "one", Email = "e1", Password = "p" });
+            context.Players.Add(new Player { Id = 2, Username = "two", Email = "e2", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+
+        var resolved = await repository.GetPlayerUsernamesByIdsAsync([1, 2, 404, 1]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(resolved, Has.Count.EqualTo(2));
+            Assert.That(resolved[1], Is.EqualTo("one"));
+            Assert.That(resolved[2], Is.EqualTo("two"));
+            Assert.That(resolved.ContainsKey(404), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task GetPlayerUsernamesByIdsAsync_ServesCachedNamesWithoutHittingTheDatabase()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Add(new Player { Id = 7, Username = "seven", Email = "e", Password = "p" });
+            await context.SaveChangesAsync();
+        }
+
+        var repository = new PlayerRepository(factory, NullLogger<PlayerRepository>.Instance, CreateMapperMock().Object);
+        await repository.GetPlayerUsernameByIdAsync(7);
+
+        await using (var context = factory.CreateDbContext())
+        {
+            context.Players.Remove(context.Players.Single(p => p.Id == 7));
+            await context.SaveChangesAsync();
+        }
+
+        var resolved = await repository.GetPlayerUsernamesByIdsAsync([7]);
+
+        Assert.That(resolved[7], Is.EqualTo("seven"));
     }
 }

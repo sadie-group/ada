@@ -1,4 +1,5 @@
 using Ada.API.DTOs.Players;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
@@ -11,22 +12,20 @@ public class PlayerWardrobeWriter : AbstractPacketWriter
     public required int State { get; init; }
     public required ICollection<PlayerWardrobeItemDto> Outfits { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(Outfits), writer =>
-        {
-            writer.WriteInteger(Outfits.Count);
+        writer.WriteInteger(State);
+        writer.WriteInteger(Outfits.Count);
 
-            var i = 0;
-        
-            foreach (var outfit in Outfits)
-            {
-                i++;
-            
-                writer.WriteInteger(i);
-                writer.WriteString(outfit.FigureCode ?? string.Empty);
-                writer.WriteString(outfit.Gender == PlayerAvatarGender.Male ? "M" : "F");
-            }
-        });
+        var i = 0;
+
+        foreach (var outfit in Outfits)
+        {
+            i++;
+
+            writer.WriteInteger(i);
+            writer.WriteString(outfit.FigureCode ?? string.Empty);
+            writer.WriteString(outfit.Gender == PlayerAvatarGender.Male ? "M" : "F");
+        }
     }
 }

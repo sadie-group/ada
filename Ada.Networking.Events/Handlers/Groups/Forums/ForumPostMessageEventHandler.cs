@@ -1,7 +1,10 @@
 using Ada.API.Interfaces.Game.Groups;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Extensions;
 using Ada.Networking.Writers.Groups;
 
 namespace Ada.Networking.Events.Handlers.Groups.Forums;
@@ -9,7 +12,8 @@ namespace Ada.Networking.Events.Handlers.Groups.Forums;
 [PacketId(EventHandlerId.ForumPostMessage)]
 public class ForumPostMessageEventHandler(
     IGroupRepository groupRepository,
-    IGroupForumRepository forumRepository)
+    IGroupForumRepository forumRepository,
+    IWordFilterService wordFilterService)
     : INetworkPacketEventHandler
 {
     public int GuildId { get; set; }
@@ -33,18 +37,29 @@ public class ForumPostMessageEventHandler(
             return;
         }
 
+        var messageResult = wordFilterService.Filter(Message, WordFilterContext.Chat);
+        var subjectResult = wordFilterService.Filter(Subject.Trim(), WordFilterContext.Chat);
+
+        if (messageResult.IsBlocked || subjectResult.IsBlocked)
+        {
+            return;
+        }
+
+        var message = messageResult.FilteredText.Truncate(GroupTextLimits.MaxForumMessageLength);
+        var subject = subjectResult.FilteredText.Truncate(GroupTextLimits.MaxForumSubjectLength);
+
         var membership = await groupRepository.GetMembershipAsync(GuildId, player.Player.Id);
         var level = ForumPermissions.LevelFor(group, membership, player.Player.Id);
         var perms = ForumPermissions.Evaluate(group, level);
 
         if (ThreadId == 0)
         {
-            if (!perms.CanThread || string.IsNullOrWhiteSpace(Subject))
+            if (!perms.CanThread || string.IsNullOrWhiteSpace(subject))
             {
                 return;
             }
 
-            var thread = await forumRepository.PostThreadAsync(GuildId, player.Player.Id, Subject.Trim(), Message);
+            var thread = await forumRepository.PostThreadAsync(GuildId, player.Player.Id, subject, message);
 
             if (thread != null)
             {
@@ -70,7 +85,7 @@ public class ForumPostMessageEventHandler(
             return;
         }
 
-        var comment = await forumRepository.PostCommentAsync(GuildId, ThreadId, player.Player.Id, Message);
+        var comment = await forumRepository.PostCommentAsync(GuildId, ThreadId, player.Player.Id, message);
 
         if (comment != null)
         {

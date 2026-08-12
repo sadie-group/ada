@@ -1,18 +1,18 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.Interfaces.Game.Pets;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
-using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Pets;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Pets;
 
 [PacketId(EventHandlerId.PetToggleBreeding)]
 public class PetToggleBreedingEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IPlayerPetPersistence petPersistence,
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int Id { get; init; }
 
@@ -37,11 +37,7 @@ public class PetToggleBreedingEventHandler(
 
         pet.PubliclyBreedable = !pet.PubliclyBreedable;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        await dbContext.PlayerPets
-            .Where(x => x.Id == pet.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.PubliclyBreedable, pet.PubliclyBreedable));
+        _persist = () => petPersistence.SaveBreedingAsync(pet);
 
         await room.BroadcastDataAsync(new PetStatusUpdateWriter
         {
@@ -53,4 +49,8 @@ public class PetToggleBreedingEventHandler(
             PubliclyBreedable = pet.PubliclyBreedable,
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -12,5 +12,6 @@ public interface IModerationTicketService
     Task<ModerationTicketDto?> TryPickAsync(int ticketId, long moderatorId, string moderatorUsername);
     Task<ModerationTicketDto?> TryReleaseAsync(int ticketId, long moderatorId);
     Task<ModerationTicketDto?> TryCloseAsync(int ticketId, long moderatorId, ModerationTicketResolution resolution);
+    Task<ModerationTicketDto?> TryChangeTopicAsync(int ticketId, long moderatorId, int categoryId);
     Task<IReadOnlyList<ModerationCfhTopicDto>> GetTopicsAsync();
 }

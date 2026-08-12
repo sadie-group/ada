@@ -2,6 +2,7 @@
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users.Chat;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;

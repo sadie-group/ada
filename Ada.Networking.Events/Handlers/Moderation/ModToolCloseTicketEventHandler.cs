@@ -16,11 +16,18 @@ public class ModToolCloseTicketEventHandler(
     public int Resolution { get; set; }
     public List<int> TicketIds { get; set; } = [];
 
+    private const int _maxTicketsPerRequest = 50;
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
 
         if (player == null || !player.HasPermission(PlayerPermissionName.Moderator))
+        {
+            return;
+        }
+
+        if (TicketIds.Count > _maxTicketsPerRequest)
         {
             return;
         }

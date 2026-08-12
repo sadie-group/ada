@@ -45,10 +45,14 @@ public class PositionTests
     [Test]
     public void GetHashCode_EqualValues_Match()
     {
+        var first = new Position(3, 4).GetHashCode();
+        var second = new Position(3, 4).GetHashCode();
+        var transposed = new Position(4, 3).GetHashCode();
+
         Assert.Multiple(() =>
         {
-            Assert.That(new Position(3, 4).GetHashCode(), Is.EqualTo(new Position(3, 4).GetHashCode()));
-            Assert.That(new Position(3, 4).GetHashCode(), Is.Not.EqualTo(new Position(4, 3).GetHashCode()));
+            Assert.That(first, Is.EqualTo(second));
+            Assert.That(first, Is.Not.EqualTo(transposed));
         });
     }
 

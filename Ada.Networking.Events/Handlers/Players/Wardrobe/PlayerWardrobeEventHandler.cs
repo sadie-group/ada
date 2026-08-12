@@ -10,6 +10,11 @@ public class PlayerWardrobeEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         await client.WriteToStreamAsync(new PlayerWardrobeWriter
         {
             State = 1,

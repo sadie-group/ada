@@ -1,10 +1,10 @@
+using System.Net;
 using System.Net.WebSockets;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -48,6 +48,7 @@ public class NetworkClientConnectionHandlerTests
         client.SetupGet(c => c.Guid).Returns(guid);
         client.SetupGet(c => c.WebSocket).Returns(socket);
         client.SetupGet(c => c.Codec).Returns(codec);
+        client.SetupGet(c => c.IpAddress).Returns(IPAddress.Loopback);
         return client;
     }
 
@@ -87,9 +88,11 @@ public class NetworkClientConnectionHandlerTests
         var disposal = new Mock<IClientDisposalService>();
 
         var handler = new NetworkClientConnectionHandler(
+            NullLogger<NetworkClientConnectionHandler>.Instance,
             repository.Object,
             reader.Object,
             new PacketDispatcher(packetHandler.Object, NullLogger<PacketDispatcher>.Instance),
+            new PacketRateThrottle(),
             disposal.Object);
 
         await handler.HandleClientAsync(client.Object, CancellationToken.None);
@@ -112,9 +115,11 @@ public class NetworkClientConnectionHandlerTests
         var disposal = new Mock<IClientDisposalService>();
 
         var handler = new NetworkClientConnectionHandler(
+            NullLogger<NetworkClientConnectionHandler>.Instance,
             repository.Object,
             reader.Object,
             new PacketDispatcher(Mock.Of<INetworkPacketHandler>(), NullLogger<PacketDispatcher>.Instance),
+            new PacketRateThrottle(),
             disposal.Object);
 
         await handler.HandleClientAsync(client.Object, new CancellationToken(true));

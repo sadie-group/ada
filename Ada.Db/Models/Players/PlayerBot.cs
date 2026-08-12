@@ -14,5 +14,9 @@ public class PlayerBot
     public required string Motto { get; init; }
     public required PlayerAvatarGender Gender { get; init; }
     [DefaultValue(0)] public ChatBubble ChatBubbleId { get; init; }
+    public int WalkingMode { get; set; }
+    public bool AutoChat { get; set; }
+    public int ChatDelaySeconds { get; set; } = 10;
+    public string ChatLines { get; set; } = string.Empty;
     public required DateTime CreatedAt { get; init; }
 }

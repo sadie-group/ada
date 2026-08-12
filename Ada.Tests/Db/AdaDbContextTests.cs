@@ -1,6 +1,5 @@
 using Ada.Db.Models;
 using Ada.Tests.Common;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Tests.Db;
 

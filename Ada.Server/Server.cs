@@ -21,10 +21,13 @@ public class Server(
     public async Task RunAsync(CancellationToken token)
     {
         await migrator.MigrateAsync(token);
-        await dataCleaner.CleanAsync(token);
+
+        await Task.WhenAll(
+            dataCleaner.CleanAsync(token),
+            catalogPageRepository.LoadAsync(),
+            moderationTicketService.LoadAsync());
+
         await taskWorker.WorkAsync(token);
-        await catalogPageRepository.LoadAsync();
-        await moderationTicketService.LoadAsync();
     }
 
     public async ValueTask DisposeAsync()

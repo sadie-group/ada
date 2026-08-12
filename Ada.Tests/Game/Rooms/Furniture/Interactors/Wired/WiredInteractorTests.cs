@@ -115,14 +115,17 @@ public class GenericWiredConditionInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredConditionWriter)written.Single();
-        Assert.That(writer.StuffTypeSelectionEnabled, Is.False);
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
-        Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 11, 12 }));
-        Assert.That(writer.AssetId, Is.EqualTo(3));
-        Assert.That(writer.Id, Is.EqualTo(21));
-        Assert.That(writer.Input, Is.EqualTo("cfg"));
-        Assert.That(writer.IntParameters, Is.EqualTo(new[] { 5, 8 }));
-        Assert.That(writer.ConditionConfig, Is.EqualTo(7));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.StuffTypeSelectionEnabled, Is.False);
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
+            Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 11, 12 }));
+            Assert.That(writer.AssetId, Is.EqualTo(3));
+            Assert.That(writer.Id, Is.EqualTo(21));
+            Assert.That(writer.Input, Is.EqualTo("cfg"));
+            Assert.That(writer.IntParameters, Is.EqualTo(new[] { 5, 8 }));
+            Assert.That(writer.ConditionConfig, Is.EqualTo(7));
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredConditionFurnitureHasUsers), Times.Once);
     }
 
@@ -137,9 +140,12 @@ public class GenericWiredConditionInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredConditionWriter)written.Single();
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.Input, Is.EqualTo(""));
-        Assert.That(writer.IntParameters, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.Input, Is.EqualTo(""));
+            Assert.That(writer.IntParameters, Is.Empty);
+        });
         wiredService.Verify(x => x.GetWiredCode(""), Times.Once);
     }
 }
@@ -170,15 +176,18 @@ public class GenericWiredEffectInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredMessageEffectWriter)written.Single();
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
-        Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 31 }));
-        Assert.That(writer.WiredEffectType, Is.EqualTo(4));
-        Assert.That(writer.Id, Is.EqualTo(22));
-        Assert.That(writer.Input, Is.EqualTo("fx"));
-        Assert.That(writer.IntParams, Is.EqualTo(new[] { 1, 0, 3 }));
-        Assert.That(writer.Type, Is.EqualTo(9));
-        Assert.That(writer.DelayInPulses, Is.EqualTo(3));
-        Assert.That(writer.ConflictingTriggerIds, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
+            Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 31 }));
+            Assert.That(writer.WiredEffectType, Is.EqualTo(4));
+            Assert.That(writer.Id, Is.EqualTo(22));
+            Assert.That(writer.Input, Is.EqualTo("fx"));
+            Assert.That(writer.IntParams, Is.EqualTo(new[] { 1, 0, 3 }));
+            Assert.That(writer.Type, Is.EqualTo(9));
+            Assert.That(writer.DelayInPulses, Is.EqualTo(3));
+            Assert.That(writer.ConflictingTriggerIds, Is.Empty);
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredEffectToggleFurnitureState), Times.Once);
     }
 
@@ -193,10 +202,13 @@ public class GenericWiredEffectInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredMessageEffectWriter)written.Single();
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.Input, Is.EqualTo(""));
-        Assert.That(writer.IntParams, Is.Empty);
-        Assert.That(writer.DelayInPulses, Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.Input, Is.EqualTo(""));
+            Assert.That(writer.IntParams, Is.Empty);
+            Assert.That(writer.DelayInPulses, Is.EqualTo(0));
+        });
         wiredService.Verify(x => x.GetWiredCode(""), Times.Once);
     }
 }
@@ -227,14 +239,17 @@ public class GenericWiredTriggerInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredTriggerWriter)written.Single();
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
-        Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 41 }));
-        Assert.That(writer.AssetId, Is.EqualTo(0));
-        Assert.That(writer.Id, Is.EqualTo(0));
-        Assert.That(writer.Input, Is.EqualTo("say"));
-        Assert.That(writer.IntParameters, Is.EqualTo(new[] { 2 }));
-        Assert.That(writer.TriggerConfig, Is.EqualTo(3));
-        Assert.That(writer.ConflictingEffectIds, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
+            Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 41 }));
+            Assert.That(writer.AssetId, Is.EqualTo(0));
+            Assert.That(writer.Id, Is.EqualTo(0));
+            Assert.That(writer.Input, Is.EqualTo("say"));
+            Assert.That(writer.IntParameters, Is.EqualTo(new[] { 2 }));
+            Assert.That(writer.TriggerConfig, Is.EqualTo(3));
+            Assert.That(writer.ConflictingEffectIds, Is.Empty);
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredTriggerSaysSomething), Times.Once);
     }
 
@@ -249,9 +264,12 @@ public class GenericWiredTriggerInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredTriggerWriter)written.Single();
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.Input, Is.EqualTo(""));
-        Assert.That(writer.IntParameters, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.Input, Is.EqualTo(""));
+            Assert.That(writer.IntParameters, Is.Empty);
+        });
         wiredService.Verify(x => x.GetWiredCode(""), Times.Once);
     }
 }
@@ -281,13 +299,16 @@ public class WiredTriggerUserWalksOnInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredTriggerWriter)written.Single();
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
-        Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 51 }));
-        Assert.That(writer.AssetId, Is.EqualTo(8));
-        Assert.That(writer.Id, Is.EqualTo(24));
-        Assert.That(writer.Input, Is.EqualTo(""));
-        Assert.That(writer.IntParameters, Is.Empty);
-        Assert.That(writer.TriggerConfig, Is.EqualTo(4));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
+            Assert.That(writer.SelectedItemIds, Is.EqualTo(new[] { 51 }));
+            Assert.That(writer.AssetId, Is.EqualTo(8));
+            Assert.That(writer.Id, Is.EqualTo(24));
+            Assert.That(writer.Input, Is.EqualTo(""));
+            Assert.That(writer.IntParameters, Is.Empty);
+            Assert.That(writer.TriggerConfig, Is.EqualTo(4));
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredTriggerUserWalksOnFurniture), Times.Once);
     }
 
@@ -302,8 +323,11 @@ public class WiredTriggerUserWalksOnInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredTriggerWriter)written.Single();
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.AssetId, Is.EqualTo(8));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.AssetId, Is.EqualTo(8));
+        });
         wiredService.Verify(x => x.GetWiredCode(""), Times.Once);
     }
 }
@@ -332,14 +356,17 @@ public class WiredEffectShowMessageInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredMessageEffectWriter)written.Single();
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(0));
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.WiredEffectType, Is.EqualTo(12));
-        Assert.That(writer.Id, Is.EqualTo(25));
-        Assert.That(writer.Input, Is.EqualTo("hello"));
-        Assert.That(writer.IntParams, Is.Empty);
-        Assert.That(writer.Type, Is.EqualTo(6));
-        Assert.That(writer.DelayInPulses, Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(0));
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.WiredEffectType, Is.EqualTo(12));
+            Assert.That(writer.Id, Is.EqualTo(25));
+            Assert.That(writer.Input, Is.EqualTo("hello"));
+            Assert.That(writer.IntParams, Is.Empty);
+            Assert.That(writer.Type, Is.EqualTo(6));
+            Assert.That(writer.DelayInPulses, Is.EqualTo(0));
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredEffectShowMessage), Times.Once);
     }
 
@@ -383,12 +410,15 @@ public class WiredEffectKickUserInteractorTests : WiredInteractorTestBase
         await interactor.OnTriggerAsync(Mock.Of<IRoomLogic>(), item, user);
 
         var writer = (WiredMessageEffectWriter)written.Single();
-        Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
-        Assert.That(writer.SelectedItemIds, Is.Empty);
-        Assert.That(writer.WiredEffectType, Is.EqualTo(14));
-        Assert.That(writer.Id, Is.EqualTo(26));
-        Assert.That(writer.Input, Is.EqualTo("bye"));
-        Assert.That(writer.Type, Is.EqualTo(8));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.MaxItemsSelected, Is.EqualTo(5));
+            Assert.That(writer.SelectedItemIds, Is.Empty);
+            Assert.That(writer.WiredEffectType, Is.EqualTo(14));
+            Assert.That(writer.Id, Is.EqualTo(26));
+            Assert.That(writer.Input, Is.EqualTo("bye"));
+            Assert.That(writer.Type, Is.EqualTo(8));
+        });
         wiredService.Verify(x => x.GetWiredCode(FurnitureItemInteractionType.WiredEffectKickUser), Times.Once);
     }
 

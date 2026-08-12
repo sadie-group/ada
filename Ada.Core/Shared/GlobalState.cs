@@ -1,7 +1,7 @@
 namespace Ada.Core.Shared;
 
-public class GlobalState
+public static class GlobalState
 {
-    public static Random Random { get; } = new();
+    public static Random Random => Random.Shared;
     public static Version? Version { get; set; }
 }

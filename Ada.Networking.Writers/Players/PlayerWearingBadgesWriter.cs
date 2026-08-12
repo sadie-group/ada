@@ -1,4 +1,5 @@
 using Ada.API.DTOs.Players;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
@@ -10,17 +11,15 @@ public class PlayerWearingBadgesWriter : AbstractPacketWriter
     public required int PlayerId { get; init; }
     public required ICollection<PlayerBadgeDto> Badges { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(Badges), writer =>
-        {
-            writer.WriteInteger(Badges.Count);
+        writer.WriteInteger(PlayerId);
+        writer.WriteInteger(Badges.Count);
 
-            foreach (var item in Badges)
-            {
-                writer.WriteInteger(item.Slot);
-                writer.WriteString(item.Badge?.Code ?? string.Empty);
-            }
-        });
+        foreach (var item in Badges)
+        {
+            writer.WriteInteger(item.Slot);
+            writer.WriteString(item.Badge?.Code ?? string.Empty);
+        }
     }
 }

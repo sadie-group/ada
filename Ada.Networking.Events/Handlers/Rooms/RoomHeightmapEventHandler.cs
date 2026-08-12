@@ -26,7 +26,7 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
     IMapper mapper,
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomPetFactory roomPetFactory) : INetworkPacketEventHandler
+    IRoomPetFactory roomPetFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public async Task HandleAsync(INetworkClient client)
     {
@@ -165,26 +165,33 @@ public class RoomHeightmapEventHandler(IRoomRepository roomRepository,
 
         room.PetRepository.Loaded = true;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        var pets = await dbContext.PlayerPets
-            .AsNoTracking()
-            .Where(x => x.RoomId == room.Room.Id)
-            .Join(dbContext.Players, p => p.PlayerId, o => o.Id, (p, o) => new { Pet = p, OwnerName = o.Username })
-            .ToListAsync();
-
-        foreach (var row in pets)
+        _persist = async () =>
         {
-            var petDto = mapper.Map<PlayerPetDto>(row.Pet);
-            petDto.OwnerName = row.OwnerName;
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-            var point = new System.Drawing.Point(row.Pet.X, row.Pet.Y);
-            var roomPet = roomPetFactory.Create(room, petDto, point, row.Pet.Z);
+            var pets = await dbContext.PlayerPets
+                .AsNoTracking()
+                .Where(x => x.RoomId == room.Room.Id)
+                .Join(dbContext.Players, p => p.PlayerId, o => o.Id, (p, o) => new { Pet = p, OwnerName = o.Username })
+                .ToListAsync();
 
-            if (room.PetRepository.TryAdd(roomPet))
+            foreach (var row in pets)
             {
-                room.TileMap.AddUnitToMap(point, roomPet);
+                var petDto = mapper.Map<PlayerPetDto>(row.Pet);
+                petDto.OwnerName = row.OwnerName;
+
+                var point = new System.Drawing.Point(row.Pet.X, row.Pet.Y);
+                var roomPet = roomPetFactory.Create(room, petDto, point, row.Pet.Z);
+
+                if (room.PetRepository.TryAdd(roomPet))
+                {
+                    room.TileMap.AddUnitToMap(point, roomPet);
+                }
             }
-        }
+        };
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -42,6 +42,7 @@ public class GateInteractor(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
             .Where(x => x.Id == item.PlayerFurnitureItem.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, item.PlayerFurnitureItem.MetaData));
     }

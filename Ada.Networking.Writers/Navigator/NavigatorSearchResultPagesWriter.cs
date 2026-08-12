@@ -1,7 +1,6 @@
 using Ada.API;
 using Ada.API.DTOs.Navigator;
 using Ada.API.DTOs.Rooms;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
@@ -14,7 +13,7 @@ public class NavigatorSearchResultPagesWriter : AbstractPacketWriter
     public required string? TabName { get; init; }
     public required string? SearchQuery { get; init; }
     public required Dictionary<NavigatorCategoryDto, List<RoomDto>> CategoryRoomMap { get; init; }
-    public required IRoomRepository RoomRepository { get; init; }
+    public required IReadOnlyDictionary<int, int> LiveUserCounts { get; init; }
     public required Dictionary<long, string> OwnerUsernames { get; init; }
 
     public override void OnSerialize(INetworkPacketWriter writer)
@@ -36,9 +35,8 @@ public class NavigatorSearchResultPagesWriter : AbstractPacketWriter
             
             foreach (var room in rooms)
             {
-                var liveRoom = RoomRepository.TryGetRoomById(room.Id);
-                var userCount = liveRoom == null ? 0 : liveRoom.UserRepository.Count;
-                
+                var userCount = LiveUserCounts.GetValueOrDefault(room.Id);
+
                 writer.WriteLong(room.Id);
                 writer.WriteString(room.Name);
                 writer.WriteLong(room.OwnerId);

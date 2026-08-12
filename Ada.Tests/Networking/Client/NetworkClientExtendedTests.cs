@@ -13,8 +13,6 @@ using Ada.Db;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -92,7 +90,10 @@ public class NetworkClientExtendedTests
         public override void OnSerialize(INetworkPacketWriter writer) => writer.WriteByte(7);
     }
 
-    private static NetworkClient CreateClient(WebSocket socket, IPacketCodecRegistry? registry = null)
+    private static NetworkClient CreateClient(
+        WebSocket socket,
+        IPacketCodecRegistry? registry = null,
+        bool useWss = false)
     {
         if (registry == null)
         {
@@ -104,6 +105,7 @@ public class NetworkClientExtendedTests
         return new NetworkClient(
             NullLogger<NetworkClient>.Instance,
             registry,
+            Microsoft.Extensions.Options.Options.Create(new Ada.Networking.Options.NetworkOptions { UseWss = useWss }),
             IPAddress.Loopback,
             Guid.NewGuid(),
             socket);
@@ -125,13 +127,17 @@ public class NetworkClientExtendedTests
     }
 
     [Test]
-    public void EnableEncryption_SetsFlag()
+    public void EncryptionEnabled_PlaintextTransport_IsFalse()
     {
         var client = CreateClient(new FakeWebSocket());
 
         Assert.That(client.EncryptionEnabled, Is.False);
+    }
 
-        client.EnableEncryption([1, 2, 3]);
+    [Test]
+    public void EncryptionEnabled_SecureTransport_IsTrue()
+    {
+        var client = CreateClient(new FakeWebSocket(), useWss: true);
 
         Assert.That(client.EncryptionEnabled, Is.True);
     }
@@ -166,8 +172,11 @@ public class NetworkClientExtendedTests
         var socket = new FakeWebSocket();
         var client = CreateClient(socket);
 
+        const int hugeLength = 9 * 1024 * 1024;
+
         var huge = new Mock<INetworkPacketWriter>();
-        huge.Setup(w => w.GetAllBytes()).Returns(new byte[9 * 1024 * 1024]);
+        huge.SetupGet(w => w.FramedLength).Returns(hugeLength);
+        huge.Setup(w => w.GetAllBytes()).Returns(new byte[hugeLength]);
 
         client.QueueOutbound(huge.Object);
         client.QueueOutbound(huge.Object);
@@ -241,9 +250,11 @@ public class NetworkClientExtendedTests
     {
         var socket = new FakeWebSocket { ThrowOnClose = true };
         var client = CreateClient(socket);
-
-        Assert.DoesNotThrowAsync(async () => await client.DisposeAsync());
-        Assert.That(socket.CloseCalls, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.DoesNotThrowAsync(async () => await client.DisposeAsync());
+            Assert.That(socket.CloseCalls, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -285,14 +296,6 @@ public class NetworkClientRepositoryExtendedTests
         return client;
     }
 
-    private static IDbContextFactory<AdaDbContext> MakeThrowingDbFactory()
-    {
-        var factory = new Mock<IDbContextFactory<AdaDbContext>>();
-        factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DbUpdateConcurrencyException());
-        return factory.Object;
-    }
-
     [Test]
     public async Task TryRemoveAsync_PlayerRemovalFails_NotifiesListenersAndReturnsFalse()
     {
@@ -303,6 +306,29 @@ public class NetworkClientRepositoryExtendedTests
         roomUserRepository.Setup(r => r.TryRemoveAsync(10, true, true)).Returns(Task.CompletedTask);
         var room = new Mock<IRoomLogic>();
         room.SetupGet(r => r.UserRepository).Returns(roomUserRepository.Object);
+
+        var lockHeld = false;
+        var removedUnderLock = false;
+
+        roomUserRepository.Setup(r => r.TryRemoveAsync(10, true, true))
+            .Callback(() => removedUnderLock = lockHeld)
+            .Returns(Task.CompletedTask);
+
+        room.Setup(r => r.RunLockedAsync(It.IsAny<Func<Task>>()))
+            .Returns(async (Func<Task> action) =>
+            {
+                lockHeld = true;
+
+                try
+                {
+                    await action();
+                }
+                finally
+                {
+                    lockHeld = false;
+                }
+            });
+
         var roomUser = new Mock<IRoomUser>();
         roomUser.SetupGet(u => u.Room).Returns(room.Object);
         roomUser.SetupGet(u => u.Player).Returns(player.Object);
@@ -318,9 +344,8 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>(),
             [goodListener.Object, badListener.Object]);
 
         var client = MakeClient(guid, player.Object, roomUser.Object);
@@ -336,6 +361,8 @@ public class NetworkClientRepositoryExtendedTests
         goodListener.Verify(l => l.OnDisconnectedAsync(player.Object, roomUser.Object), Times.Once);
         badListener.Verify(l => l.OnDisconnectedAsync(player.Object, roomUser.Object), Times.Once);
         roomUserRepository.Verify(r => r.TryRemoveAsync(10, true, true), Times.Once);
+        Assert.That(removedUnderLock, Is.True,
+            "the disconnect path must hold the room lock while it mutates the room, or it races the game loop");
         client.Verify(c => c.DisposeAsync(), Times.Never);
     }
 
@@ -354,9 +381,8 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);
@@ -386,9 +412,8 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             helper.Object,
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);
@@ -419,9 +444,8 @@ public class NetworkClientRepositoryExtendedTests
         var repository = new NetworkClientRepository(
             NullLogger<NetworkClientRepository>.Instance,
             playerRepository.Object,
-            MakeThrowingDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>(),
             []);
 
         var client = MakeClient(guid, player.Object, null);

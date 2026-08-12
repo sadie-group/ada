@@ -1,6 +1,5 @@
 using Ada.Db;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Ada.Tests.Common;

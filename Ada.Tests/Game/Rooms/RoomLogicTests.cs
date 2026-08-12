@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using Ada.Game.Rooms.Locking;
 using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Rooms;
@@ -20,7 +22,7 @@ public class RoomLogicTests
 {
     private sealed class FixedIdMap : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
@@ -105,13 +107,18 @@ public class RoomLogicTests
         var userRepository = new Mock<IRoomUserRepository>();
         userRepository.Setup(x => x.GetAll()).Returns(users.Select(x => x.Object).ToList());
 
+        userRepository
+            .Setup(x => x.GetNetworkObjects())
+            .Returns(users.Select(x => x.Object.NetworkObject).ToList());
+
         return new RoomLogic(
             new RoomDto(),
             Mock.Of<IRoomTileMap>(),
             Mock.Of<IRoomPathFinder>(),
             userRepository.Object,
             Mock.Of<IRoomBotRepository>(),
-            Mock.Of<IRoomPetRepository>())
+            Mock.Of<IRoomPetRepository>(),
+            new InProcessRoomLock())
         {
             Name = "",
             Description = ""
@@ -169,6 +176,53 @@ public class RoomLogicTests
         });
 
         Assert.That(runs, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task RunLockedAsync_ReentrantWhileHoldingAnotherRoom_DoesNotDeadlock()
+    {
+        var first = CreateLogic();
+        var second = CreateLogic();
+        var innerRan = false;
+
+        var nested = first.RunLockedAsync(async () =>
+            await second.RunLockedAsync(async () =>
+                await first.RunLockedAsync(() =>
+                {
+                    innerRan = true;
+                    return Task.CompletedTask;
+                })));
+
+        var finished = await Task.WhenAny(nested, Task.Delay(TimeSpan.FromSeconds(5)));
+
+        Assert.That(finished, Is.SameAs(nested), "re-entering an outer room while holding an inner one deadlocked");
+        await nested;
+        Assert.That(innerRan, Is.True);
+    }
+
+    [Test]
+    public async Task RunLockedAsync_AfterNestedRoomUnwinds_OuterRoomStaysReentrant()
+    {
+        var first = CreateLogic();
+        var second = CreateLogic();
+        var innerRan = false;
+
+        var nested = first.RunLockedAsync(async () =>
+        {
+            await second.RunLockedAsync(() => Task.CompletedTask);
+
+            await first.RunLockedAsync(() =>
+            {
+                innerRan = true;
+                return Task.CompletedTask;
+            });
+        });
+
+        var finished = await Task.WhenAny(nested, Task.Delay(TimeSpan.FromSeconds(5)));
+
+        Assert.That(finished, Is.SameAs(nested), "re-entry after an inner room unwound deadlocked");
+        await nested;
+        Assert.That(innerRan, Is.True);
     }
 
     [Test]
@@ -235,5 +289,77 @@ public class RoomLogicTests
         await logic.BroadcastDataAsync(new StubPacketWriter(), Array.Empty<long>());
 
         firstNetwork.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
+    }
+
+    [Test]
+    public async Task DisposeAsync_ReleasesTheRoomsRepositories()
+    {
+        var userRepository = new Mock<IRoomUserRepository>();
+        var botRepository = new Mock<IRoomBotRepository>();
+        var petRepository = new Mock<IRoomPetRepository>();
+
+        var logic = new RoomLogic(
+            new RoomDto(),
+            Mock.Of<IRoomTileMap>(),
+            Mock.Of<IRoomPathFinder>(),
+            userRepository.Object,
+            botRepository.Object,
+            petRepository.Object,
+            new InProcessRoomLock())
+        {
+            Name = "",
+            Description = ""
+        };
+
+        Assert.That(logic.IsDisposed, Is.False);
+
+        await logic.DisposeAsync();
+
+        Assert.That(logic.IsDisposed, Is.True);
+        userRepository.Verify(x => x.DisposeAsync(), Times.Once);
+        botRepository.Verify(x => x.DisposeAsync(), Times.Once);
+        petRepository.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task DisposeAsync_CalledTwice_ReleasesOnlyOnce()
+    {
+        var userRepository = new Mock<IRoomUserRepository>();
+
+        var logic = new RoomLogic(
+            new RoomDto(),
+            Mock.Of<IRoomTileMap>(),
+            Mock.Of<IRoomPathFinder>(),
+            userRepository.Object,
+            Mock.Of<IRoomBotRepository>(),
+            Mock.Of<IRoomPetRepository>(),
+            new InProcessRoomLock())
+        {
+            Name = "",
+            Description = ""
+        };
+
+        await logic.DisposeAsync();
+        await logic.DisposeAsync();
+
+        userRepository.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Test]
+    public async Task RunLockedAsync_StillWorksAfterDisposal()
+    {
+        var logic = CreateLogic();
+
+        await logic.DisposeAsync();
+
+        var ran = false;
+
+        await logic.RunLockedAsync(() =>
+        {
+            ran = true;
+            return Task.CompletedTask;
+        });
+
+        Assert.That(ran, Is.True);
     }
 }

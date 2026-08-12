@@ -68,7 +68,7 @@ public class RoomUnitDataTests
         var tileMap = new RoomTileMap(heightmap, furniture);
         var roomDto = new RoomDto
         {
-            FurnitureItems = furniture,
+            FurnitureItems = [..furniture],
             Settings = new RoomSettingsDto { CanUsersOverlap = canUsersOverlap },
         };
 
@@ -77,7 +77,7 @@ public class RoomUnitDataTests
         room.SetupGet(x => x.TileMap).Returns(tileMap);
         room.SetupGet(x => x.PathFinder).Returns(new RoomPathFinder(tileMap.SizeY, tileMap.SizeX));
 
-        var unit = new TestableRoomUnitData(room.Object, start, tileMap, new RoomPathFinderHelperService());
+        var unit = new TestableRoomUnitData(room.Object, start, new RoomTileMapHelperService(), new RoomPathFinderHelperService());
         tileMap.AddUnitToMap(start, unit);
 
         return (unit, tileMap);

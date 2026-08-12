@@ -1,19 +1,15 @@
 using Ada.Db;
 using Ada.Game.Navigator.Filterers;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Tests.Game.Navigator.Filterers;
 
 public class OwnerFiltererTests : MockHelpers
 {
     private OwnerFilterer? _filterer;
-    
+
     [SetUp]
-    public void SetUp()
-    {
-        _filterer = new OwnerFilterer();
-    }
-    
+    public void SetUp() => _filterer = new OwnerFilterer();
+
     [Test]
     public void ApplyFilter_OneInMany_AppliedCorrectly()
     {
@@ -22,19 +18,19 @@ public class OwnerFiltererTests : MockHelpers
             .Options;
 
         using var dbContext = new AdaDbContext(options);
-        
+
         dbContext.Rooms.Add(MockRoomWithOwner("1"));
         dbContext.Rooms.Add(MockRoomWithOwner("2"));
         dbContext.Rooms.Add(MockRoomWithOwner("3"));
 
         dbContext.SaveChanges();
-        
+
         var query = dbContext.Rooms.AsQueryable();
         var newQuery = _filterer!.Apply(query, "2");
 
         Assert.That(newQuery.ToList(), Has.Count.EqualTo(1));
     }
-    
+
     [Test]
     public void ApplyFilter_ManyInMany_AppliedCorrectly()
     {
@@ -43,13 +39,13 @@ public class OwnerFiltererTests : MockHelpers
             .Options;
 
         using var dbContext = new AdaDbContext(options);
-        
+
         dbContext.Rooms.Add(MockRoomWithOwner("1"));
         dbContext.Rooms.Add(MockRoomWithOwner("1"));
         dbContext.Rooms.Add(MockRoomWithOwner("3"));
 
         dbContext.SaveChanges();
-        
+
         var query = dbContext.Rooms.AsQueryable();
         var newQuery = _filterer!.Apply(query, "1");
 

@@ -7,7 +7,9 @@ using Ada.Networking.Writers.Groups;
 namespace Ada.Networking.Events.Handlers.Groups.Forums;
 
 [PacketId(EventHandlerId.GetForumThreads)]
-public class GetForumThreadsEventHandler(IGroupForumRepository forumRepository) : INetworkPacketEventHandler
+public class GetForumThreadsEventHandler(
+    IGroupRepository groupRepository,
+    IGroupForumRepository forumRepository) : INetworkPacketEventHandler
 {
     private const int PageSize = 20;
 
@@ -17,6 +19,11 @@ public class GetForumThreadsEventHandler(IGroupForumRepository forumRepository) 
     public async Task HandleAsync(INetworkClient client)
     {
         if (client.Player == null)
+        {
+            return;
+        }
+
+        if (!await ForumPermissions.CanReadForumAsync(groupRepository, GuildId, client.Player.Player.Id))
         {
             return;
         }

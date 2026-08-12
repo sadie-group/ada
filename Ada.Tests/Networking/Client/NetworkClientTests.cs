@@ -4,7 +4,6 @@ using Ada.API;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -86,6 +85,7 @@ public class NetworkClientTests
         return new NetworkClient(
             NullLogger<NetworkClient>.Instance,
             registry.Object,
+            Microsoft.Extensions.Options.Options.Create(new Ada.Networking.Options.NetworkOptions()),
             IPAddress.Loopback,
             Guid.NewGuid(),
             socket);
@@ -115,8 +115,11 @@ public class NetworkClientTests
         await WaitForFramesAsync(socket, 2);
 
         Assert.That(socket.Frames, Has.Count.EqualTo(2));
-        Assert.That(socket.Frames[0], Has.Length.EqualTo(5), "first packet goes out on its own");
-        Assert.That(socket.Frames[1], Has.Length.EqualTo(15), "the other three coalesce");
+        Assert.Multiple(() =>
+        {
+            Assert.That(socket.Frames[0], Has.Length.EqualTo(5), "first packet goes out on its own");
+            Assert.That(socket.Frames[1], Has.Length.EqualTo(15), "the other three coalesce");
+        });
     }
 
     [Test]

@@ -17,7 +17,7 @@ namespace Ada.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "9.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -721,6 +721,202 @@ namespace Ada.Db.Migrations
                     b.ToTable("hand_items", (string)null);
                 });
 
+            modelBuilder.Entity("Ada.Db.Models.Moderation.ModerationCfhTopic", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("category_name");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int")
+                        .HasColumnName("order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_moderation_cfh_topics");
+
+                    b.HasIndex("CategoryName")
+                        .HasDatabaseName("ix_moderation_cfh_topics_category_name");
+
+                    b.ToTable("moderation_cfh_topics", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CategoryName = "Bullying",
+                            Name = "Verbal abuse",
+                            Order = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CategoryName = "Bullying",
+                            Name = "Threats",
+                            Order = 2
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CategoryName = "Bullying",
+                            Name = "Harassment",
+                            Order = 3
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CategoryName = "Scamming",
+                            Name = "Trade scam",
+                            Order = 4
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CategoryName = "Scamming",
+                            Name = "Password phishing",
+                            Order = 5
+                        },
+                        new
+                        {
+                            Id = 6,
+                            CategoryName = "Scamming",
+                            Name = "Account theft",
+                            Order = 6
+                        },
+                        new
+                        {
+                            Id = 7,
+                            CategoryName = "Inappropriate",
+                            Name = "Offensive language",
+                            Order = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            CategoryName = "Inappropriate",
+                            Name = "Offensive room",
+                            Order = 8
+                        },
+                        new
+                        {
+                            Id = 9,
+                            CategoryName = "Inappropriate",
+                            Name = "Offensive name or motto",
+                            Order = 9
+                        },
+                        new
+                        {
+                            Id = 10,
+                            CategoryName = "Other",
+                            Name = "Room flooding",
+                            Order = 10
+                        },
+                        new
+                        {
+                            Id = 11,
+                            CategoryName = "Other",
+                            Name = "Bot or scripting",
+                            Order = 11
+                        },
+                        new
+                        {
+                            Id = 12,
+                            CategoryName = "Other",
+                            Name = "Something else",
+                            Order = 12
+                        });
+                });
+
+            modelBuilder.Entity("Ada.Db.Models.Moderation.ModerationTicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("closed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTimeOffset?>("PickedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("picked_at");
+
+                    b.Property<long?>("PickedByPlayerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("picked_by_player_id");
+
+                    b.Property<long?>("ReportedPlayerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reported_player_id");
+
+                    b.Property<long>("ReporterPlayerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reporter_player_id");
+
+                    b.Property<int>("Resolution")
+                        .HasColumnType("int")
+                        .HasColumnName("resolution");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id")
+                        .HasName("pk_moderation_tickets");
+
+                    b.HasIndex("PickedByPlayerId")
+                        .HasDatabaseName("ix_moderation_tickets_picked_by_player_id");
+
+                    b.HasIndex("ReportedPlayerId")
+                        .HasDatabaseName("ix_moderation_tickets_reported_player_id");
+
+                    b.HasIndex("ReporterPlayerId")
+                        .HasDatabaseName("ix_moderation_tickets_reporter_player_id");
+
+                    b.HasIndex("RoomId")
+                        .HasDatabaseName("ix_moderation_tickets_room_id");
+
+                    b.HasIndex("State")
+                        .HasDatabaseName("ix_moderation_tickets_state");
+
+                    b.ToTable("moderation_tickets", (string)null);
+                });
+
             modelBuilder.Entity("Ada.Db.Models.Navigator.NavigatorCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -1029,6 +1225,43 @@ namespace Ada.Db.Migrations
                     b.ToTable("players", (string)null);
                 });
 
+            modelBuilder.Entity("Ada.Db.Models.Players.PlayerAchievement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AchievementCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("achievement_code");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<long>("PlayerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("int")
+                        .HasColumnName("progress");
+
+                    b.HasKey("Id")
+                        .HasName("pk_player_achievements");
+
+                    b.HasIndex("PlayerId", "AchievementCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_player_achievements_player_id_achievement_code");
+
+                    b.ToTable("player_achievements", (string)null);
+                });
+
             modelBuilder.Entity("Ada.Db.Models.Players.PlayerAvatarData", b =>
                 {
                     b.Property<int>("Id")
@@ -1245,6 +1478,10 @@ namespace Ada.Db.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_online");
 
+                    b.Property<DateTimeOffset?>("MuteExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("mute_expires_at");
+
                     b.Property<int>("PixelBalance")
                         .HasColumnType("int")
                         .HasColumnName("pixel_balance");
@@ -1268,6 +1505,10 @@ namespace Ada.Db.Migrations
                     b.Property<int>("SeasonalBalance")
                         .HasColumnType("int")
                         .HasColumnName("seasonal_balance");
+
+                    b.Property<DateTimeOffset?>("TradeLockExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("trade_lock_expires_at");
 
                     b.HasKey("Id")
                         .HasName("pk_player_data");
@@ -2919,6 +3160,42 @@ namespace Ada.Db.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("Ada.Db.Models.Moderation.ModerationTicket", b =>
+                {
+                    b.HasOne("Ada.Db.Models.Players.Player", "PickedByPlayer")
+                        .WithMany()
+                        .HasForeignKey("PickedByPlayerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_moderation_tickets_players_picked_by_player_id");
+
+                    b.HasOne("Ada.Db.Models.Players.Player", "ReportedPlayer")
+                        .WithMany()
+                        .HasForeignKey("ReportedPlayerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_moderation_tickets_players_reported_player_id");
+
+                    b.HasOne("Ada.Db.Models.Players.Player", "ReporterPlayer")
+                        .WithMany()
+                        .HasForeignKey("ReporterPlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_moderation_tickets_players_reporter_player_id");
+
+                    b.HasOne("Ada.Db.Models.Rooms.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_moderation_tickets_rooms_room_id");
+
+                    b.Navigation("PickedByPlayer");
+
+                    b.Navigation("ReportedPlayer");
+
+                    b.Navigation("ReporterPlayer");
+
+                    b.Navigation("Room");
                 });
 
             modelBuilder.Entity("Ada.Db.Models.Navigator.NavigatorCategory", b =>

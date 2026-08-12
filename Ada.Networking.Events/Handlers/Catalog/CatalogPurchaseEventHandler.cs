@@ -1,4 +1,3 @@
-using Ada.API.DTOs.Catalog.Pages;
 using Ada.API.Interfaces.Game.Catalog;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -6,23 +5,20 @@ using Ada.Core.Enums.Game.Catalog;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Constants;
-using Ada.Db;
-using Ada.Db.Models.Catalog.Pages;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Catalog;
 
 [PacketId(EventHandlerId.CatalogPurchase)]
 public class CatalogPurchaseEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    ICatalogPageRepository pageRepository,
     ICatalogChargeService catalogChargeService,
     ICatalogFurniturePurchaseService furniturePurchaseService,
     ICatalogBotPurchaseService botPurchaseService,
     ICatalogTeleportPurchaseService teleportPurchaseService,
     ICatalogPurchaseConfirmationService purchaseConfirmationService,
     ICatalogVipPurchaseService vipPurchaseProcessor,
-    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
+    ILogger<CatalogPurchaseEventHandler> logger) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int PageId { get; set; }
     public int ItemId { get; set; }
@@ -38,31 +34,20 @@ public class CatalogPurchaseEventHandler(
             return;
         }
 
-        if ((DateTime.Now - player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
+        if (!PurchaseLimits.IsValidAmount(Amount) ||
+            (DateTime.UtcNow - player.State.LastCatalogPurchase).TotalMilliseconds < CooldownIntervals.CatalogPurchase)
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        player.State.LastCatalogPurchase = DateTime.UtcNow;
 
-        var efPage = await dbContext
-            .Set<CatalogPage>()
-            .Include(x => x.Items)
-            .ThenInclude(x => x.FurnitureItems)
-            .FirstOrDefaultAsync(x => x.Id == PageId);
+        var page = pageRepository.Pages.FirstOrDefault(x => x.Id == PageId);
 
-        var page = mapper.Map<CatalogPageDto>(efPage);
-
-        if (page == null)
+        if (page == null || !CatalogPageAccess.CanAccess(page, player))
         {
             await purchaseConfirmationService.WriteFailureAsync(client);
-            return;
-        }
-
-        if (page.Layout == CatalogPageLayout.VipBuy)
-        {
-            await vipPurchaseProcessor.ProcessAsync(client, ItemId);
             return;
         }
 
@@ -80,25 +65,70 @@ public class CatalogPurchaseEventHandler(
             return;
         }
 
-        if (!await catalogChargeService.TryChargeAsync(client, item, Amount))
+        if (page.Layout == CatalogPageLayout.VipBuy)
         {
+            if (!await catalogChargeService.TryChargeAsync(client, item, 1))
+            {
+                await purchaseConfirmationService.WriteFailureAsync(client);
+                return;
+            }
+
+            try
+            {
+                await vipPurchaseProcessor.ProcessAsync(client, item);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Club purchase delivery failed for player {PlayerId}, item {ItemId}; refunding",
+                    player.Player.Id, item.Id);
+
+                await catalogChargeService.RefundAsync(client, item, 1);
+                await purchaseConfirmationService.WriteFailureAsync(client);
+            }
+
             return;
         }
 
-        if (page.Layout == CatalogPageLayout.Bots &&
-            item.Name.Contains("bot_") &&
-            !string.IsNullOrEmpty(item.MetaData))
+        var isBotPurchase = page.Layout == CatalogPageLayout.Bots &&
+                            item.Name?.Contains("bot_") == true &&
+                            !string.IsNullOrEmpty(item.MetaData);
+
+        var isTeleportPurchase =
+            item.FurnitureItems.Any(x => x.InteractionType == FurnitureItemInteractionType.Teleport);
+
+        var chargedAmount = isBotPurchase || isTeleportPurchase ? 1 : Amount;
+
+        if (!await catalogChargeService.TryChargeAsync(client, item, chargedAmount))
         {
-            await botPurchaseService.ProcessAsync(client, item);
+            await purchaseConfirmationService.WriteFailureAsync(client);
             return;
         }
 
-        if (item.FurnitureItems.Any(x => x.InteractionType == FurnitureItemInteractionType.Teleport))
+        try
         {
-            await teleportPurchaseService.ProcessAsync(client, item, MetaData, Amount);
-            return;
-        }
+            if (isBotPurchase)
+            {
+                await botPurchaseService.ProcessAsync(client, item);
+                return;
+            }
 
-        await furniturePurchaseService.ProcessAsync(client, item, MetaData, Amount);
+            if (isTeleportPurchase)
+            {
+                await teleportPurchaseService.ProcessAsync(client, item, MetaData, chargedAmount);
+                return;
+            }
+
+            await furniturePurchaseService.ProcessAsync(client, item, MetaData, Amount);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e,
+                "Catalog purchase delivery failed for player {PlayerId}, item {ItemId}; refunding",
+                player.Player.Id, item.Id);
+
+            await catalogChargeService.RefundAsync(client, item, chargedAmount);
+            await purchaseConfirmationService.WriteFailureAsync(client);
+        }
     }
 }

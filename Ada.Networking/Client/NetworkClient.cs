@@ -7,14 +7,17 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
+using Ada.Networking.Options;
 using Ada.Networking.Packets.Serialization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Ada.Networking.Client;
 
 public class NetworkClient(
     ILogger<NetworkClient> logger,
     IPacketCodecRegistry codecRegistry,
+    IOptions<NetworkOptions> networkOptions,
     IPAddress ipAddress,
     Guid guid,
     WebSocket webSocket)
@@ -28,15 +31,11 @@ public class NetworkClient(
     public IPlayerLogic? Player { get; set; }
     public IRoomUser? RoomUser { get; set; }
     public string? MachineId { get; set; }
-    public bool EncryptionEnabled { get; private set; }
 
-    public void EnableEncryption(byte[] sharedKey)
-    {
-        EncryptionEnabled = true;
-    }
+    public bool EncryptionEnabled => networkOptions.Value.UseWss;
 
-    public DateTime LastPing { get; set; } = DateTime.Now;
-    public DateTime LastPong { get; set; } = DateTime.Now;
+    public DateTime LastPing { get; set; } = DateTime.UtcNow;
+    public DateTime LastPong { get; set; } = DateTime.UtcNow;
 
     private const int MaxOutboxBytes = 8 * 1024 * 1024;
 
@@ -68,7 +67,7 @@ public class NetworkClient(
                 return;
             }
 
-            var length = writer.GetAllBytes().Length;
+            var length = writer.FramedLength;
 
             if (_outboxBytes + length > MaxOutboxBytes)
             {
@@ -135,8 +134,27 @@ public class NetworkClient(
                 _outboxBytes = 0;
             }
 
-            logger.LogError(e.ToString());
+            WebSocket.Abort();
+
+            logger.LogError(e, "Outbound pump failed for client {Guid}, connection aborted", Guid);
         }
+    }
+
+    private static readonly TimeSpan _sendTimeout = TimeSpan.FromSeconds(30);
+
+    private CancellationTokenSource _sendCts = new();
+
+    private CancellationToken StartSendTimeout()
+    {
+        if (!_sendCts.TryReset())
+        {
+            _sendCts.Dispose();
+            _sendCts = new CancellationTokenSource();
+        }
+
+        _sendCts.CancelAfter(_sendTimeout);
+
+        return _sendCts.Token;
     }
 
     private async Task SendBatchAsync(INetworkPacketWriter[] batch)
@@ -146,22 +164,37 @@ public class NetworkClient(
             return;
         }
 
+        var token = StartSendTimeout();
+
         if (batch.Length == 1)
         {
-            await WebSocket.SendAsync(
-                batch[0].GetAllBytes(),
-                WebSocketMessageType.Binary,
-                true,
-                CancellationToken.None);
+            var single = batch[0];
+            var singleLength = single.FramedLength;
+            var singleBuffer = ArrayPool<byte>.Shared.Rent(singleLength);
+
+            try
+            {
+                single.WriteFramedTo(singleBuffer.AsSpan(0, singleLength));
+
+                await WebSocket.SendAsync(
+                    singleBuffer.AsMemory(0, singleLength),
+                    WebSocketMessageType.Binary,
+                    true,
+                    token);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(singleBuffer);
+            }
 
             return;
         }
 
         var totalLength = 0;
-        
+
         foreach (var writer in batch)
         {
-            totalLength += writer.GetAllBytes().Length;
+            totalLength += writer.FramedLength;
         }
 
         var payload = ArrayPool<byte>.Shared.Rent(totalLength);
@@ -172,16 +205,16 @@ public class NetworkClient(
 
             foreach (var writer in batch)
             {
-                var bytes = writer.GetAllBytes();
-                bytes.CopyTo(payload.AsSpan(offset));
-                offset += bytes.Length;
+                var length = writer.FramedLength;
+                writer.WriteFramedTo(payload.AsSpan(offset, length));
+                offset += length;
             }
 
             await WebSocket.SendAsync(
                 payload.AsMemory(0, totalLength),
                 WebSocketMessageType.Binary,
                 true,
-                CancellationToken.None);
+                token);
         }
         finally
         {
@@ -218,6 +251,8 @@ public class NetworkClient(
             _outbox.Clear();
             _outboxBytes = 0;
         }
+
+        _sendCts.Dispose();
 
         try
         {

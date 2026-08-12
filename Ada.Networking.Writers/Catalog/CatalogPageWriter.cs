@@ -1,5 +1,6 @@
 using Ada.API.DTOs.Catalog.FrontPage;
 using Ada.API.DTOs.Catalog.Items;
+ using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Catalog;
 using Ada.Core.Enums.Game.Furniture;
@@ -21,86 +22,89 @@ public class CatalogPageWriter : AbstractPacketWriter
     public required bool AcceptSeasonCurrencyAsCredits { get; init; }
     public required IEnumerable<CatalogFrontPageItemDto> FrontPageItems { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        OverrideItems();
-        OverrideFrontPageItems();
-    }
+        writer.WriteInteger(PageId);
+        writer.WriteString(CatalogMode ?? "");
+        writer.WriteString(PageLayout ?? "");
+        writer.WriteInteger(Images.Count);
 
-    private void OverrideItems()
-    {
-        Override(nameof(Items), writer =>
+        foreach (var image in Images)
         {
-            writer.WriteInteger(Items.Count);
+            writer.WriteString(image ?? "");
+        }
 
-            foreach (var item in Items)
+        writer.WriteInteger(Texts.Count);
+
+        foreach (var text in Texts)
+        {
+            writer.WriteString(text ?? "");
+        }
+
+        writer.WriteInteger(Items.Count);
+
+        foreach (var item in Items)
+        {
+            var itemName = item.Name ?? string.Empty;
+            var metaData = item.MetaData ?? string.Empty;
+
+            writer.WriteInteger(item.Id);
+            writer.WriteString(itemName);
+            writer.WriteBool(false);
+            writer.WriteInteger(item.CostCredits);
+            writer.WriteInteger(item.CostPoints);
+            writer.WriteInteger(item.CostPointsType);
+            writer.WriteBool(item.FurnitureItems.Any(x => x.CanGift));
+            writer.WriteInteger(item.FurnitureItems.Count);
+
+            foreach (var furnitureItem in item.FurnitureItems)
             {
-                var itemName = item.Name ?? string.Empty;
-                var metaData = item.MetaData ?? string.Empty;
+                writer.WriteString(EnumHelpers.GetEnumDescription(furnitureItem.Type));
 
-                writer.WriteInteger(item.Id);
-                writer.WriteString(itemName);
-                writer.WriteBool(false);
-                writer.WriteInteger(item.CostCredits);
-                writer.WriteInteger(item.CostPoints);
-                writer.WriteInteger(item.CostPointsType);
-                writer.WriteBool(item.FurnitureItems.Any(x => x.CanGift));
-                writer.WriteInteger(item.FurnitureItems.Count);
-
-                foreach (var furnitureItem in item.FurnitureItems)
+                if (furnitureItem.Type == FurnitureItemType.Badge)
                 {
-                    writer.WriteString(EnumHelpers.GetEnumDescription(furnitureItem.Type));
+                    writer.WriteString(furnitureItem.Name);
+                }
+                else
+                {
+                    writer.WriteInteger(furnitureItem.AssetId);
 
-                    if (furnitureItem.Type == FurnitureItemType.Badge)
+                    if (itemName.Contains("_single_"))
                     {
-                        writer.WriteString(furnitureItem.Name);
+                        writer.WriteString(itemName.Split("_")[2]);
+                    }
+                    else if (itemName.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
+                    {
+                        var look = metaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
+                        writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : metaData);
+                    }
+                    else if (furnitureItem.Type == FurnitureItemType.Bot ||
+                             itemName.ToLower() == "poster" ||
+                             itemName.StartsWith("SONG "))
+                    {
+                        writer.WriteString(metaData);
                     }
                     else
                     {
-                        writer.WriteInteger(furnitureItem.AssetId);
-
-                        if (itemName.Contains("_single_"))
-                        {
-                            writer.WriteString(itemName.Split("_")[2]);
-                        }
-                        else if (itemName.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
-                        {
-                            var look = metaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
-                            writer.WriteString(!string.IsNullOrEmpty(look) ? look.Replace("figure:", "") : metaData);
-                        }
-                        else if (furnitureItem.Type == FurnitureItemType.Bot ||
-                                 itemName.ToLower() == "poster" ||
-                                 itemName.StartsWith("SONG "))
-                        {
-                            writer.WriteString(metaData);
-                        }
-                        else
-                        {
-                            writer.WriteString("");
-                        }
-                        
-                        writer.WriteInteger(item.Amount);
-                        writer.WriteBool(false);
+                        writer.WriteString("");
                     }
+
+                    writer.WriteInteger(item.Amount);
+                    writer.WriteBool(false);
                 }
-
-                writer.WriteInteger(item.RequiresClubMembership ? 1 : 0);
-                writer.WriteBool(item.Amount == 1);
-                writer.WriteBool(false);
-                writer.WriteString($"{itemName}.png");
             }
-        });
-    }
 
-    private void OverrideFrontPageItems()
-    {
-        Override(nameof(FrontPageItems), writer =>
+            writer.WriteInteger(item.RequiresClubMembership ? 1 : 0);
+            writer.WriteBool(item.Amount == 1);
+            writer.WriteBool(false);
+            writer.WriteString($"{itemName}.png");
+        }
+
+        writer.WriteInteger(Unknown);
+        writer.WriteBool(AcceptSeasonCurrencyAsCredits);
+
+        if (PageLayout is "frontpage4")
         {
-            if (PageLayout is not "frontpage4")
-            {
-                return;
-            }
-            
             writer.WriteInteger(FrontPageItems.Count());
 
             foreach (var item in FrontPageItems)
@@ -127,6 +131,6 @@ public class CatalogPageWriter : AbstractPacketWriter
 
                 writer.WriteInteger(-1);
             }
-        });
+        }
     }
 }

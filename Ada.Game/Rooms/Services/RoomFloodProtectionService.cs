@@ -6,13 +6,18 @@ namespace Ada.Game.Rooms.Services;
 public class RoomFloodProtectionService : IRoomFloodProtectionService
 {
     public const int BaseMuteSeconds = 30;
-    private const int BaseThreshold = 3;
+    private const int _baseThreshold = 3;
+
+    private static readonly TimeSpan _escalationDecayAfter = TimeSpan.FromMinutes(10);
+
+    private const int _maxEscalationSteps = 10;
 
     private class PlayerFloodState
     {
         public double Counter;
         public DateTimeOffset LastMessageAt = DateTimeOffset.MinValue;
         public DateTimeOffset MutedUntil = DateTimeOffset.MinValue;
+        public DateTimeOffset LastMutedAt = DateTimeOffset.MinValue;
         public int MutedCount;
     }
 
@@ -62,14 +67,23 @@ public class RoomFloodProtectionService : IRoomFloodProtectionService
             state.Counter++;
             state.LastMessageAt = now;
 
-            var threshold = BaseThreshold + Math.Clamp(chatProtection, 0, 2);
+            var threshold = _baseThreshold + Math.Clamp(chatProtection, 0, 2);
 
             if (state.Counter <= threshold)
             {
                 return null;
             }
 
-            state.MutedCount++;
+            if (state.LastMutedAt > DateTimeOffset.MinValue &&
+                now - state.LastMutedAt > _escalationDecayAfter)
+            {
+                var stepsForgiven = (int)((now - state.LastMutedAt).Ticks / _escalationDecayAfter.Ticks);
+
+                state.MutedCount = Math.Max(0, state.MutedCount - stepsForgiven);
+            }
+
+            state.MutedCount = Math.Min(state.MutedCount + 1, _maxEscalationSteps);
+            state.LastMutedAt = now;
             state.Counter = 0;
 
             var muteSeconds = BaseMuteSeconds +

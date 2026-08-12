@@ -1,4 +1,5 @@
 using Ada.API.DTOs.Players;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
@@ -10,13 +11,10 @@ public class RoomPetRespectWriter : AbstractPacketWriter
     public required int RespectType { get; init; }
     public required PlayerPetDto Pet { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(RespectType), writer =>
-        {
-            writer.WriteInteger(RespectType);
-            writer.WriteInteger(100);
-        });
-        Override(nameof(Pet), writer => PetSerializer.Serialize(writer, Pet));
+        writer.WriteInteger(RespectType);
+        writer.WriteInteger(100);
+        PetSerializer.Serialize(writer, Pet);
     }
 }

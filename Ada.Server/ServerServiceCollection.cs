@@ -8,6 +8,7 @@ using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
 using Ada.Game.Groups;
+using Ada.Game.Guides;
 using Ada.Game.Jukebox;
 using Ada.Game.Locale;
 using Ada.Game.Mappers;
@@ -65,6 +66,7 @@ public static class ServerServiceCollection
         GroupServiceCollection.AddServices(services);
         WordFilterServiceCollection.AddServices(services);
         ModToolServiceCollection.AddServices(services);
+        GuideServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)
@@ -92,6 +94,12 @@ public static class ServerServiceCollection
             .FromAssemblies(assemblies)
             .AddClasses(c => c.AssignableTo<INetworkPacketEventFilter>())
             .As<INetworkPacketEventFilter>()
+            .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<IPreDispatchPacketFilter>())
+            .As<IPreDispatchPacketFilter>()
             .WithSingletonLifetime());
     }
 }

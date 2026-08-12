@@ -13,5 +13,9 @@ public record PlayerBotDto
     public string? Motto { get; init; }
     public PlayerAvatarGender Gender { get; init; }
     public ChatBubble ChatBubbleId { get; init; }
+    public int WalkingMode { get; set; }
+    public bool AutoChat { get; set; }
+    public int ChatDelaySeconds { get; set; }
+    public string ChatLines { get; set; } = string.Empty;
     public DateTime CreatedAt { get; init; }
 }

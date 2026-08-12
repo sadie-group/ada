@@ -51,7 +51,7 @@ public class WiredEffectStrategyTests : MockHelpers
         var roomDto = new RoomDto
         {
             OwnerId = ownerId,
-            FurnitureItems = furnitureItems
+            FurnitureItems = [..furnitureItems]
         };
 
         var room = new Mock<IRoomLogic>();

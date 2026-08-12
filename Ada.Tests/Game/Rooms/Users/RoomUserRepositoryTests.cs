@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
@@ -11,6 +12,7 @@ using Ada.Networking.Packets;
 using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Users;
+ using Ada.Networking.Writers.Rooms.Users.Trading;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -21,7 +23,7 @@ public class RoomUserRepositoryTests
 {
     private sealed class FixedIdMap : IPacketIdMap
     {
-        public bool TryGetHandlerType(short packetId, out Type? handlerType)
+        public bool TryGetHandlerType(short packetId, [NotNullWhen(true)] out Type? handlerType)
         {
             handlerType = null;
             return false;
@@ -145,9 +147,11 @@ public class RoomUserRepositoryTests
     {
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(1);
-
-        Assert.That(repository.TryAdd(user.User.Object), Is.True);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(user.User.Object), Is.True);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
         Assert.That(repository.GetAll(), Does.Contain(user.User.Object));
     }
 
@@ -157,8 +161,45 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
 
         Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.True);
-        Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.False);
-        Assert.That(repository.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryAdd(MakeUser(1).User.Object), Is.False);
+            Assert.That(repository.Count, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task TryRemoveAsync_UserInTrade_TearsDownTradeForBothParties()
+    {
+        var (repository, room, _, _) = MakeRepository();
+
+        var leaver = MakeUser(1, "Leaver");
+        var partner = MakeUser(2, "Partner");
+
+        repository.TryAdd(leaver.User.Object);
+        repository.TryAdd(partner.User.Object);
+
+        room.Setup(x => x.BroadcastDataAsync(It.IsAny<AbstractPacketWriter>(), It.IsAny<IReadOnlyCollection<long>>()))
+            .Returns(Task.CompletedTask);
+
+        var trade = new Mock<IRoomUserTrade>();
+        trade.SetupGet(x => x.Users).Returns([leaver.User.Object, partner.User.Object]);
+
+        leaver.User.Object.Trade = trade.Object;
+        partner.User.Object.Trade = trade.Object;
+        partner.User.Object.TradeStatus = 2;
+
+        await repository.TryRemoveAsync(1, false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(leaver.User.Object.Trade, Is.Null);
+            Assert.That(partner.User.Object.Trade, Is.Null);
+            Assert.That(partner.User.Object.TradeStatus, Is.Zero);
+        });
+
+        partner.NetworkObject.Verify(
+            x => x.WriteToStreamAsync(It.IsAny<RoomUserTradeCloseWindowWriter>()), Times.Once);
     }
 
     [Test]
@@ -167,18 +208,22 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(7);
         repository.TryAdd(user.User.Object);
-
-        Assert.That(repository.TryGetById(7, out var found), Is.True);
-        Assert.That(found, Is.SameAs(user.User.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(7, out var found), Is.True);
+            Assert.That(found, Is.SameAs(user.User.Object));
+        });
     }
 
     [Test]
     public void TryGetById_Absent_ReturnsFalse()
     {
         var (repository, _, _, _) = MakeRepository();
-
-        Assert.That(repository.TryGetById(42, out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetById(42, out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]
@@ -187,9 +232,11 @@ public class RoomUserRepositoryTests
         var (repository, _, _, _) = MakeRepository();
         var user = MakeUser(1, "Alice");
         repository.TryAdd(user.User.Object);
-
-        Assert.That(repository.TryGetByUsername("Alice", out var found), Is.True);
-        Assert.That(found, Is.SameAs(user.User.Object));
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetByUsername("Alice", out var found), Is.True);
+            Assert.That(found, Is.SameAs(user.User.Object));
+        });
     }
 
     [Test]
@@ -197,9 +244,11 @@ public class RoomUserRepositoryTests
     {
         var (repository, _, _, _) = MakeRepository();
         repository.TryAdd(MakeUser(1, "Alice").User.Object);
-
-        Assert.That(repository.TryGetByUsername("Bob", out var found), Is.False);
-        Assert.That(found, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(repository.TryGetByUsername("Bob", out var found), Is.False);
+            Assert.That(found, Is.Null);
+        });
     }
 
     [Test]
@@ -300,7 +349,7 @@ public class RoomUserRepositoryTests
     }
 
     [Test]
-    public async Task ProcessNewWalkRequestsAsync_WalkStarted_QueuesDataAndStatusToAllUsers()
+    public async Task ProcessNewWalkRequestsAsync_WalkStarted_QueuesStatusToAllUsers()
     {
         var (repository, _, _, _) = MakeRepository();
 
@@ -316,8 +365,8 @@ public class RoomUserRepositoryTests
 
         await repository.ProcessNewWalkRequestsAsync();
 
-        walker.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
-        bystander.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
+        walker.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
+        bystander.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
         Assert.That(walker.User.Object.NeedsUpdate, Is.False);
     }
 
@@ -389,9 +438,10 @@ public class RoomUserRepositoryTests
         room.Verify(x => x.BroadcastDataAsync(
             It.Is<AbstractPacketWriter>(w => w is RoomBotStatusWriter),
             It.IsAny<IReadOnlyCollection<long>?>()), Times.Once);
+
         room.Verify(x => x.BroadcastDataAsync(
             It.Is<AbstractPacketWriter>(w => w is RoomBotDataWriter),
-            It.IsAny<IReadOnlyCollection<long>?>()), Times.Once);
+            It.IsAny<IReadOnlyCollection<long>?>()), Times.Never);
         Assert.That(bot.Object.NeedsUpdate, Is.False);
     }
 
@@ -417,7 +467,7 @@ public class RoomUserRepositoryTests
     }
 
     [Test]
-    public async Task RunPeriodicCheckAsync_UsersNeedUpdate_QueuesDataAndStatus()
+    public async Task RunPeriodicCheckAsync_UsersNeedUpdate_QueuesStatus()
     {
         var (repository, room, _, _) = MakeRepository();
 
@@ -431,7 +481,7 @@ public class RoomUserRepositoryTests
 
         await repository.RunPeriodicCheckAsync();
 
-        user.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Exactly(2));
+        user.NetworkObject.Verify(x => x.QueueOutbound(It.IsAny<INetworkPacketWriter>()), Times.Once);
         Assert.That(user.User.Object.NeedsUpdate, Is.False);
     }
 

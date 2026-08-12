@@ -6,46 +6,39 @@ namespace Ada.Networking.Packets.Serialization;
 
 public static class PacketBroadcast
 {
-    public static void Queue(AbstractPacketWriter writer, IEnumerable<INetworkObject> recipients)
+    public static void Queue(AbstractPacketWriter writer, IReadOnlyList<INetworkObject> recipients)
     {
         IPacketCodec? firstCodec = null;
         INetworkPacketWriter? firstPacket = null;
         Dictionary<IPacketCodec, INetworkPacketWriter>? others = null;
 
-        foreach (var recipient in recipients)
+        for (var i = 0; i < recipients.Count; i++)
         {
+            var recipient = recipients[i];
+
             recipient.QueueOutbound(
                 ResolvePacket(writer, recipient.Codec, ref firstCodec, ref firstPacket, ref others));
         }
     }
 
-    public static Task SendAsync(AbstractPacketWriter writer, IEnumerable<INetworkObject> recipients)
+    public static void SendAndFlush(AbstractPacketWriter writer, IReadOnlyList<INetworkObject> recipients)
     {
         IPacketCodec? firstCodec = null;
         INetworkPacketWriter? firstPacket = null;
         Dictionary<IPacketCodec, INetworkPacketWriter>? others = null;
 
-        List<INetworkObject>? queued = null;
-
-        foreach (var recipient in recipients)
+        for (var i = 0; i < recipients.Count; i++)
         {
+            var recipient = recipients[i];
+
             recipient.QueueOutbound(
                 ResolvePacket(writer, recipient.Codec, ref firstCodec, ref firstPacket, ref others));
-
-            (queued ??= []).Add(recipient);
         }
 
-        if (queued == null)
+        for (var i = 0; i < recipients.Count; i++)
         {
-            return Task.CompletedTask;
+            recipients[i].FlushAsync();
         }
-
-        foreach (var recipient in queued)
-        {
-            _ = recipient.FlushAsync();
-        }
-
-        return Task.CompletedTask;
     }
 
     private static INetworkPacketWriter ResolvePacket(

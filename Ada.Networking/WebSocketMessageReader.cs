@@ -6,6 +6,8 @@ namespace Ada.Networking;
 
 public class WebSocketMessageReader : IWebSocketMessageReader
 {
+    private const int _maxMessageBytes = 256 * 1024;
+
     public async ValueTask<(byte[] buffer, int length)> ReadMessageAsync(WebSocket socket, CancellationToken token)
     {
         var recv = ArrayPool<byte>.Shared.Rent(4096);
@@ -22,8 +24,13 @@ public class WebSocketMessageReader : IWebSocketMessageReader
                 {
                     ArrayPool<byte>.Shared.Return(message);
                     ArrayPool<byte>.Shared.Return(recv);
-                    
+
                     return ([], 0);
+                }
+
+                if (len + result.Count > _maxMessageBytes)
+                {
+                    throw new WebSocketException(WebSocketError.InvalidMessageType);
                 }
 
                 if (len + result.Count > message.Length)

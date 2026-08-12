@@ -1,9 +1,10 @@
-using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Core.Shared.Helpers;
+using Ada.Db.Models.Constants;
+using Ada.Game.Rooms.Wired;
 using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Furniture;
 
@@ -11,7 +12,9 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture.Wired;
 
 [PacketId(EventHandlerId.RoomWiredConditionSaved)]
 public class RoomWiredConditionSavedEventHandler(
-    IRoomWiredService wiredService) : INetworkPacketEventHandler
+    IRoomWiredService wiredService,
+    ServerRoomConstants roomConstants,
+    IWordFilterService wordFilterService) : INetworkPacketEventHandler
 {
     public required int ItemId { get; init; }
     public required List<int> Parameters { get; init; }
@@ -34,22 +37,16 @@ public class RoomWiredConditionSavedEventHandler(
             return;
         }
 
-        var selectedItems = room!
-            .Room
-            .FurnitureItems
-            .Where(x => ItemIds.Contains(x.Id))
-            .ToList();
-
         await wiredService.SaveSettingsAsync(
             roomItem,
-            new PlayerFurnitureItemWiredDataDto
-            {
-                PlayerFurnitureItemPlacementDataId = roomItem.Id,
-                PlacementData = roomItem,
-                SelectedItems = selectedItems,
-                Message = Input,
-                IntParameters = WiredParameterHelpers.Serialize(Parameters)
-            });
+            WiredSettingsHelpers.Build(
+                roomItem,
+                room!.Room.FurnitureItems.Where(x => ItemIds.Contains(x.Id)),
+                Input,
+                Parameters,
+                delayInPulses: 0,
+                roomConstants,
+                wordFilterService));
 
         await client.WriteToStreamAsync(new WiredSavedWriter());
     }

@@ -49,13 +49,13 @@ public class HabboClubGiftsEventHandler(
 
         foreach (var subscription in subscriptions)
         {
-            if (subscription.ExpiresAt >= DateTime.Now)
+            if (subscription.ExpiresAt >= DateTimeOffset.UtcNow)
             {
                 days += (int) (subscription.ExpiresAt - subscription.CreatedAt).TotalDays;
             }
             else
             {
-                days += (int) (DateTime.Now - subscription.CreatedAt).TotalDays;
+                days += (int) (DateTimeOffset.UtcNow - subscription.CreatedAt).TotalDays;
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Drawing;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
@@ -7,7 +7,7 @@ using Ada.Core.Shared.Extensions;
 
 namespace Ada.Game.Rooms.Mapping;
 
-public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
+public class RoomTileMap : IRoomTileMap
 {
     public int SizeX { get; }
     public int SizeY { get; }
@@ -18,8 +18,10 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
     public short[,] TileExistenceMap { get; set; }
     public short[,] EffectMap { get; }
 
+    private static readonly RoomTileMapHelperService _tiles = new();
+
     public RoomTileMap(
-        string heightmap, 
+        string heightmap,
         ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
     {
         var heightmapLines = heightmap
@@ -28,15 +30,15 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
             .Split('\n')
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
-        
-        SizeX = heightmapLines[0].Length;
+
+        SizeX = heightmapLines.Count == 0 ? 0 : heightmapLines.Min(x => x.Length);
         SizeY = heightmapLines.Count;
         Size = 0;
         Map = new short[SizeY, SizeX];
         ZMap = new short[SizeY, SizeX];
         TileExistenceMap = new short[SizeY, SizeX];
         EffectMap = new short[SizeY, SizeX];
-        
+
         for (var y = 0; y < SizeY; y++)
         {
             for (var x = 0; x < SizeX; x++)
@@ -44,7 +46,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
                 Size++;
 
                 var square = heightmapLines[y][x].ToString().ToUpper();
-                
+
                 if (square == "X")
                 {
                     TileExistenceMap[y, x] = 0;
@@ -56,7 +58,7 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
                     height = (short) (10 + "ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(square));
                 }
 
-                Map[y, x] = (short) GetTileState(x, y, furnitureItems);
+                Map[y, x] = (short) _tiles.GetTileState(x, y, furnitureItems);
                 ZMap[y, x] = height;
                 TileExistenceMap[y, x] = 1;
 
@@ -67,27 +69,49 @@ public class RoomTileMap : RoomTileMapHelperService, IRoomTileMap
 
     public void UpdateEffectMapForTile(int x,
         int y,
-        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems)
+        ICollection<PlayerFurnitureItemPlacementDataDto> furnitureItems,
+        PlayerFurnitureItemPlacementDataDto? excludeItem = null)
     {
-        var itemsOnSquare = GetItemsForPosition(x, y, furnitureItems);
+        var itemsOnSquare = _tiles.GetItemsForPosition(x, y, furnitureItems);
+
+        if (excludeItem != null)
+        {
+            itemsOnSquare.Remove(excludeItem);
+        }
 
         if (itemsOnSquare.Count == 0)
         {
             EffectMap[y, x] = 0;
             return;
         }
-        
+
         var topItemOnSquare = itemsOnSquare.MaxBy(x => x.PositionZ);
-        var effect = GetEffectFromInteractionType(topItemOnSquare.PlayerFurnitureItem.FurnitureItem.InteractionType);
-                    
+        var effect = _tiles.GetEffectFromInteractionType(topItemOnSquare?.PlayerFurnitureItem.FurnitureItem.InteractionType ?? "");
+
         EffectMap[y, x] = (short) effect;
     }
 
-    public void AddUnitToMap(Point point, IRoomUnitData unit) => 
+    public void AddUnitToMap(Point point, IRoomUnitData unit) =>
         UnitMap.GetOrInsert(point, () => []).Add(unit);
 
     public bool UsersAtPoint(Point point) =>
         UnitMap.ContainsKey(point) && UnitMap[point].Count > 0;
+
+    public Point? FirstExistingTile()
+    {
+        for (var y = 0; y < SizeY; y++)
+        {
+            for (var x = 0; x < SizeX; x++)
+            {
+                if (TileExistenceMap[y, x] == 1)
+                {
+                    return new Point(x, y);
+                }
+            }
+        }
+
+        return null;
+    }
 
     public bool TileExists(Point point)
     {

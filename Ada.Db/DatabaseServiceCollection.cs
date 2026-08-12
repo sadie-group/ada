@@ -1,4 +1,6 @@
-﻿using Ada.Db.Configuration;
+﻿using Ada.Db.Players;
+using Ada.API.Interfaces.Game.Players;
+using Ada.Db.Configuration;
 using Ada.Db.Models.Catalog.FrontPage;
 using Ada.Db.Models.Constants;
 using Microsoft.EntityFrameworkCore;
@@ -41,14 +43,12 @@ public static class DatabaseServiceCollection
             }
         }
 
-        // Contexts are created per packet, so pool them instead of building a fresh
-        // context (with model binding) each time.
         serviceCollection.AddPooledDbContextFactory<AdaDbContext>(ConfigureAdaDb);
+        serviceCollection.AddSingleton<IPlayerPresenceStore, PlayerPresenceStore>();
+
         serviceCollection.AddTransient<AdaDbContext>(provider =>
             provider.GetRequiredService<IDbContextFactory<AdaDbContext>>().CreateDbContext());
 
-        // The migrations context resolves the configured DbContextOptions<AdaDbContext>
-        // through its constructor; a single factory registration is enough.
         serviceCollection.AddDbContextFactory<AdaMigrationsDbContext>();
 
         serviceCollection.AddSingleton<ServerPlayerConstants>(provider =>

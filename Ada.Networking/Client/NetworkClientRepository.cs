@@ -3,9 +3,7 @@ using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Plugins;
-using Ada.Db;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Client;
@@ -13,16 +11,15 @@ namespace Ada.Networking.Client;
 public class NetworkClientRepository(
     ILogger<NetworkClientRepository> logger,
     IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IPlayerPresenceStore playerPresenceStore,
     IPlayerHelperService playerHelperService,
-    IMapper mapper,
     IEnumerable<IPlayerSessionListener> sessionListeners) : INetworkClientRepository
 {
     private readonly ConcurrentDictionary<Guid, INetworkClient> _clients = new();
     private readonly ConcurrentDictionary<Guid, byte> _removalGuard = new();
 
     public ICollection<INetworkClient> Clients => _clients.Values;
-    
+
     public void AddClient(Guid guid, INetworkClient client)
     {
         _clients[guid] = client;
@@ -35,26 +32,29 @@ public class NetworkClientRepository(
             return false;
         }
 
-        if (!_clients.TryRemove(guid, out var client))
-        {
-            return false;
-        }
-
-        var player = client.Player;
-        var roomUser = client.RoomUser;
-
-        if (player != null)
-        {
-            await NotifySessionListenersAsync(player, roomUser);
-        }
-
-        if (roomUser != null)
-        {
-            await roomUser.Room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true);
-        }
-
         try
         {
+            if (!_clients.TryRemove(guid, out var client))
+            {
+                return false;
+            }
+
+            var player = client.Player;
+            var roomUser = client.RoomUser;
+
+            if (player != null)
+            {
+                await NotifySessionListenersAsync(player, roomUser);
+            }
+
+            if (roomUser != null)
+            {
+                var room = roomUser.Room;
+
+                await room.RunLockedAsync(() =>
+                    room.UserRepository.TryRemoveAsync(roomUser.Player.Player.Id, true, true));
+            }
+
             if (player != null)
             {
                 if (!await playerRepository.TryRemovePlayerAsync(player.Player.Id))
@@ -74,42 +74,34 @@ public class NetworkClientRepository(
                         false,
                         playerRepository);
                 }
-                
-                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-                
-                await dbContext.Database
-                    .ExecuteSqlRawAsync(
-                        "UPDATE player_data SET is_online = 0 WHERE player_id = @p0 LIMIT 1",
-                        player.Player.Id);
+
+                await playerPresenceStore.SetOfflineAsync(player.Player.Id);
             }
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Another thread removed the player already, safe to ignore
+
+            await client.DisposeAsync();
+            return true;
         }
         finally
         {
             _removalGuard.TryRemove(guid, out _);
         }
-        
-        await client.DisposeAsync();
-        return true;
     }
 
     public async Task DisconnectIdleClientsAsync()
     {
-        var idleClients = _clients.Values
-            .Where(x => (DateTime.Now - x.LastPong).TotalSeconds >= 60)
+        var idleClients = _clients
+            .Select(x => x.Value)
+            .Where(x => (DateTime.UtcNow - x.LastPong).TotalSeconds >= 60)
             .Take(20)
             .ToList();
-        
+
         if (idleClients.Count < 1)
         {
             return;
         }
-        
-        logger.LogWarning($"Disconnecting {idleClients.Count} idle players");
-        
+
+        logger.LogWarning("Disconnecting {Count} idle players", idleClients.Count);
+
         var throttler = new SemaphoreSlim(10);
 
         var tasks = idleClients.Select(async client =>

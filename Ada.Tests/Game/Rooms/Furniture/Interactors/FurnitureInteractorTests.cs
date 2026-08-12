@@ -174,7 +174,8 @@ public class OneWayGateInteractorTests
         var tileHelper = new Mock<IRoomTileMapHelperService>();
         var furniHelper = new Mock<IRoomFurnitureItemHelperService>();
 
-        return (new OneWayGateInteractor(factory, tileHelper.Object, furniHelper.Object), tileHelper, furniHelper);
+        return (new OneWayGateInteractor(factory, tileHelper.Object, furniHelper.Object,
+            NullLogger<OneWayGateInteractor>.Instance), tileHelper, furniHelper);
     }
 
     [Test]
@@ -239,13 +240,15 @@ public class OneWayGateInteractorTests
         var user = InteractorTestHelpers.MakeUser(new Point(2, 1), InteractorTestHelpers.MakePlayerDto(1));
 
         await interactor.OnTriggerAsync(room.Room.Object, item, user.User.Object);
-
-        Assert.That(user.Point, Is.EqualTo(new Point(2, 3)));
-        Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.South));
-        Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.South));
-        Assert.That(user.User.Object.NeedsUpdate, Is.True);
-        Assert.That(user.User.Object.CanWalk, Is.True);
-        Assert.That(user.User.Object.OverridePoints, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.Point, Is.EqualTo(new Point(2, 3)));
+            Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.South));
+            Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.South));
+            Assert.That(user.User.Object.NeedsUpdate, Is.True);
+            Assert.That(user.User.Object.CanWalk, Is.True);
+            Assert.That(user.User.Object.OverridePoints, Is.Empty);
+        });
         furniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Room.Object, item, "1"), Times.Once);
         furniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Room.Object, item, "0"), Times.Once);
     }
@@ -480,7 +483,9 @@ public class VendingInteractorTests
         var tileHelper = new Mock<IRoomTileMapHelperService>();
         var furniHelper = new Mock<IRoomFurnitureItemHelperService>();
 
-        return (new VendingInteractor(tileHelper.Object, furniHelper.Object), tileHelper, furniHelper);
+        return (new VendingInteractor(tileHelper.Object, furniHelper.Object,
+            new InlineRoomDeferralScheduler(),
+            NullLogger<VendingInteractor>.Instance), tileHelper, furniHelper);
     }
 
     [Test]
@@ -503,16 +508,21 @@ public class VendingInteractorTests
         var user = InteractorTestHelpers.MakeUser(new Point(3, 2), InteractorTestHelpers.MakePlayerDto(5));
 
         await interactor.OnTriggerAsync(room.Room.Object, item, user.User.Object);
-
-        Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.West));
-        Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.West));
-        Assert.That(user.User.Object.NeedsUpdate, Is.True);
-        Assert.That(user.User.Object.HandItemId, Is.EqualTo(7));
-        Assert.That(user.User.Object.HandItemSet, Is.Not.EqualTo(default(DateTime)));
-        Assert.That(room.Broadcasts, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.User.Object.Direction, Is.EqualTo(HDirection.West));
+            Assert.That(user.User.Object.DirectionHead, Is.EqualTo(HDirection.West));
+            Assert.That(user.User.Object.NeedsUpdate, Is.True);
+            Assert.That(user.User.Object.HandItemId, Is.EqualTo(7));
+            Assert.That(user.User.Object.HandItemSet, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(room.Broadcasts, Has.Count.EqualTo(1));
+        });
         var writer = (RoomUserHandItemWriter)room.Broadcasts[0];
-        Assert.That(writer.UserId, Is.EqualTo(5));
-        Assert.That(writer.ItemId, Is.EqualTo(7));
+        Assert.Multiple(() =>
+        {
+            Assert.That(writer.UserId, Is.EqualTo(5));
+            Assert.That(writer.ItemId, Is.EqualTo(7));
+        });
     }
 
     [Test]
@@ -534,9 +544,12 @@ public class VendingInteractorTests
             await Task.Delay(50);
         }
 
-        Assert.That(user.Point, Is.EqualTo(new Point(3, 2)));
-        Assert.That(user.User.Object.HandItemId, Is.EqualTo(7));
-        Assert.That(room.Broadcasts, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(user.Point, Is.EqualTo(new Point(3, 2)));
+            Assert.That(user.User.Object.HandItemId, Is.EqualTo(7));
+            Assert.That(room.Broadcasts, Has.Count.EqualTo(1));
+        });
         user.User.Verify(x => x.WalkToPoint(new Point(3, 2), It.IsAny<Action?>()), Times.Once);
         furniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Room.Object, item, "1"), Times.Once);
         furniHelper.Verify(x => x.UpdateMetaDataForItemAsync(room.Room.Object, item, "0"), Times.Once);
@@ -549,13 +562,13 @@ public class DiceInteractorTests
     [Test]
     public void InteractionTypes_ContainsDice()
     {
-        var interactor = new DiceInteractor(Mock.Of<IRoomFurnitureItemHelperService>());
+        var interactor = new DiceInteractor(Mock.Of<IRoomFurnitureItemHelperService>(), NullLogger<DiceInteractor>.Instance);
 
         Assert.That(interactor.InteractionTypes, Is.EqualTo(new[] { "dice" }));
     }
 
     [Test]
-    public async Task OnTriggerAsync_SpinsThenRollsBetween1And5()
+    public async Task OnTriggerAsync_SpinsThenRollsBetween1And6()
     {
         var values = new List<string>();
         var rolled = new TaskCompletionSource();
@@ -576,7 +589,7 @@ public class DiceInteractorTests
             })
             .Returns(Task.CompletedTask);
 
-        var interactor = new DiceInteractor(furniHelper.Object);
+        var interactor = new DiceInteractor(furniHelper.Object, NullLogger<DiceInteractor>.Instance);
         var item = InteractorTestHelpers.MakeItem(100, 2, 2, HDirection.North, "dice");
         var room = InteractorTestHelpers.MakeRoom();
         var user = InteractorTestHelpers.MakeUser(new Point(0, 0), InteractorTestHelpers.MakePlayerDto(1));
@@ -585,7 +598,7 @@ public class DiceInteractorTests
 
         Assert.That(values[0], Is.EqualTo("-1"));
         await rolled.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.That(int.Parse(values[1]), Is.InRange(1, 5));
+        Assert.That(int.Parse(values[1]), Is.InRange(1, 6));
         room.Room.Verify(x => x.RunLockedAsync(It.IsAny<Func<Task>>()), Times.Once);
     }
 }

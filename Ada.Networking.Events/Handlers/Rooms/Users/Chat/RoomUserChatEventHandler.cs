@@ -7,7 +7,7 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
 using Ada.Db.Models.Constants;
-using Ada.Networking.Events.Application;
+using Ada.Game.Rooms.Chat;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 
@@ -19,8 +19,9 @@ public class RoomUserChatEventHandler(
     IRoomWiredService wiredService,
     IRoomHelperService roomHelperService,
     IWordFilterService wordFilterService,
-    IRoomFloodProtectionService floodProtectionService)
-    : INetworkPacketEventHandler
+    IRoomFloodProtectionService floodProtectionService,
+    IRoomWordFilterService roomWordFilterService)
+    : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public required string Message { get; init; }
     public int Bubble { get; init; }
@@ -37,6 +38,7 @@ public class RoomUserChatEventHandler(
             wiredService,
             roomHelperService,
             wordFilterService,
-            floodProtectionService);
+            floodProtectionService,
+            roomWordFilterService);
     }
 }

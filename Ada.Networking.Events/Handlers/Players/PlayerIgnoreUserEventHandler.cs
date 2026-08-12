@@ -26,10 +26,11 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
             return;
         }
         
-        var targetPlayer = playerRepository.GetPlayerLogicByUsername(Username);
-        
-        if (targetPlayer == null || 
-            player.Player.OutgoingIgnores.Any(x => x.TargetPlayerId == targetPlayer.Player.Id))
+        var targetPlayer = await playerRepository.GetPlayerByUsernameAsync(Username);
+
+        if (targetPlayer == null ||
+            targetPlayer.Id == player.Player.Id ||
+            player.Player.OutgoingIgnores.Any(x => x.TargetPlayerId == targetPlayer.Id))
         {
             return;
         }
@@ -37,7 +38,7 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
         var ignore = new PlayerIgnoreDto
         {
             PlayerId = player.Player.Id,
-            TargetPlayerId = targetPlayer.Player.Id
+            TargetPlayerId = targetPlayer.Id
         };
 
         player.Player.OutgoingIgnores.Add(ignore);
@@ -46,7 +47,7 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
             new PlayerIgnoreStateWriter
             {
                 State = (int) PlayerIgnoreState.Ignored,
-                Username = targetPlayer.Player.Username
+                Username = targetPlayer.Username
             });
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
@@ -54,7 +55,7 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
         dbContext.Set<PlayerIgnore>().Add(new PlayerIgnore
         {
             PlayerId = player.Player.Id,
-            TargetPlayerId = targetPlayer.Player.Id
+            TargetPlayerId = targetPlayer.Id
         });
 
         await dbContext.SaveChangesAsync();

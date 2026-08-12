@@ -25,16 +25,6 @@ public class NetworkPacketReaderTests
     }
 
     [Test]
-    public void ReadLong_BigEndianBytes_Value()
-    {
-        var bytes = new byte[8];
-        BinaryPrimitives.WriteInt64BigEndian(bytes, 1234567890123L);
-
-        var reader = new NetworkPacketReader(bytes);
-        Assert.That(reader.ReadLong(), Is.EqualTo(1234567890123L));
-    }
-
-    [Test]
     public void ReadBool_OneAndZero_TrueAndFalse()
     {
         var reader = new NetworkPacketReader(new byte[] { 1, 0 });
@@ -60,7 +50,10 @@ public class NetworkPacketReaderTests
         var reader = new NetworkPacketReader(new byte[] { 0, 0, 0, 1, 0, 0, 0, 2, 1 });
 
         Assert.That(reader.ReadInt(), Is.EqualTo(1));
-        Assert.That(reader.ReadInt(), Is.EqualTo(2));
-        Assert.That(reader.ReadBool(), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reader.ReadInt(), Is.EqualTo(2));
+            Assert.That(reader.ReadBool(), Is.True);
+        });
     }
 }

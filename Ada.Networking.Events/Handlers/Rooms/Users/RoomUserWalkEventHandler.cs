@@ -3,18 +3,26 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserWalk)]
-public class RoomUserWalkEventHandler(IRoomRepository roomRepository) : INetworkPacketEventHandler
+public class RoomUserWalkEventHandler(
+    IRoomRepository roomRepository,
+    IWalkRequestThrottle walkThrottle) : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public int X { get; init; }
     public int Y { get; init; }
-    
+
     public Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out _, out var roomUser))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!walkThrottle.TryConsume(roomUser.Player.Player.Id))
         {
             return Task.CompletedTask;
         }

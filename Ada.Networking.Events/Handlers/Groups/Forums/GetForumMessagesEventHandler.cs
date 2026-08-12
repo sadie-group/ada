@@ -7,9 +7,11 @@ using Ada.Networking.Writers.Groups;
 namespace Ada.Networking.Events.Handlers.Groups.Forums;
 
 [PacketId(EventHandlerId.GetForumMessages)]
-public class GetForumMessagesEventHandler(IGroupForumRepository forumRepository) : INetworkPacketEventHandler
+public class GetForumMessagesEventHandler(
+    IGroupRepository groupRepository,
+    IGroupForumRepository forumRepository) : INetworkPacketEventHandler
 {
-    private const int MaxPageSize = 20;
+    private const int _maxPageSize = 20;
 
     public int GuildId { get; set; }
     public int ThreadId { get; set; }
@@ -23,7 +25,12 @@ public class GetForumMessagesEventHandler(IGroupForumRepository forumRepository)
             return;
         }
 
-        var amount = Limit is > 0 and <= MaxPageSize ? Limit : MaxPageSize;
+        if (!await ForumPermissions.CanReadForumAsync(groupRepository, GuildId, client.Player.Player.Id))
+        {
+            return;
+        }
+
+        var amount = Limit is > 0 and <= _maxPageSize ? Limit : _maxPageSize;
         var (comments, _) = await forumRepository.GetCommentsAsync(GuildId, ThreadId, Index, amount);
 
         await client.WriteToStreamAsync(new GuildForumCommentsWriter

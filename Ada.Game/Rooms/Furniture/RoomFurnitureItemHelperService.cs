@@ -14,8 +14,7 @@ namespace Ada.Game.Rooms.Furniture;
 
 public class RoomFurnitureItemHelperService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IPlayerRepository playerRepository,
-    IMapper mapper) : IRoomFurnitureItemHelperService
+    IPlayerRepository playerRepository) : IRoomFurnitureItemHelperService
 {
     public async Task CycleInteractionStateForItemAsync(
         IRoomLogic room, 
@@ -44,6 +43,7 @@ public class RoomFurnitureItemHelperService(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
             .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
     }

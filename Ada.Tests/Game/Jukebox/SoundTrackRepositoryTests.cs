@@ -34,11 +34,14 @@ public class SoundTrackRepositoryTests
 
         Assert.That(tracks, Has.Count.EqualTo(2));
         var first = tracks.Single(x => x.Id == 1);
-        Assert.That(first.Name, Is.EqualTo("song-one"));
-        Assert.That(first.Author, Is.EqualTo("alice"));
-        Assert.That(first.Code, Is.EqualTo("c1"));
-        Assert.That(first.Data, Is.EqualTo("d1"));
-        Assert.That(first.Length, Is.EqualTo(60));
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Name, Is.EqualTo("song-one"));
+            Assert.That(first.Author, Is.EqualTo("alice"));
+            Assert.That(first.Code, Is.EqualTo("c1"));
+            Assert.That(first.Data, Is.EqualTo("d1"));
+            Assert.That(first.Length, Is.EqualTo(60));
+        });
     }
 
     [Test]
@@ -59,11 +62,14 @@ public class SoundTrackRepositoryTests
         var track = await repository.GetByNameAsync("song-two");
 
         Assert.That(track, Is.Not.Null);
-        Assert.That(track.Id, Is.EqualTo(2));
-        Assert.That(track.Author, Is.EqualTo("bob"));
-        Assert.That(track.Code, Is.EqualTo("c2"));
-        Assert.That(track.Data, Is.EqualTo("d2"));
-        Assert.That(track.Length, Is.EqualTo(90));
+        Assert.Multiple(() =>
+        {
+            Assert.That(track.Id, Is.EqualTo(2));
+            Assert.That(track.Author, Is.EqualTo("bob"));
+            Assert.That(track.Code, Is.EqualTo("c2"));
+            Assert.That(track.Data, Is.EqualTo("d2"));
+            Assert.That(track.Length, Is.EqualTo(90));
+        });
     }
 
     [Test]

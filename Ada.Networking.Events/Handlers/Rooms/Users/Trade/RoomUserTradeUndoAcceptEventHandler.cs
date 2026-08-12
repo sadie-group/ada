@@ -1,6 +1,7 @@
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users.Trading;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;

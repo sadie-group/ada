@@ -5,11 +5,14 @@ using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
+using Ada.Core.Shared.Extensions;
 using Ada.Db;
-using Ada.Networking.Events;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
@@ -18,7 +21,9 @@ public class TeleportInteractor(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
     IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : AbstractRoomFurnitureItemInteractor
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    IRoomDeferralScheduler deferralScheduler,
+    ILogger<TeleportInteractor> logger) : AbstractRoomFurnitureItemInteractor
 {
     public override List<string> InteractionTypes => [FurnitureItemInteractionType.Teleport];
 
@@ -57,10 +62,16 @@ public class TeleportInteractor(
                 if (item.PlayerFurnitureItem.FurnitureItem.InteractionModes == 1)
                 {
                     await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "2");
-                    await Task.Delay(_delay);
-                    await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+
+                    deferralScheduler.Schedule(room, _delay, async () =>
+                    {
+                        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+                        await UseTeleportAsync(room, item, roomUser);
+                    }, "teleport entry settle");
+
+                    return;
                 }
-                
+
                 await UseTeleportAsync(room, item, roomUser);
             });
         }
@@ -69,10 +80,9 @@ public class TeleportInteractor(
             roomUser.WalkToPoint(itemInFront, OnReachedGoal);
             return;
 
-            async void OnReachedGoal()
-            {
-                await OnTriggerAsync(room, item, roomUser);
-            }
+            void OnReachedGoal()
+                => OnTriggerAsync(room, item, roomUser)
+                    .FireAndForget(logger, "teleport walk-to-goal trigger");
         }
     }
 
@@ -107,10 +117,12 @@ public class TeleportInteractor(
                 item,
                 targetRoomItem,
                 room);
+
+            return;
         }
-        
+
         await UseTeleportInDifferentRoomAsync(
-            roomUser, 
+            roomUser,
             item,
             targetItemId,
             room);
@@ -143,17 +155,19 @@ public class TeleportInteractor(
             if (targetItem != null)
             {
                 roomUser.Player.State.Teleport = targetItem;
-                
+
                 await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "2");
-                await Task.Delay(_delay);
-                    
-                await roomUser.NetworkObject.WriteToStreamAsync(new RoomForwardEntryWriter
+
+                deferralScheduler.Schedule(room, _delay, async () =>
                 {
-                    RoomId = targetRoomId
-                });
-                
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "1");
-                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+                    await roomUser.NetworkObject.WriteToStreamAsync(new RoomForwardEntryWriter
+                    {
+                        RoomId = targetRoomId
+                    });
+
+                    await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(targetRoom!, targetItem, "1");
+                    await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+                }, "teleport cross-room settle");
             }
         }
     }
@@ -167,34 +181,51 @@ public class TeleportInteractor(
         if (item.PlayerFurnitureItem.FurnitureItem.InteractionModes == 1)
         {
             await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "2");
-            await Task.Delay(_delay);
+
+            deferralScheduler.Schedule(room, _delay, ArriveAsync, "teleport same-room settle");
+
+            return;
         }
-        
-        var newPoint = new Point(targetItem.PositionX, targetItem.PositionY);
 
-        room.TileMap.UnitMap[roomUser.Point].Remove(roomUser);
-        room.TileMap.AddUnitToMap(newPoint, roomUser);
-
-        await roomUser.SetPositionAsync(newPoint);
-        
-        roomUser.Direction = targetItem.Direction;
-        roomUser.DirectionHead = targetItem.Direction;
-        roomUser.NeedsUpdate = true;
-            
-        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "1");
-        
-        var squareInFront = tileMapHelperService.GetPointInFront(targetItem.PositionX, targetItem.PositionY, targetItem.Direction);
-
-        roomUser.WalkToPoint(squareInFront, OnReachedGoal);
+        await ArriveAsync();
         return;
 
-        async void OnReachedGoal()
+        async Task ArriveAsync()
+        {
+            var newPoint = new Point(targetItem.PositionX, targetItem.PositionY);
+
+            room.TileMap.UnitMap[roomUser.Point].Remove(roomUser);
+            room.TileMap.AddUnitToMap(newPoint, roomUser);
+
+            await roomUser.SetPositionAsync(newPoint);
+
+            roomUser.Direction = targetItem.Direction;
+            roomUser.DirectionHead = targetItem.Direction;
+            roomUser.NeedsUpdate = true;
+
+            await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "1");
+
+            var squareInFront = tileMapHelperService.GetPointInFront(
+                targetItem.PositionX,
+                targetItem.PositionY,
+                targetItem.Direction);
+
+            roomUser.WalkToPoint(squareInFront, OnReachedGoal);
+        }
+
+        void OnReachedGoal()
+            => CompleteTeleportAsync().FireAndForget(logger, "teleport exit walk-to-goal");
+
+        async Task CompleteTeleportAsync()
         {
             await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
-            await Task.Delay(_delay);
-            await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "0");
-            
-            roomUser.CanWalk = true;
+
+            deferralScheduler.Schedule(room, _delay, async () =>
+            {
+                await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, targetItem, "0");
+
+                roomUser.CanWalk = true;
+            }, "teleport exit settle");
         }
     }
 }

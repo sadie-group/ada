@@ -1,5 +1,6 @@
 using Ada.API.DTOs.Players;
 using Ada.Db.Models.Players;
+using Ada.Core.Shared.Helpers;
 using Ada.Game.Players;
 using Ada.Game.Players.Options;
 using Ada.Tests.Common;
@@ -32,10 +33,22 @@ public class PlayerLoaderServiceTests
         return mapper.Object;
     }
 
-    private static PlayerLoaderService CreateService(SqliteTestDbFactory factory, bool canReuse) =>
-        new(factory, MsOptions.Create(new PlayerOptions { CanReuseSsoTokens = canReuse }), CreateMapper());
+    private static PlayerLoaderService CreateService(
+        SqliteTestDbFactory factory,
+        bool canReuse,
+        int graceSeconds = 0,
+        bool requireHashed = true) =>
+        new(
+            factory,
+            MsOptions.Create(new PlayerOptions
+            {
+                CanReuseSsoTokens = canReuse,
+                SsoGraceSeconds = graceSeconds,
+                RequireHashedSsoTokens = requireHashed
+            }),
+            CreateMapper());
 
-    private static async Task SeedTokenAsync(SqliteTestDbFactory factory, string token,
+    private static async Task SeedTokenAsync(SqliteTestDbFactory factory, string storedToken,
         DateTimeOffset expiresAt, DateTimeOffset? usedAt = null)
     {
         await using var db = factory.CreateDbContext();
@@ -47,12 +60,42 @@ public class PlayerLoaderServiceTests
         db.PlayerSsoToken.Add(new PlayerSsoToken
         {
             PlayerId = 1,
-            Token = token,
+            Token = storedToken,
             CreatedAt = DateTimeOffset.Now.AddMinutes(-5),
             ExpiresAt = expiresAt,
             UsedAt = usedAt
         });
         await db.SaveChangesAsync();
+    }
+
+    private static Task SeedHashedTokenAsync(SqliteTestDbFactory factory, string token,
+        DateTimeOffset expiresAt, DateTimeOffset? usedAt = null)
+        => SeedTokenAsync(factory, SsoTokenHasher.Hash(token), expiresAt, usedAt);
+
+    [Test]
+    public void PlayerOptions_HashedSsoTokens_AreRequiredByDefault()
+    {
+        Assert.That(new PlayerOptions().RequireHashedSsoTokens, Is.True);
+    }
+
+    [Test]
+    public async Task GetTokenAsync_RawTokenStoredButHashingRequired_ReturnsNull()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
+        var service = CreateService(factory, canReuse: false);
+
+        Assert.That(await service.GetTokenAsync("sso"), Is.Null);
+    }
+
+    [Test]
+    public async Task GetTokenAsync_RawTokenStoredAndHashingNotRequired_ReturnsToken()
+    {
+        using var factory = new SqliteTestDbFactory();
+        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
+        var service = CreateService(factory, canReuse: false, requireHashed: false);
+
+        Assert.That(await service.GetTokenAsync("sso"), Is.Not.Null);
     }
 
     [Test]
@@ -61,51 +104,52 @@ public class PlayerLoaderServiceTests
         using var factory = new SqliteTestDbFactory();
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("missing", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("missing"), Is.Null);
     }
 
     [Test]
     public async Task GetTokenAsync_ExpiredToken_ReturnsNull()
     {
         using var factory = new SqliteTestDbFactory();
-        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(-1));
+        await SeedHashedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(-1));
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("sso", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("sso"), Is.Null);
     }
 
     [Test]
-    public async Task GetTokenAsync_ExpiredWithinDelayGrace_ReturnsToken()
+    public async Task GetTokenAsync_ExpiredWithinServerGrace_ReturnsToken()
     {
         using var factory = new SqliteTestDbFactory();
-        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddSeconds(-5));
-        var service = CreateService(factory, canReuse: true);
+        await SeedHashedTokenAsync(factory, "sso", DateTimeOffset.Now.AddSeconds(-5));
 
-        var dto = await service.GetTokenAsync("sso", 60_000);
+        var service = CreateService(factory, canReuse: true, graceSeconds: 60);
+
+        var dto = await service.GetTokenAsync("sso");
 
         Assert.That(dto, Is.Not.Null);
-        Assert.That(dto!.Token, Is.EqualTo("sso"));
+        Assert.That(dto!.Token, Is.EqualTo(SsoTokenHasher.Hash("sso")));
     }
 
     [Test]
     public async Task GetTokenAsync_UsedToken_ReturnsNull()
     {
         using var factory = new SqliteTestDbFactory();
-        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1), usedAt: DateTimeOffset.Now.AddMinutes(-1));
+        await SeedHashedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1), usedAt: DateTimeOffset.Now.AddMinutes(-1));
         var service = CreateService(factory, canReuse: false);
 
-        Assert.That(await service.GetTokenAsync("sso", 0), Is.Null);
+        Assert.That(await service.GetTokenAsync("sso"), Is.Null);
     }
 
     [Test]
     public async Task GetTokenAsync_Reusable_ReturnsTokenWithoutClaiming()
     {
         using var factory = new SqliteTestDbFactory();
-        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
+        await SeedHashedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
         var service = CreateService(factory, canReuse: true);
 
-        var first = await service.GetTokenAsync("sso", 0);
-        var second = await service.GetTokenAsync("sso", 0);
+        var first = await service.GetTokenAsync("sso");
+        var second = await service.GetTokenAsync("sso");
 
         Assert.Multiple(() =>
         {
@@ -115,18 +159,18 @@ public class PlayerLoaderServiceTests
         });
 
         await using var db = factory.CreateDbContext();
-        Assert.That(db.PlayerSsoToken.Single(x => x.Token == "sso").UsedAt, Is.Null);
+        Assert.That(db.PlayerSsoToken.Single().UsedAt, Is.Null);
     }
 
     [Test]
     public async Task GetTokenAsync_SingleUse_ClaimsToken()
     {
         using var factory = new SqliteTestDbFactory();
-        await SeedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
+        await SeedHashedTokenAsync(factory, "sso", DateTimeOffset.Now.AddHours(1));
         var service = CreateService(factory, canReuse: false);
 
-        var first = await service.GetTokenAsync("sso", 0);
-        var second = await service.GetTokenAsync("sso", 0);
+        var first = await service.GetTokenAsync("sso");
+        var second = await service.GetTokenAsync("sso");
 
         Assert.Multiple(() =>
         {
@@ -136,6 +180,6 @@ public class PlayerLoaderServiceTests
         });
 
         await using var db = factory.CreateDbContext();
-        Assert.That(db.PlayerSsoToken.Single(x => x.Token == "sso").UsedAt, Is.Not.Null);
+        Assert.That(db.PlayerSsoToken.Single().UsedAt, Is.Not.Null);
     }
 }

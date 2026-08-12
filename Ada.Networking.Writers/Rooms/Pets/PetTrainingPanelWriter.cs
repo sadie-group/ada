@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
@@ -10,25 +11,21 @@ public class PetTrainingPanelWriter : AbstractPacketWriter
     public required IReadOnlyList<int> CommandIds { get; init; }
     public required IReadOnlyList<int> EnabledCommandIds { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(CommandIds), writer =>
-        {
-            writer.WriteInteger(CommandIds.Count);
+        writer.WriteInteger(PetId);
+        writer.WriteInteger(CommandIds.Count);
 
-            foreach (var id in CommandIds)
-            {
-                writer.WriteInteger(id);
-            }
-        });
-        Override(nameof(EnabledCommandIds), writer =>
+        foreach (var id in CommandIds)
         {
-            writer.WriteInteger(EnabledCommandIds.Count);
+            writer.WriteInteger(id);
+        }
 
-            foreach (var id in EnabledCommandIds)
-            {
-                writer.WriteInteger(id);
-            }
-        });
+        writer.WriteInteger(EnabledCommandIds.Count);
+
+        foreach (var id in EnabledCommandIds)
+        {
+            writer.WriteInteger(id);
+        }
     }
 }

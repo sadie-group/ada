@@ -8,9 +8,11 @@ public class SimplePriorityQueueTests
     public void Push_FirstItem_ReturnsRootIndex()
     {
         var queue = new SimplePriorityQueue<int>();
-
-        Assert.That(queue.Push(5), Is.EqualTo(0));
-        Assert.That(queue.Count, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue.Push(5), Is.EqualTo(0));
+            Assert.That(queue.Count, Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -19,9 +21,11 @@ public class SimplePriorityQueueTests
         var queue = new SimplePriorityQueue<int>();
         queue.Push(10);
         queue.Push(20);
-
-        Assert.That(queue.Push(1), Is.EqualTo(0));
-        Assert.That(queue.Peek(), Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue.Push(1), Is.EqualTo(0));
+            Assert.That(queue.Peek(), Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -29,9 +33,11 @@ public class SimplePriorityQueueTests
     {
         var queue = new SimplePriorityQueue<int>();
         queue.Push(1);
-
-        Assert.That(queue.Push(10), Is.EqualTo(1));
-        Assert.That(queue.Peek(), Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue.Push(10), Is.EqualTo(1));
+            Assert.That(queue.Peek(), Is.EqualTo(1));
+        });
     }
 
     [Test]
@@ -81,8 +87,11 @@ public class SimplePriorityQueueTests
     [Test]
     public void Peek_Empty_ReturnsDefault()
     {
-        Assert.That(new SimplePriorityQueue<string>().Peek(), Is.Null);
-        Assert.That(new SimplePriorityQueue<int>().Peek(), Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(new SimplePriorityQueue<string>().Peek(), Is.Null);
+            Assert.That(new SimplePriorityQueue<int>().Peek(), Is.EqualTo(0));
+        });
     }
 
     [Test]
@@ -91,9 +100,11 @@ public class SimplePriorityQueueTests
         var queue = new SimplePriorityQueue<int>();
         queue.Push(3);
         queue.Push(1);
-
-        Assert.That(queue.Peek(), Is.EqualTo(1));
-        Assert.That(queue.Count, Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue.Peek(), Is.EqualTo(1));
+            Assert.That(queue.Count, Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -114,9 +125,11 @@ public class SimplePriorityQueueTests
         var queue = new SimplePriorityQueue<int>();
         queue.Push(1);
         queue.Push(2);
-
-        Assert.That(queue[0], Is.EqualTo(1));
-        Assert.That(queue[1], Is.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue[0], Is.EqualTo(1));
+            Assert.That(queue[1], Is.EqualTo(2));
+        });
     }
 
     [Test]
@@ -165,9 +178,11 @@ public class SimplePriorityQueueTests
         }
 
         queue[1] = 2;
-
-        Assert.That(queue[1], Is.EqualTo(2));
-        Assert.That(queue.Peek(), Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(queue[1], Is.EqualTo(2));
+            Assert.That(queue.Peek(), Is.EqualTo(1));
+        });
     }
 
     [Test]

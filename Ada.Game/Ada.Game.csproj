@@ -14,11 +14,12 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Ada.Networking.Events\Ada.Networking.Events.csproj" />
-      <ProjectReference Include="..\Ada.Networking.Writers\Ada.Networking.Writers.csproj" />
+        <ProjectReference Include="..\Ada.Db\Ada.Db.csproj" />
+        <ProjectReference Include="..\Ada.Networking\Ada.Networking.csproj" />
+        <ProjectReference Include="..\Ada.Networking.Writers\Ada.Networking.Writers.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <InternalsVisibleTo Include="Ada.Tests" />
+        <InternalsVisibleTo Include="Ada.Tests" />
     </ItemGroup>
 </Project>

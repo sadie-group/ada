@@ -7,7 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="EFCore.BulkExtensions" />
         <PackageReference Include="Microsoft.Extensions.Hosting" />
         <ProjectReference Include="..\Ada.API\Ada.API.csproj" />
         <ProjectReference Include="..\Ada.Networking.Encryption\Ada.Networking.Encryption.csproj" />

@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
@@ -5,7 +6,8 @@ using Ada.API.Interfaces.Game.Players.Friendships;
 using Ada.API.Interfaces.Game.Players.Packets.Writers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Game.Players.Packets.Writers;
-using Ada.Networking.Events.Dtos;
+using Ada.API.DTOs.Players.Friendships;
+using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Players.Friendships;
 using Ada.Networking.Writers.Players.Inventory;
@@ -56,7 +58,7 @@ public class PlayerHelperService : IPlayerHelperService
     
     public IPlayerSubscriptionWriter? GetSubscriptionWriterAsync(IPlayerLogic player, string name)
     {
-        var playerSub = player.Player.Subscriptions.FirstOrDefault(x => x.Subscription.Name == name);
+        var playerSub = player.Player.Subscriptions.FirstOrDefault(x => x.Subscription?.Name == name);
         
         if (playerSub?.Subscription == null)
         {
@@ -70,7 +72,7 @@ public class PlayerHelperService : IPlayerHelperService
 
         return new PlayerSubscriptionWriter
         {
-            Name = playerSub.Subscription.Name!.ToLower(),
+            Name = playerSub.Subscription.Name?.ToLower() ?? string.Empty,
             DaysLeft = daysLeft,
             MemberPeriods = 1,
             PeriodsSubscribedAhead = 2,
@@ -80,17 +82,19 @@ public class PlayerHelperService : IPlayerHelperService
             PastClubDays = 0,
             PastVipDays = 0,
             MinutesTillExpire = minutesLeft,
-            MinutesSinceModified = (int)(DateTime.Now - lastMod).TotalMinutes
+            MinutesSinceModified = (int)(DateTime.UtcNow - lastMod).TotalMinutes
         };
     }
 
-    public async Task UpdatePlayerStatusForFriendsAsync(
+    public Task UpdatePlayerStatusForFriendsAsync(
         IPlayerLogic player, 
         IEnumerable<PlayerFriendshipDto> friendships, 
         bool isOnline, 
         bool inRoom,
         IPlayerRepository playerRepository)
     {
+        var avatarData = player.Player.AvatarData;
+
         var update = new PlayerFriendshipUpdate
         {
             Type = 0,
@@ -98,28 +102,41 @@ public class PlayerHelperService : IPlayerHelperService
             {
                 Id = player.Player.Id,
                 Username = player.Player.Username,
-                FigureCode = player.Player.AvatarData.FigureCode,
-                Motto = player.Player.AvatarData.Motto,
-                Gender = player.Player.AvatarData.Gender
+                FigureCode = avatarData?.FigureCode ?? string.Empty,
+                Motto = avatarData?.Motto ?? string.Empty,
+                Gender = avatarData?.Gender ?? PlayerAvatarGender.Male
             },
             FriendOnline = isOnline,
             FriendInRoom = inRoom,
             Relation = (int) PlayerRelationshipType.None
         };
         
+        var recipients = new List<INetworkObject>();
+
         foreach (var friend in friendships)
         {
-            var targetId = friend.OriginPlayerId == player.Player.Id ? 
-                friend.TargetPlayerId : 
+            var targetId = friend.OriginPlayerId == player.Player.Id ?
+                friend.TargetPlayerId :
                 friend.OriginPlayerId;
 
             var targetPlayer = playerRepository.GetPlayerLogicById(targetId);
 
-            if (targetPlayer != null)
+            if (targetPlayer?.NetworkObject != null)
             {
-                await SendFriendUpdatesToPlayerAsync(targetPlayer, [update]);
+                recipients.Add(targetPlayer.NetworkObject);
             }
         }
+
+        if (recipients.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        PacketBroadcast.SendAndFlush(
+            new PlayerUpdateFriendWriter { Updates = [update] },
+            recipients);
+
+        return Task.CompletedTask;
     }
 
     public async Task SendUnseenInventoryItemsAsync(IPlayerLogic player, List<PlayerFurnitureItemDto> items)

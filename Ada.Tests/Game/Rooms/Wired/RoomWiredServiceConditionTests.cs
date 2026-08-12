@@ -1,3 +1,4 @@
+using Ada.Game.Rooms.Mapping;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
@@ -57,16 +58,18 @@ public class RoomWiredServiceConditionTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var helperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var helperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
 
         var effectStrategy = new RecordingEffectStrategy();
 
         var wiredService = new RoomWiredService(
             dbFactory,
             helperService,
+            new RoomTileMapHelperService(),
             [effectStrategy],
             [new FixedConditionStrategy(conditionSatisfied)],
-            new WiredTimerService());
+            new WiredTimerService(),
+            NullLogger<RoomWiredService>.Instance);
 
         var trigger = WithWiredData(MockFurnitureItemPlacementData(FurnitureItemInteractionType.WiredTriggerEnterRoom, id: 1));
         var condition = WithWiredData(MockFurnitureItemPlacementData(FurnitureItemInteractionType.WiredConditionUserCountInRoom, 0, 0, 1, id: 2));
@@ -80,14 +83,8 @@ public class RoomWiredServiceConditionTests : MockHelpers
     }
 
     [Test]
-    public async Task RunTrigger_ConditionFails_EffectDoesNotRun()
-    {
-        Assert.That(await RunStackAsync(conditionSatisfied: false), Is.EqualTo(0));
-    }
+    public async Task RunTrigger_ConditionFails_EffectDoesNotRun() => Assert.That(await RunStackAsync(conditionSatisfied: false), Is.EqualTo(0));
 
     [Test]
-    public async Task RunTrigger_ConditionPasses_EffectRuns()
-    {
-        Assert.That(await RunStackAsync(conditionSatisfied: true), Is.EqualTo(1));
-    }
+    public async Task RunTrigger_ConditionPasses_EffectRuns() => Assert.That(await RunStackAsync(conditionSatisfied: true), Is.EqualTo(1));
 }

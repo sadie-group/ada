@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
 using Microsoft.Extensions.Logging;
@@ -22,10 +20,7 @@ public class PacketDispatcher(
         }
         finally
         {
-            if (packet is NetworkPacket p && MemoryMarshal.TryGetArray(p.Data, out var segment))
-            {
-                ArrayPool<byte>.Shared.Return(segment.Array!);
-            }
+            PacketBufferPool.Release(packet);
         }
     }
 }

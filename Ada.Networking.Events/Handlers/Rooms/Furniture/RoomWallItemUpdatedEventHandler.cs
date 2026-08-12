@@ -7,7 +7,6 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Rooms.Furniture;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
@@ -16,12 +15,11 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 public class RoomWallItemUpdatedEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomRepository roomRepository,
-    IMapper mapper,
     IPlayerRepository playerRepository)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IDefersPersistence
 {
     public int ItemId { get; init; }
-    public string WallPosition { get; init; }
+    public string WallPosition { get; init; } = string.Empty;
     
     public async Task HandleAsync(INetworkClient client)
     {
@@ -59,11 +57,16 @@ public class RoomWallItemUpdatedEventHandler(
 
         roomFurnitureItem.WallPosition = wallPosition;
         
-        var roomFurnitureItemEntity = mapper.Map<PlayerFurnitureItemPlacementData>(roomFurnitureItem);
-        
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(roomFurnitureItemEntity).Property(x => x.WallPosition).IsModified = true;
-        await dbContext.SaveChangesAsync();
+        var placementId = roomFurnitureItem.Id;
+
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+            await dbContext.RoomFurnitureItems
+                .Where(x => x.Id == placementId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.WallPosition, wallPosition));
+        };
         
         var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(
             roomFurnitureItem.PlayerFurnitureItem.PlayerId);
@@ -74,4 +77,8 @@ public class RoomWallItemUpdatedEventHandler(
             OwnerUsername = ownerUsername ?? "Unknown User"
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

@@ -1,4 +1,5 @@
 using Ada.API.DTOs.Players;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 using Ada.Networking.Writers.Rooms.Pets;
@@ -10,18 +11,15 @@ public class PlayerInventoryPetsWriter : AbstractPacketWriter
 {
     public required ICollection<PlayerPetDto> Pets { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(nameof(Pets), writer =>
-        {
-            writer.WriteInteger(1);
-            writer.WriteInteger(1);
-            writer.WriteInteger(Pets.Count);
+        writer.WriteInteger(1);
+        writer.WriteInteger(1);
+        writer.WriteInteger(Pets.Count);
 
-            foreach (var pet in Pets)
-            {
-                PetSerializer.Serialize(writer, pet);
-            }
-        });
+        foreach (var pet in Pets)
+        {
+            PetSerializer.Serialize(writer, pet);
+        }
     }
 }

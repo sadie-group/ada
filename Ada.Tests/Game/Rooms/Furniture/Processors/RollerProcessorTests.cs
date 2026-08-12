@@ -23,7 +23,7 @@ public class RollerProcessorTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var processor = new RollerProcessor(tMapService, fHelperService);
         var updates = await processor.GetUpdatesForRoomAsync(room);
         
@@ -43,7 +43,7 @@ public class RollerProcessorTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var processor = new RollerProcessor(tMapService, fHelperService);
         var updates = await processor.GetUpdatesForRoomAsync(room);
         
@@ -66,7 +66,7 @@ public class RollerProcessorTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var processor = new RollerProcessor(tMapService, fHelperService);
         var updates = await processor.GetUpdatesForRoomAsync(room);
         
@@ -90,7 +90,7 @@ public class RollerProcessorTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var processor = new RollerProcessor(tMapService, fHelperService);
         var updates = await processor.GetUpdatesForRoomAsync(room);
         
@@ -112,7 +112,7 @@ public class RollerProcessorTests : MockHelpers
         var dbFactory = TestDbFactory.CreateDbFactory();
         var playerRepository = CreatePlayerRepositoryMock();
         var mapper = new Mock<IMapper>();
-        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object, mapper.Object);
+        var fHelperService = new RoomFurnitureItemHelperService(dbFactory, playerRepository.Object);
         var processor = new RollerProcessor(tMapService, fHelperService);
         var updates = await processor.GetUpdatesForRoomAsync(room);
         

@@ -18,11 +18,16 @@ public class CatalogPageEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var page = pageRepository
             .Pages
             .FirstOrDefault(x => x.Id == PageId);
 
-        if (page is not { Enabled: true } || !page.Visible)
+        if (page == null || !CatalogPageAccess.CanAccess(page, client.Player))
         {
             return;
         }

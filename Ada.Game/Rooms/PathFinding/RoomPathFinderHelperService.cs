@@ -10,8 +10,6 @@ namespace Ada.Game.Rooms.PathFinding;
 
 public class RoomPathFinderHelperService : IRoomPathFinderHelperService
 {
-    // One scratch grid per room, refilled per path request. Path requests for a
-    // room only run from that room's tick, so the grid is never used concurrently.
     private static readonly ConditionalWeakTable<IRoomTileMap, WorldGrid> ScratchGrids = new();
 
     public HDirection GetDirectionForNextStep(Point current, Point next)
@@ -53,7 +51,7 @@ public class RoomPathFinderHelperService : IRoomPathFinderHelperService
 
         return rotation;
     }
-    
+
     public List<Point> BuildPathForWalk(IRoomLogic room,
         Point start,
         Point end,
@@ -64,10 +62,7 @@ public class RoomPathFinderHelperService : IRoomPathFinderHelperService
 
         FillWorldGrid(worldGrid, tileMap, end, overridePoints);
 
-        return room
-            .PathFinder
-            .FindPath(start, end, worldGrid)
-            .ToList();
+        return room.PathFinder.FindPath(start, end, worldGrid);
     }
 
     private static void FillWorldGrid(WorldGrid grid,

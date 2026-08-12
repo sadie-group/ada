@@ -1,3 +1,4 @@
+using Ada.API.Collections;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms.Chat;
@@ -23,7 +24,7 @@ public record RoomDto
     public ICollection<RoomChatMessageDto> ChatMessages { get; init; } = [];
     public ICollection<RoomTagDto> Tags { get; init; } = [];
     public ICollection<PlayerRoomLikeDto> PlayerLikes { get; init; } = [];
-    public ICollection<PlayerFurnitureItemPlacementDataDto> FurnitureItems { get; init; } = [];
+    public RevisionedCollection<PlayerFurnitureItemPlacementDataDto> FurnitureItems { get; init; } = [];
     public GroupDto? Group { get; init; }
     public RoomDimmerSettingsDto? DimmerSettings { get; set; }
     public ICollection<PlayerRoomBanDto> PlayerBans { get; set; } = [];

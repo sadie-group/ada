@@ -144,4 +144,29 @@ public class ModToolRepository(IDbContextFactory<AdaDbContext> dbContextFactory)
         await db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> ApplyMuteAsync(long targetId, DateTimeOffset expiresAt)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        return await db.PlayerData
+            .Where(x => x.PlayerId == targetId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MuteExpiresAt, expiresAt)) > 0;
+    }
+
+    public async Task<bool> ApplyTradeLockAsync(long targetId, DateTimeOffset expiresAt)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        return await db.PlayerData
+            .Where(x => x.PlayerId == targetId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.TradeLockExpiresAt, expiresAt)) > 0;
+    }
+
+    public async Task<int> GetPriorSanctionCountAsync(long targetId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        return await db.PlayerBans.CountAsync(x => x.PlayerId == targetId);
+    }
 }

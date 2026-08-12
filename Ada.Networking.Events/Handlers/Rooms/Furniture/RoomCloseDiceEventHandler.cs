@@ -13,7 +13,7 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 public class RoomCloseDiceEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
     
@@ -46,10 +46,17 @@ public class RoomCloseDiceEventHandler(
 
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, roomFurnitureItem, "0");
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        await dbContext.PlayerFurnitureItems
-            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+            await dbContext.PlayerFurnitureItems
+                .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
+        };
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

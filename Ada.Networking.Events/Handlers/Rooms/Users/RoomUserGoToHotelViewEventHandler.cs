@@ -3,14 +3,15 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
 [PacketId(EventHandlerId.RoomUserGoToHotelView)]
-public class RoomUserGoToHotelViewEventHandler(IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+public class RoomUserGoToHotelViewEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,IRoomRepository roomRepository,
     IMapper mapper) : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)

@@ -8,5 +8,6 @@ public static class JukeboxServiceCollection
     public static void AddServices(IServiceCollection serviceCollection)
     {
         serviceCollection.AddSingleton<ISoundTrackRepository, SoundTrackRepository>();
+        serviceCollection.AddSingleton<IRoomJukeboxService, RoomJukeboxService>();
     }
 }

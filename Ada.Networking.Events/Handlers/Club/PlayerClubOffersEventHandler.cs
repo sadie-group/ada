@@ -1,4 +1,4 @@
-﻿using Ada.API.DTOs.Catalog;
+using Ada.API.DTOs.Catalog;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
@@ -19,17 +19,22 @@ public class PlayerClubOffersEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var daysRemaining = 0;
         
         var clubSubscription = client
             .Player
             .Player.Subscriptions
-            .FirstOrDefault(x => x.Subscription.Name == "HABBO_CLUB");
+            .FirstOrDefault(x => x.Subscription?.Name == "HABBO_CLUB");
 
         if (clubSubscription != null)
         {
             var daysTotal = (clubSubscription.ExpiresAt - clubSubscription.CreatedAt).TotalDays;
-            var daysSinceStarted = (DateTime.Now - clubSubscription.CreatedAt).TotalDays;
+            var daysSinceStarted = (DateTimeOffset.UtcNow - clubSubscription.CreatedAt).TotalDays;
 
             daysRemaining = (int)(daysTotal - daysSinceStarted);
         }

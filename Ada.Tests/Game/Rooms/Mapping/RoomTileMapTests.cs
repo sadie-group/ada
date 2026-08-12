@@ -12,6 +12,22 @@ namespace Ada.Tests.Game.Rooms.Mapping;
 public class RoomTileMapTests
 {
     [Test]
+    public void FirstExistingTile_SkipsHolesAndReturnsTheFirstRealTile()
+    {
+        var map = new RoomTileMap("x0\r00", []);
+
+        Assert.That(map.FirstExistingTile(), Is.EqualTo(new Point(1, 0)));
+    }
+
+    [Test]
+    public void FirstExistingTile_LayoutWithNoTiles_ReturnsNull()
+    {
+        var map = new RoomTileMap("xx\rxx", []);
+
+        Assert.That(map.FirstExistingTile(), Is.Null);
+    }
+
+    [Test]
     public void UpdateEffectMapForTile_SwimTiles_WorksAsExpected()
     {
         var waterItem = MockFurnitureItemPlacementData(FurnitureItemInteractionType.Water);

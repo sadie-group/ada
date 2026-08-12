@@ -44,7 +44,7 @@ public class RoomUser(
         IRoomUser
 {
     public IPlayerLogic Player { get; } = player;
-    public DateTime LastAction { get; set; } = DateTime.Now;
+    public DateTime LastAction { get; set; } = DateTime.UtcNow;
     public TimeSpan IdleTime { get; } = TimeSpan.FromSeconds(roomConstants.SecondsTillUserIdle);
     public bool IsIdle { get; set; }
     public bool MoonWalking { get; set; }
@@ -58,7 +58,7 @@ public class RoomUser(
 
     public void LookAtPoint(Point point)
     {
-        var direction = pathFinderHelperService.GetDirectionForNextStep(Point, point);
+        var direction = PathFinderHelperService.GetDirectionForNextStep(Point, point);
 
         if (!StatusMap.ContainsKey(RoomUserStatus.Sit))
         {
@@ -71,26 +71,23 @@ public class RoomUser(
         }
     }
 
-    public void ApplyFlatCtrlStatus()
-    {
-        AddStatus(RoomUserStatus.FlatCtrl, ((int)controllerLevel).ToString());
-    }
+    public void ApplyFlatCtrlStatus() => AddStatus(RoomUserStatus.FlatCtrl, ((int)ControllerLevel).ToString());
 
     public async Task RunPeriodicCheckAsync()
     {
-        if (HandItemId != 0 && (DateTime.Now - HandItemSet).TotalSeconds >= 30)
+        if (HandItemId != 0 && (DateTime.UtcNow - HandItemSet).TotalSeconds >= 30)
         {
             HandItemId = 0;
-        
-            await room.BroadcastDataAsync(new RoomUserHandItemWriter
+
+            await Room.BroadcastDataAsync(new RoomUserHandItemWriter
             {
                 UserId = Player.Player.Id,
                 ItemId = 0
             });
         }
-        
-        if (StatusMap.ContainsKey(RoomUserStatus.Sign) && 
-            (DateTime.Now - SignSet).TotalSeconds >= 5)
+
+        if (StatusMap.ContainsKey(RoomUserStatus.Sign) &&
+            (DateTime.UtcNow - SignSet).TotalSeconds >= 5)
         {
             RemoveStatuses(RoomUserStatus.Sign);
         }
@@ -100,7 +97,7 @@ public class RoomUser(
         await ProcessGenericChecksAsync();
         await UpdateIdleStatusAsync();
         await UpdateEffectAsync();
-        
+
         if (Point != position)
         {
             await CheckForStepTriggersAsync(position, FurnitureItemInteractionType.WiredTriggerUserWalksOffFurniture);
@@ -112,7 +109,7 @@ public class RoomUser(
 
     private async Task RunStepInteractorsAsync(Point point, bool walkedOn)
     {
-        foreach (var item in tileMapHelperService.GetItemsForPosition(point.X, point.Y, room.Room.FurnitureItems))
+        foreach (var item in TileMapHelperService.GetItemsOnTilePosition(point.X, point.Y, Room.Room.FurnitureItems))
         {
             var interactionType = item.PlayerFurnitureItem.FurnitureItem.InteractionType;
 
@@ -127,11 +124,11 @@ public class RoomUser(
                 {
                     if (walkedOn)
                     {
-                        await interactor.OnWalkedOnAsync(room, item, this);
+                        await interactor.OnWalkedOnAsync(Room, item, this);
                     }
                     else
                     {
-                        await interactor.OnWalkedOffAsync(room, item, this);
+                        await interactor.OnWalkedOffAsync(Room, item, this);
                     }
                 }
                 catch (Exception e)
@@ -141,11 +138,16 @@ public class RoomUser(
             }
         }
     }
-    
+
     private async Task CheckForStepTriggersAsync(Point point, string interactionType)
     {
-        var itemIdsOnPoint = tileMapHelperService
-            .GetItemsForPosition(point.X, point.Y, room.Room.FurnitureItems)
+        if (!wiredService.HasTriggers(interactionType, Room.Room.FurnitureItems))
+        {
+            return;
+        }
+
+        var itemIdsOnPoint = TileMapHelperService
+            .GetItemsOnTilePosition(point.X, point.Y, Room.Room.FurnitureItems)
             .Select(x => x.Id)
             .ToList();
 
@@ -153,27 +155,27 @@ public class RoomUser(
         {
             return;
         }
-        
+
         var triggers = wiredService.GetTriggers(
             interactionType,
-            room.Room.FurnitureItems,
+            Room.Room.FurnitureItems,
             "",
             itemIdsOnPoint);
-        
+
         foreach (var trigger in triggers)
         {
-            await wiredService.RunTriggerForRoomAsync(room, trigger, this);
+            await wiredService.RunTriggerForRoomAsync(Room, trigger, this);
         }
     }
-    
+
     private async Task UpdateEffectAsync()
     {
         var effectPointToCheck = IsWalking && NextPoint != null ?
             NextPoint.Value :
             Point;
 
-        var effectId = room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0
-            ? room.TileMap.EffectMap[Point.Y, Point.X]
+        var effectId = Room.TileMap.EffectMap[effectPointToCheck.Y, effectPointToCheck.X] != 0
+            ? Room.TileMap.EffectMap[Point.Y, Point.X]
             : 0;
 
         if (effectId == ActiveEffectId)
@@ -186,7 +188,7 @@ public class RoomUser(
 
     private async Task UpdateIdleStatusAsync()
     {
-        var shouldBeIdle = DateTime.Now - LastAction > IdleTime;
+        var shouldBeIdle = DateTime.UtcNow - LastAction > IdleTime;
 
         if (shouldBeIdle && !IsIdle || !shouldBeIdle && IsIdle)
         {
@@ -197,15 +199,15 @@ public class RoomUser(
                 UserId = Player.Player.Id,
                 IsIdle = IsIdle
             };
-            
-            await room.BroadcastDataAsync(writer);
+
+            await Room.BroadcastDataAsync(writer);
         }
     }
 
     public bool HasRights()
     {
-        return ControllerLevel is 
-            RoomControllerLevel.Owner or 
+        return ControllerLevel is
+            RoomControllerLevel.Owner or
             RoomControllerLevel.Rights;
     }
 
@@ -225,7 +227,7 @@ public class RoomUser(
     public async Task SetEffectAsync(RoomUserEffect effect)
     {
         ActiveEffectId = (int) effect;
-        
+
         var writer = new RoomUserEffectWriter
         {
             UserId = (int) Player.Player.Id,
@@ -235,10 +237,10 @@ public class RoomUser(
 
         await Room.BroadcastDataAsync(writer);
     }
-    
+
     public async ValueTask DisposeAsync()
     {
-        if (room.TileMap.UnitMap.TryGetValue(Point, out var value))
+        if (Room.TileMap.UnitMap.TryGetValue(Point, out var value))
         {
             value.Remove(this);
         }

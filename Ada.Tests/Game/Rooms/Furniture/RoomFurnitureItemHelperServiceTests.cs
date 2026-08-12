@@ -58,7 +58,7 @@ public class RoomFurnitureItemHelperServiceTests
     }
 
     private static RoomFurnitureItemHelperService CreateService(SqliteTestDbFactory factory)
-        => new(factory, Mock.Of<IPlayerRepository>(), Mock.Of<IMapper>());
+        => new(factory, Mock.Of<IPlayerRepository>());
 
     private static SqliteTestDbFactory CreateSeededFactory(string metaData = "0")
     {

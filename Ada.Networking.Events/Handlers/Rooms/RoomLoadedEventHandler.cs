@@ -1,42 +1,47 @@
-﻿using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Generic;
-using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Doorbell;
 using Ada.Networking.Writers.Rooms.Users;
+using Ada.Networking.Writers.Rooms;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 
 [PacketId(EventHandlerId.RoomLoaded)]
 public class RoomLoadedEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,
     ILogger<RoomLoadedEventHandler> logger,
     IRoomRepository roomRepository,
     IRoomUserFactory roomUserFactory,
     IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
     IRoomTileMapHelperService tileMapHelperService,
     IPlayerHelperService playerHelperService,
     IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
-    IRoomWiredService wiredService)
+    IRoomWiredService wiredService,
+    IRoomAccessThrottle roomAccessThrottle)
     : INetworkPacketEventHandler, IManagesOwnRoomLock
 {
     public int RoomId { get; init; }
     public required string Password { get; init; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
@@ -51,14 +56,14 @@ public class RoomLoadedEventHandler(
             roomRepository,
             dbContextFactory,
             mapper);
-        
+
         var lastRoomId = player.State.CurrentRoomId;
-        
+
         if (lastRoomId != 0)
         {
             var lastRoom = await RoomHelpers.TryLoadRoomByIdAsync(lastRoomId,
                 roomRepository,
-                dbContextFactory, 
+                dbContextFactory,
                 mapper);
 
             if (lastRoom != null && lastRoom.UserRepository.TryGetById(player.Player.Id, out var existingUser) && existingUser != null)
@@ -70,36 +75,41 @@ public class RoomLoadedEventHandler(
 
         if (room == null)
         {
-            logger.LogError($"Failed to load room {RoomId} for player '{player.Player.Username}'");
+            logger.LogError("Failed to load room {RoomId} for player {Username}", RoomId, player.Player.Username);
             await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
-            
+
             return;
         }
 
         var isOwner = room.Room.OwnerId == player.Player.Id;
 
-        if (room.UserRepository.Count >= room.Room.MaxUsersAllowed && !isOwner)
+        if (!RoomHelpers.CanEnterRoom(room, player, out var enterError))
         {
             await client.WriteToStreamAsync(new RoomEnterErrorWriter
             {
-                ErrorCode = (int) RoomEnterError.NoCapacity
+                ErrorCode = (int) enterError
             });
-            
+
+            if (enterError == RoomEnterError.Banned)
+            {
+                await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+            }
+
             return;
         }
 
-        if (room.Room.Settings.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password && 
-            !isOwner && 
+        if (room.Room.Settings?.AccessType is RoomAccessType.Doorbell or RoomAccessType.Password &&
+            !isOwner &&
             !await ValidateRoomAccessForClientAsync(client, room, Password))
         {
             return;
         }
-        
+
         await RoomEntryEventHelpers.GenericEnterRoomAsync(
-            client, 
-            room, 
-            roomUserFactory, 
-            dbContextFactory, 
+            client,
+            room,
+            roomUserFactory,
+            dbContextFactory,
             playerRepository,
             tileMapHelperService,
             playerHelperService,
@@ -108,26 +118,38 @@ public class RoomLoadedEventHandler(
             mapper);
     }
 
-    private static async Task<bool> ValidateRoomAccessForClientAsync(INetworkClient client, IRoomLogic room, string password)
+    private async Task<bool> ValidateRoomAccessForClientAsync(INetworkClient client, IRoomLogic room, string password)
     {
         var player = client.Player!;
-        
-        switch (room.Room.Settings.AccessType)
+        var settings = room.Room.Settings;
+
+        if (settings == null)
+        {
+            return false;
+        }
+
+        switch (settings.AccessType)
         {
             case RoomAccessType.Password:
-                if (room.Room.Settings.Password == password)
+                if (!roomAccessThrottle.TryConsume(player.Player.Id, room.Room.Id))
+                {
+                    await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
+                    return false;
+                }
+
+                if (RoomPasswordHasher.Verify(settings.Password, password))
                 {
                     return true;
                 }
-                
+
                 await client.WriteToStreamAsync(new GenericErrorWriter
                 {
                     ErrorCode = (int) GenericErrorCode.NavigatorInvalidPassword
                 });
-                
+
                 await client.WriteToStreamAsync(new RoomUserHotelViewWriter());
                 return false;
-            
+
             case RoomAccessType.Doorbell:
             {
                 var usersWithRights = room.UserRepository.GetAllWithRights();
@@ -138,24 +160,25 @@ public class RoomLoadedEventHandler(
                     {
                         Username = player.Player.Username
                     });
-                    
+
                     return false;
                 }
-                
+
+                player.State.PendingDoorbellRoomId = room.Room.Id;
+
                 foreach (var user in usersWithRights)
                 {
                     await user.NetworkObject.WriteToStreamAsync(new RoomDoorbellWriter
                     {
                         Username = player.Player.Username
                     });
-                    
                 }
 
                 await client.WriteToStreamAsync(new RoomDoorbellWriter
                 {
                     Username = ""
                 });
-                
+
                 return false;
             }
             case RoomAccessType.Open:

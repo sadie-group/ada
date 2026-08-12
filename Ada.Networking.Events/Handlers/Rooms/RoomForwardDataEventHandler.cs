@@ -4,6 +4,7 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +12,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Ada.Networking.Events.Handlers.Rooms;
 
 [PacketId(EventHandlerId.RoomForwardData)]
-public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+public class RoomForwardDataEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,IRoomRepository roomRepository,
     IMapper mapper,
     IPlayerRepository playerRepository) : INetworkPacketEventHandler
 {

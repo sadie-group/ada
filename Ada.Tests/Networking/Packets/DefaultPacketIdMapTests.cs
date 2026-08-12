@@ -30,9 +30,11 @@ public class DefaultPacketIdMapTests
     public void TryGetHandlerType_AttributedHandler_ResolvesType()
     {
         var map = CreateMap();
-
-        Assert.That(map.TryGetHandlerType(4242, out var handlerType), Is.True);
-        Assert.That(handlerType, Is.EqualTo(typeof(MappedHandler)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(map.TryGetHandlerType(4242, out var handlerType), Is.True);
+            Assert.That(handlerType, Is.EqualTo(typeof(MappedHandler)));
+        });
     }
 
     [Test]
@@ -47,9 +49,11 @@ public class DefaultPacketIdMapTests
     public void TryGetOutgoingId_AttributedWriter_ResolvesId()
     {
         var map = CreateMap();
-
-        Assert.That(map.TryGetOutgoingId(typeof(MappedWriter), out var id), Is.True);
-        Assert.That(id, Is.EqualTo((short)4243));
+        Assert.Multiple(() =>
+        {
+            Assert.That(map.TryGetOutgoingId(typeof(MappedWriter), out var id), Is.True);
+            Assert.That(id, Is.EqualTo((short)4243));
+        });
     }
 
     [Test]

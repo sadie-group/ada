@@ -1,9 +1,7 @@
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Client;
-using Ada.Tests.Common;
 using AutoMapper;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Client;
@@ -15,9 +13,8 @@ public class NetworkClientRepositoryTests
         => new(
             NullLogger<NetworkClientRepository>.Instance,
             Mock.Of<IPlayerRepository>(),
-            TestDbFactory.CreateDbFactory(),
+            Mock.Of<IPlayerPresenceStore>(),
             Mock.Of<IPlayerHelperService>(),
-            Mock.Of<IMapper>(),
             []);
 
     private static Mock<INetworkClient> CreateClient(Guid guid)
@@ -47,10 +44,7 @@ public class NetworkClientRepositoryTests
     }
 
     [Test]
-    public void TryGetClientByGuid_UnknownGuid_ReturnsNull()
-    {
-        Assert.That(CreateRepository().TryGetClientByGuid(Guid.NewGuid()), Is.Null);
-    }
+    public void TryGetClientByGuid_UnknownGuid_ReturnsNull() => Assert.That(CreateRepository().TryGetClientByGuid(Guid.NewGuid()), Is.Null);
 
     [Test]
     public async Task TryRemoveAsync_KnownClientWithoutPlayer_RemovesAndDisposes()
@@ -71,10 +65,7 @@ public class NetworkClientRepositoryTests
     }
 
     [Test]
-    public async Task TryRemoveAsync_UnknownGuid_ReturnsFalse()
-    {
-        Assert.That(await CreateRepository().TryRemoveAsync(Guid.NewGuid()), Is.False);
-    }
+    public async Task TryRemoveAsync_UnknownGuid_ReturnsFalse() => Assert.That(await CreateRepository().TryRemoveAsync(Guid.NewGuid()), Is.False);
 
     [Test]
     public async Task TryRemoveAsync_SameClientTwice_SecondCallReturnsFalse()
@@ -99,7 +90,7 @@ public class NetworkClientRepositoryTests
         var repository = CreateRepository();
         var guid = Guid.NewGuid();
         var client = CreateClient(guid);
-        client.SetupGet(c => c.LastPong).Returns(DateTime.Now);
+        client.SetupGet(c => c.LastPong).Returns(DateTime.UtcNow);
         repository.AddClient(guid, client.Object);
 
         await repository.DisconnectIdleClientsAsync();
@@ -113,7 +104,7 @@ public class NetworkClientRepositoryTests
         var repository = CreateRepository();
         var guid = Guid.NewGuid();
         var client = CreateClient(guid);
-        client.SetupGet(c => c.LastPong).Returns(DateTime.Now.AddMinutes(-5));
+        client.SetupGet(c => c.LastPong).Returns(DateTime.UtcNow.AddMinutes(-5));
         repository.AddClient(guid, client.Object);
 
         await repository.DisconnectIdleClientsAsync();

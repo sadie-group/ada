@@ -1,27 +1,35 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using Ada.API.Collections;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
+using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Services.Wired;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Game.Rooms.Furniture;
+using Ada.Core.Shared.Extensions;
 using Ada.Db;
 using Ada.Db.Models.Players.Furniture;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Services;
 
 public class RoomWiredService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomFurnitureItemHelperService furnitureItemHelperService,
+    IRoomTileMapHelperService tileMapHelperService,
     IEnumerable<IWiredEffectStrategy> effectStrategies,
     IEnumerable<IWiredConditionStrategy> conditionStrategies,
-    IWiredTimerService timerService) : IRoomWiredService
+    IWiredTimerService timerService,
+    ILogger<RoomWiredService> logger) : IRoomWiredService
 {
-    private const int PulseMilliseconds = 500;
+    private const int _pulseMilliseconds = 500;
+
+    private const long _maxIntervalMilliseconds = 120L * _pulseMilliseconds * 10;
 
     private readonly Dictionary<string, IWiredEffectStrategy> _effectStrategies =
         effectStrategies.ToDictionary(x => x.InteractionType);
@@ -29,36 +37,131 @@ public class RoomWiredService(
     private readonly Dictionary<string, IWiredConditionStrategy> _conditionStrategies =
         conditionStrategies.ToDictionary(x => x.InteractionType);
 
-    private static readonly ConcurrentDictionary<int, DateTimeOffset> PeriodicLastRuns = new();
+    private sealed class PeriodicTriggerSnapshot
+    {
+        public required int Revision { get; init; }
+        public required List<PlayerFurnitureItemPlacementDataDto> Triggers { get; init; }
+    }
 
     private sealed class PeriodicTriggerCache
     {
-        public int SourceCount = -1;
-        public List<PlayerFurnitureItemPlacementDataDto> Triggers = [];
+        public volatile PeriodicTriggerSnapshot? Current;
+
+        public readonly ConcurrentDictionary<int, DateTimeOffset> LastRuns = new();
     }
 
     private static readonly ConditionalWeakTable<ICollection<PlayerFurnitureItemPlacementDataDto>, PeriodicTriggerCache>
-        PeriodicTriggerCaches = new();
+        _periodicTriggerCaches = new();
 
-    // Interaction types never change after placement, so the cache only needs to
-    // refresh when items are added to or removed from the room.
-    private static List<PlayerFurnitureItemPlacementDataDto> GetPeriodicTriggers(
-        ICollection<PlayerFurnitureItemPlacementDataDto> roomItems)
+    private static (PeriodicTriggerCache Cache, List<PlayerFurnitureItemPlacementDataDto> Triggers)
+        GetPeriodicTriggers(ICollection<PlayerFurnitureItemPlacementDataDto> roomItems)
     {
-        var cache = PeriodicTriggerCaches.GetValue(roomItems, static _ => new PeriodicTriggerCache());
+        var cache = _periodicTriggerCaches.GetValue(roomItems, static _ => new PeriodicTriggerCache());
 
-        if (cache.SourceCount != roomItems.Count)
+        var (revision, snapshot) = CollectionRevision.SnapshotOf(roomItems);
+        var current = cache.Current;
+
+        if (current != null && current.Revision == revision)
         {
-            cache.Triggers = roomItems
-                .Where(x => GetInteractionType(x) is
-                    FurnitureItemInteractionType.WiredTriggerAtGivenTime or
-                    FurnitureItemInteractionType.WiredTriggerPeriodically or
-                    FurnitureItemInteractionType.WiredTriggerPeriodicallyLong)
-                .ToList();
-            cache.SourceCount = roomItems.Count;
+            return (cache, current.Triggers);
         }
 
-        return cache.Triggers;
+        var triggers = snapshot
+            .Where(x => GetInteractionType(x) is
+                FurnitureItemInteractionType.WiredTriggerAtGivenTime or
+                FurnitureItemInteractionType.WiredTriggerPeriodically or
+                FurnitureItemInteractionType.WiredTriggerPeriodicallyLong)
+            .ToList();
+
+        cache.Current = new PeriodicTriggerSnapshot
+        {
+            Revision = revision,
+            Triggers = triggers
+        };
+
+        var triggerIds = triggers.Select(x => x.Id).ToHashSet();
+
+        foreach (var staleId in cache.LastRuns.Keys.Where(id => !triggerIds.Contains(id)))
+        {
+            cache.LastRuns.TryRemove(staleId, out _);
+        }
+
+        return (cache, triggers);
+    }
+
+    private sealed class InteractionTypeIndex
+    {
+        public required int Revision { get; init; }
+
+        public required IReadOnlyDictionary<string, IReadOnlyList<PlayerFurnitureItemPlacementDataDto>>
+            ByInteractionType { get; init; }
+    }
+
+    private sealed class InteractionTypeIndexSlot
+    {
+        public volatile InteractionTypeIndex? Current;
+    }
+
+    private static readonly ConditionalWeakTable<ICollection<PlayerFurnitureItemPlacementDataDto>, InteractionTypeIndexSlot>
+        _interactionTypeIndexes = new();
+
+    private static IReadOnlyList<PlayerFurnitureItemPlacementDataDto> GetItemsByInteractionType(
+        ICollection<PlayerFurnitureItemPlacementDataDto> roomItems,
+        string interactionType)
+    {
+        var slot = _interactionTypeIndexes.GetValue(roomItems, static _ => new InteractionTypeIndexSlot());
+
+        var (revision, snapshot) = CollectionRevision.SnapshotOf(roomItems);
+        var index = slot.Current;
+
+        if (index == null || index.Revision != revision)
+        {
+            var map = new Dictionary<string, List<PlayerFurnitureItemPlacementDataDto>>();
+
+            foreach (var item in snapshot)
+            {
+                var type = GetInteractionType(item);
+
+                if (string.IsNullOrEmpty(type))
+                {
+                    continue;
+                }
+
+                if (!map.TryGetValue(type, out var bucket))
+                {
+                    map[type] = bucket = [];
+                }
+
+                bucket.Add(item);
+            }
+
+            index = new InteractionTypeIndex
+            {
+                Revision = revision,
+                ByInteractionType = map.ToDictionary(
+                    x => x.Key,
+                    x => (IReadOnlyList<PlayerFurnitureItemPlacementDataDto>) x.Value.ToArray())
+            };
+
+            slot.Current = index;
+        }
+
+        return index.ByInteractionType.TryGetValue(interactionType, out var result) ? result : [];
+    }
+
+    public bool HasTriggers(string interactionType, ICollection<PlayerFurnitureItemPlacementDataDto> roomItems)
+    {
+        var candidates = GetItemsByInteractionType(roomItems, interactionType);
+
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            if (candidates[i].WiredData != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public IEnumerable<PlayerFurnitureItemPlacementDataDto> GetTriggers(
@@ -67,9 +170,12 @@ public class RoomWiredService(
         string requiredMessage = "",
         List<int>? requiredSelectedIds = null)
     {
-        return roomItems.Where(x =>
+        var candidates = roomItems is ICollection<PlayerFurnitureItemPlacementDataDto> collection
+            ? GetItemsByInteractionType(collection, interactionType)
+            : roomItems.Where(x => x.PlayerFurnitureItem.FurnitureItem.InteractionType == interactionType);
+
+        return candidates.Where(x =>
             x.WiredData != null &&
-            x.PlayerFurnitureItem.FurnitureItem.InteractionType == interactionType &&
             MatchesMessage(x.WiredData.Message, requiredMessage) &&
             (requiredSelectedIds == null ||
              x.WiredData.SelectedItems.Any(i => requiredSelectedIds.Contains(i.Id))));
@@ -99,7 +205,7 @@ public class RoomWiredService(
             return;
         }
 
-        _ = CycleInteractionStateAsync(room, trigger);
+        RunDetached(() => CycleInteractionStateAsync(room, trigger), "wired trigger state cycle");
 
         foreach (var effect in stack.Where(x => IsEffect(GetInteractionType(x))))
         {
@@ -109,7 +215,7 @@ public class RoomWiredService(
 
     public async Task RunPeriodicTriggersForRoomAsync(IRoomLogic room)
     {
-        var periodicTriggers = GetPeriodicTriggers(room.Room.FurnitureItems);
+        var (cache, periodicTriggers) = GetPeriodicTriggers(room.Room.FurnitureItems);
 
         if (periodicTriggers.Count == 0)
         {
@@ -127,7 +233,7 @@ public class RoomWiredService(
 
             if (interactionType == FurnitureItemInteractionType.WiredTriggerAtGivenTime)
             {
-                var dueAfter = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * PulseMilliseconds);
+                var dueAfter = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * _pulseMilliseconds);
 
                 if (timerService.GetElapsed(room.Room.Id) >= dueAfter &&
                     timerService.TryMarkFired(room.Room.Id, trigger.Id))
@@ -139,19 +245,25 @@ public class RoomWiredService(
             }
 
             var pulseLength = interactionType == FurnitureItemInteractionType.WiredTriggerPeriodicallyLong
-                ? PulseMilliseconds * 10
-                : PulseMilliseconds;
+                ? _pulseMilliseconds * 10
+                : _pulseMilliseconds;
 
-            var interval = TimeSpan.FromMilliseconds(Math.Max(1, trigger.WiredData.Delay) * pulseLength);
+            var interval = TimeSpan.FromMilliseconds(
+                Math.Clamp((long) Math.Max(1, trigger.WiredData.Delay) * pulseLength, pulseLength, _maxIntervalMilliseconds));
             var now = DateTimeOffset.UtcNow;
-            var lastRun = PeriodicLastRuns.GetOrAdd(trigger.Id, now);
+
+            if (!cache.LastRuns.TryGetValue(trigger.Id, out var lastRun))
+            {
+                cache.LastRuns[trigger.Id] = now;
+                continue;
+            }
 
             if (now - lastRun < interval)
             {
                 continue;
             }
 
-            PeriodicLastRuns[trigger.Id] = now;
+            cache.LastRuns[trigger.Id] = now;
             await RunTriggerForRoomAsync(room, trigger, null);
         }
     }
@@ -164,15 +276,18 @@ public class RoomWiredService(
             .Where(x => IsEffect(GetInteractionType(x)));
     }
 
-    private static IEnumerable<PlayerFurnitureItemPlacementDataDto> GetWiredStackForTrigger(
+    private IEnumerable<PlayerFurnitureItemPlacementDataDto> GetWiredStackForTrigger(
         PlayerFurnitureItemPlacementDataDto trigger,
         IEnumerable<PlayerFurnitureItemPlacementDataDto> roomItems)
     {
-        var stack = roomItems
-            .Where(x =>
+        var candidates = roomItems is ICollection<PlayerFurnitureItemPlacementDataDto> collection
+            ? tileMapHelperService.GetItemsOnTilePosition(trigger.PositionX, trigger.PositionY, collection)
+            : roomItems.Where(x =>
                 x.PositionX == trigger.PositionX &&
-                x.PositionY == trigger.PositionY &&
-                x.PositionZ > trigger.PositionZ)
+                x.PositionY == trigger.PositionY);
+
+        var stack = candidates
+            .Where(x => x.PositionZ > trigger.PositionZ)
             .OrderBy(x => x.PositionZ);
 
         foreach (var item in stack)
@@ -213,12 +328,13 @@ public class RoomWiredService(
 
         if (delay > 0)
         {
-            _ = RunEffectDelayedAsync(room, effect, userWhoTriggered, strategy, delay);
+            RunDetached(() => RunEffectDelayedAsync(room, effect, userWhoTriggered, strategy, delay),
+                $"delayed wired effect '{GetInteractionType(effect)}'");
             return;
         }
 
         await strategy.ExecuteAsync(room, effect, userWhoTriggered);
-        _ = CycleInteractionStateAsync(room, effect);
+        RunDetached(() => CycleInteractionStateAsync(room, effect), "wired effect state cycle");
     }
 
     private async Task RunEffectDelayedAsync(
@@ -228,9 +344,18 @@ public class RoomWiredService(
         IWiredEffectStrategy strategy,
         int delayInPulses)
     {
-        await Task.Delay(delayInPulses * PulseMilliseconds);
-        await strategy.ExecuteAsync(room, effect, userWhoTriggered);
-        _ = CycleInteractionStateAsync(room, effect);
+        await Task.Delay(delayInPulses * _pulseMilliseconds);
+
+        await room.RunLockedAsync(() => strategy.ExecuteAsync(room, effect, userWhoTriggered));
+        await CycleInteractionStateAsync(room, effect);
+    }
+
+    private void RunDetached(Func<Task> work, string context)
+    {
+        using (ExecutionContext.SuppressFlow())
+        {
+            Task.Run(work).FireAndForget(logger, context);
+        }
     }
 
     public int GetWiredCode(string interactionType)
@@ -311,8 +436,8 @@ public class RoomWiredService(
 
     private async Task CycleInteractionStateAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item)
     {
-        await furnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "1");
+        await room.RunLockedAsync(() => furnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "1"));
         await Task.Delay(500);
-        await furnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+        await room.RunLockedAsync(() => furnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0"));
     }
 }

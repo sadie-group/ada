@@ -45,7 +45,7 @@ public class GenericWiredTriggerInteractor(IRoomWiredService wiredService,
             Input = input,
             IntParameters = WiredParameterHelpers.Deserialize(wiredData?.IntParameters),
             StuffTypeSelectionCode = 0,
-            TriggerConfig = wiredService.GetWiredCode(item.PlayerFurnitureItem.FurnitureItem.InteractionType),
+            TriggerConfig = wiredService.GetWiredCode(item.PlayerFurnitureItem.FurnitureItem.InteractionType ?? ""),
             ConflictingEffectIds = []
         });
     }

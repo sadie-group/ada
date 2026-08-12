@@ -1,7 +1,6 @@
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Ada.Tests.Networking.Packets;

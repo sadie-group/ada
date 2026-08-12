@@ -4,23 +4,34 @@ using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
 using Ada.Db;
+using Ada.Core.Enums.Game.Players;
+using Ada.Core.Shared.Constants;
 using Ada.Db.Models.Players;
 using Ada.Networking.Packets.Serialization;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Players;
 
 public class PlayerRepository(
     IDbContextFactory<AdaDbContext> dbContextFactory,
+    ILogger<PlayerRepository> logger,
     IMapper mapper) : IPlayerRepository
 {
+    private const int _slowLookupWarningMs = 300;
+    private const int _maxUsernameCacheSize = 50_000;
+
     private readonly ConcurrentDictionary<long, IPlayerLogic> _players = new();
     private readonly ConcurrentDictionary<long, string> _playerIdToUsernameCache = new();
 
+    private readonly ConcurrentDictionary<string, IPlayerLogic> _playersByUsername =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public IPlayerLogic? GetPlayerLogicById(long id) => _players.GetValueOrDefault(id);
-    public IPlayerLogic? GetPlayerLogicByUsername(string username) => _players.Values.FirstOrDefault(x => x.Player.Username == username);
-    
+    public IPlayerLogic? GetPlayerLogicByUsername(string username) =>
+        _playersByUsername.GetValueOrDefault(username);
+
     public async Task<PlayerDto?> GetPlayerByIdAsync(long id)
     {
         if (_players.TryGetValue(id, out var byId))
@@ -29,9 +40,9 @@ public class PlayerRepository(
         }
 
         var sw = Stopwatch.StartNew();
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var player = await dbContext
             .Set<Player>()
             .Include(x => x.Data)
@@ -51,40 +62,74 @@ public class PlayerRepository(
             .AsSplitQuery()
             .AsNoTrackingWithIdentityResolution()
             .FirstOrDefaultAsync(x => x.Id == id);
-        
-        var value = mapper.Map<PlayerDto>(player);
+
         sw.Stop();
 
-        if (sw.Elapsed.TotalMilliseconds > 300)
+        if (player == null)
         {
-            Console.WriteLine($"Finding a player {id}, {value.Username} took {sw.Elapsed.TotalMilliseconds}ms");
+            return null;
         }
-        return value;
+
+        if (sw.Elapsed.TotalMilliseconds > _slowLookupWarningMs)
+        {
+            logger.LogWarning(
+                "Loading player {PlayerId} ({Username}) took {ElapsedMs}ms",
+                id,
+                player.Username,
+                sw.Elapsed.TotalMilliseconds);
+        }
+
+        return mapper.Map<PlayerDto>(player);
     }
-    
+
     public async Task<PlayerDto?> GetPlayerByUsernameAsync(string username)
     {
-        var online = _players.Values.FirstOrDefault(x => x.Player.Username == username);
-        
+        var online = _playersByUsername.GetValueOrDefault(username);
+
         if (online != null)
         {
             return mapper.Map<PlayerDto>(online);
         }
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var player = await dbContext
             .Set<Player>()
             .AsNoTracking()
             .Include(x => x.Data)
             .FirstOrDefaultAsync(x => x.Username == username);
-        
+
         return mapper.Map<PlayerDto>(player);
     }
 
+    public async Task<int> GetAcceptedFriendshipCountAsync(long playerId)
+    {
+        if (_players.TryGetValue(playerId, out var online))
+        {
+            return online.GetAcceptedFriendshipCount();
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        return await dbContext.Set<PlayerFriendship>()
+            .CountAsync(x =>
+                (x.OriginPlayerId == playerId || x.TargetPlayerId == playerId) &&
+                x.Status == PlayerFriendshipStatus.Accepted);
+    }
+
     public ICollection<IPlayerLogic> GetAll() => _players.Values;
-    
-    public bool TryAddPlayer(IPlayerLogic player) => _players.TryAdd(player.Player.Id, player);
+
+    public bool TryAddPlayer(IPlayerLogic player)
+    {
+        if (!_players.TryAdd(player.Player.Id, player))
+        {
+            return false;
+        }
+
+        _playersByUsername[player.Player.Username] = player;
+
+        return true;
+    }
 
     public async Task<bool> TryRemovePlayerAsync(long playerId)
     {
@@ -94,7 +139,10 @@ public class PlayerRepository(
         {
             return result;
         }
-        
+
+        _playersByUsername.TryRemove(
+            new KeyValuePair<string, IPlayerLogic>(player.Player.Username, player));
+
         await player.DisposeAsync();
 
         return result;
@@ -107,36 +155,55 @@ public class PlayerRepository(
 
     public async Task<List<PlayerDto>> GetPlayersForSearchAsync(string searchQuery, long[] excludeIds)
     {
+        if (searchQuery.Length < SearchLimits.MinPlayerQueryLength)
+        {
+            return [];
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var players = await dbContext
             .Set<Player>()
             .AsNoTracking()
             .Include(x => x.AvatarData)
             .Where(x =>
-                x.Username.Contains(searchQuery) && 
+                x.Username.StartsWith(searchQuery) &&
                 !excludeIds.Contains(x.Id))
+            .OrderBy(x => x.Username)
+            .Take(SearchLimits.MaxPlayerResults)
             .ToListAsync();
-        
+
         return mapper.Map<List<PlayerDto>>(players);
     }
 
     public async Task<List<PlayerRelationshipDto>> GetRelationshipsForPlayerAsync(long playerId)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         var playerRelationships = await dbContext
             .Set<PlayerRelationship>()
             .AsNoTracking()
             .Where(x => x.OriginPlayerId == playerId || x.TargetPlayerId == playerId)
             .ToListAsync();
-        
+
         return mapper.Map<List<PlayerRelationshipDto>>(playerRelationships);
     }
 
-    public async Task BroadcastDataAsync(AbstractPacketWriter writer)
+    public Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        await PacketBroadcast.SendAsync(writer, _players.Values.Select(player => player.NetworkObject!));
+        var recipients = new List<Ada.API.INetworkObject>(_players.Count);
+
+        foreach (var player in _players.Values)
+        {
+            if (player.NetworkObject != null)
+            {
+                recipients.Add(player.NetworkObject);
+            }
+        }
+
+        PacketBroadcast.SendAndFlush(writer, recipients);
+
+        return Task.CompletedTask;
     }
 
     public async Task<string?> GetPlayerUsernameByIdAsync(long playerId)
@@ -145,7 +212,7 @@ public class PlayerRepository(
         {
             return username;
         }
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         username = await dbContext.Players
@@ -153,11 +220,58 @@ public class PlayerRepository(
             .Select(x => x.Username)
             .FirstOrDefaultAsync();
 
-        if (!string.IsNullOrEmpty(username))
+        if (!string.IsNullOrEmpty(username) && _playerIdToUsernameCache.Count < _maxUsernameCacheSize)
         {
             _playerIdToUsernameCache[playerId] = username;
         }
-        
+
         return username;
+    }
+
+    public async Task<Dictionary<long, string>> GetPlayerUsernamesByIdsAsync(IEnumerable<long> playerIds)
+    {
+        var resolved = new Dictionary<long, string>();
+        var missing = new List<long>();
+
+        foreach (var playerId in playerIds.Distinct())
+        {
+            if (_playerIdToUsernameCache.TryGetValue(playerId, out var cached))
+            {
+                resolved[playerId] = cached;
+                continue;
+            }
+
+            missing.Add(playerId);
+        }
+
+        if (missing.Count == 0)
+        {
+            return resolved;
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var rows = await dbContext.Players
+            .AsNoTracking()
+            .Where(x => missing.Contains(x.Id))
+            .Select(x => new { x.Id, x.Username })
+            .ToListAsync();
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrEmpty(row.Username))
+            {
+                continue;
+            }
+
+            if (_playerIdToUsernameCache.Count < _maxUsernameCacheSize)
+            {
+                _playerIdToUsernameCache[row.Id] = row.Username;
+            }
+
+            resolved[row.Id] = row.Username;
+        }
+
+        return resolved;
     }
 }

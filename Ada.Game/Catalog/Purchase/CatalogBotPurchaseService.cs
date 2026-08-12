@@ -6,12 +6,14 @@ using Ada.Core.Enums.Game.Players;
 using Ada.Db;
 using Ada.Networking.Writers.Players.Inventory;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Catalog.Purchase;
 
 public class CatalogBotPurchaseService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    ICatalogPurchaseConfirmationService confirmationService) : ICatalogBotPurchaseService
+    ICatalogPurchaseConfirmationService confirmationService,
+    ILogger<CatalogBotPurchaseService> logger) : ICatalogBotPurchaseService
 {
     public async Task ProcessAsync(INetworkClient client, CatalogItemDto item)
     {
@@ -24,6 +26,11 @@ public class CatalogBotPurchaseService(
 
         var info = data.Split(";")
             .ToDictionary(x => x.Split(":")[0], x => x.Split(":")[1]);
+
+        if (client.Player == null)
+        {
+            return;
+        }
 
         var bot = new PlayerBotDto
         {
@@ -43,16 +50,24 @@ public class CatalogBotPurchaseService(
 
         client.Player.Player.Bots.Add(bot);
 
-        await client.WriteToStreamAsync(new PlayerInventoryAddBotWriter
+        try
         {
-            Id = bot.Id,
-            Username = bot.Username,
-            Motto = bot.Motto,
-            Gender = bot.Gender == PlayerAvatarGender.Male ? "m" : "f",
-            FigureCode = bot.FigureCode,
-            OpenInventory = true
-        });
+            await client.WriteToStreamAsync(new PlayerInventoryAddBotWriter
+            {
+                Id = bot.Id,
+                Username = bot.Username,
+                Motto = bot.Motto,
+                Gender = bot.Gender == PlayerAvatarGender.Male ? "m" : "f",
+                FigureCode = bot.FigureCode,
+                OpenInventory = true
+            });
 
-        await confirmationService.ConfirmAsync(client, item, 1);
+            await confirmationService.ConfirmAsync(client, item, 1);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to notify player {PlayerId} of delivered bot purchase",
+                client.Player.Player.Id);
+        }
     }
 }

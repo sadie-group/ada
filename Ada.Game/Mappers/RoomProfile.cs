@@ -1,3 +1,4 @@
+using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.DTOs.Rooms.Rights;
@@ -36,7 +37,8 @@ public class RoomProfile : Profile
                         pathFinder,
                         provider.GetRequiredService<IRoomUserRepository>(),
                         provider.GetRequiredService<IRoomBotRepository>(),
-                        provider.GetRequiredService<IRoomPetRepository>())
+                        provider.GetRequiredService<IRoomPetRepository>(),
+                        provider.GetRequiredService<IRoomLockFactory>().Create(x.Id))
                     {
                         Name = x.Name,
                         Description = x.Description
@@ -44,7 +46,14 @@ public class RoomProfile : Profile
             });
 
         CreateMap<RoomLayout, RoomLayoutDto>().ReverseMap();
-        CreateMap<Room, RoomDto>().ReverseMap();
+
+        CreateMap<Room, RoomDto>()
+            .ForMember(x => x.FurnitureItems, o => o.Ignore())
+            .AfterMap((src, dest, context) =>
+                dest.FurnitureItems.AddRange(
+                    context.Mapper.Map<List<PlayerFurnitureItemPlacementDataDto>>(src.FurnitureItems)))
+            .ReverseMap()
+            .ForMember(x => x.FurnitureItems, o => o.MapFrom(x => x.FurnitureItems));
         CreateMap<RoomChatSettings, RoomChatSettingsDto>().ReverseMap();
         CreateMap<RoomChatMessage, RoomChatMessageDto>().ReverseMap();
         CreateMap<List<RoomChatMessage>, List<RoomChatMessageDto>>().ReverseMap();
