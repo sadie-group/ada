@@ -16,15 +16,17 @@ public class CatalogPagePageRepository(
     {
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
-        var efPages = context.CatalogPages
+        var efPages = await context.CatalogPages
+            .AsNoTrackingWithIdentityResolution()
+            .AsSplitQuery()
             .Include(p => p.Items)
             .ThenInclude(i => i.FurnitureItems)
             .Include(i => i.Pages)
             .ThenInclude(i => i.Pages)
             .ThenInclude(i => i.Pages)
             .ThenInclude(i => i.Pages)
-            .ToList();
-        
+            .ToListAsync();
+
         Pages = mapper.Map<IReadOnlyList<CatalogPageDto>>(efPages);
     }
 }
