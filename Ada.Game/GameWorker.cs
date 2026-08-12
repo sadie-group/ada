@@ -67,7 +67,7 @@ namespace Ada.Game
                 try
                 {
                     await Parallel.ForEachAsync(
-                        roomRepository.GetAllRooms(),
+                        CollectActiveRooms(),
                         parallelOptions,
                         (room, _) => TickRoomSafelyAsync(room, fullTick));
                 }
@@ -100,6 +100,26 @@ namespace Ada.Game
                     }
                 }
             }
+        }
+
+        private readonly List<IRoomLogic> _activeRooms = [];
+
+        internal List<IRoomLogic> CollectActiveRooms()
+        {
+            _activeRooms.Clear();
+
+            foreach (var room in roomRepository.GetAllRooms())
+            {
+                if (room.UserRepository.Count == 0)
+                {
+                    room.UserRepository.NoUsersSince ??= DateTime.UtcNow;
+                    continue;
+                }
+
+                _activeRooms.Add(room);
+            }
+
+            return _activeRooms;
         }
 
         private async ValueTask TickRoomSafelyAsync(IRoomLogic room, bool fullTick)
