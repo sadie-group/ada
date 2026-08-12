@@ -23,23 +23,21 @@ public class ClientPacketHandler(
     IEnumerable<IPreDispatchPacketFilter> preDispatchFilters)
     : INetworkPacketHandler
 {
+    private readonly INetworkPacketEventFilter[] _packetFilters = packetFilters.ToArray();
+    private readonly IPreDispatchPacketFilter[] _preDispatchFilters = preDispatchFilters.ToArray();
+    private static readonly ConcurrentDictionary<short, byte> _reportedUnknownHeaders = new();
+
     public async Task HandleAsync(INetworkClient client, INetworkPacket packet)
     {
         try
         {
             if (!client.Codec.IdMap.TryGetHandlerType(packet.PacketId, out var packetEventType))
             {
-                if (packetOptions.Value.NotifyMissingPacket)
-                {
-                    NotifyMissingPacketAsync(packet.PacketId, client)
-                        .FireAndForget(logger, "missing-packet notification");
-                }
-
-                logger.LogWarning("Couldn't resolve packet event handler for header {Header}", packet.PacketId);
+                HandleUnknownHeader(packet.PacketId, client);
                 return;
             }
 
-            foreach (var filter in preDispatchFilters)
+            foreach (var filter in _preDispatchFilters)
             {
                 if (!filter.Allow(client, packet.PacketId, packetEventType))
                 {
@@ -75,7 +73,7 @@ public class ClientPacketHandler(
                 client.RoomUser.LastAction = DateTime.UtcNow;
             }
 
-            foreach (var filter in packetFilters)
+            foreach (var filter in _packetFilters)
             {
                 if (await filter.AllowAsync(client, eventHandler))
                 {
@@ -94,6 +92,26 @@ public class ClientPacketHandler(
         catch (Exception e)
         {
             logger.LogCritical(e.ToString());
+        }
+    }
+
+    private void HandleUnknownHeader(short header, INetworkClient client)
+    {
+        if (packetOptions.Value.NotifyMissingPacket && client.Player != null)
+        {
+            NotifyMissingPacketAsync(header, client)
+                .FireAndForget(logger, "missing-packet notification");
+        }
+
+        if (_reportedUnknownHeaders.TryAdd(header, 0))
+        {
+            logger.LogWarning("Couldn't resolve packet event handler for header {Header}", header);
+            return;
+        }
+
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("Couldn't resolve packet event handler for header {Header}", header);
         }
     }
 
