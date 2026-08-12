@@ -1,7 +1,8 @@
-using Ada.API;
-﻿using System.Collections.Concurrent;
+﻿using Ada.API;
+using System.Collections.Concurrent;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Networking.Packets.Serialization;
 using Ada.Networking.Writers.Rooms.Bots;
@@ -173,7 +174,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
                 return;
             }
 
-            var recipients = users.Select(u => u.NetworkObject).ToList();
+            var recipients = _networkSnapshot;
 
             PacketBroadcast.Queue(
                 new RoomUserStatusWriter
@@ -215,12 +216,17 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
             if (users.Length > 0 && _room.BotRepository.Count > 0)
             {
-                var botsNeedUpdate = _room.BotRepository
-                    .GetAll()
-                    .Where(x => x.NeedsUpdate)
-                    .ToList();
+                List<IRoomBot>? botsNeedUpdate = null;
 
-                if (botsNeedUpdate.Count > 0)
+                foreach (var bot in _room.BotRepository.GetAll())
+                {
+                    if (bot.NeedsUpdate)
+                    {
+                        (botsNeedUpdate ??= []).Add(bot);
+                    }
+                }
+
+                if (botsNeedUpdate != null)
                 {
                     await _room.BroadcastDataAsync(new RoomBotStatusWriter { Bots = botsNeedUpdate });
 
@@ -231,13 +237,19 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
                 }
             }
 
-            var usersNeedsUpdate = users
-                .Where(x => x.NeedsUpdate)
-                .ToList();
+            List<IRoomUser>? usersNeedsUpdate = null;
 
-            if (usersNeedsUpdate.Count != 0)
+            foreach (var user in users)
             {
-                var recipients = users.Select(u => u.NetworkObject).ToList();
+                if (user.NeedsUpdate)
+                {
+                    (usersNeedsUpdate ??= []).Add(user);
+                }
+            }
+
+            if (usersNeedsUpdate != null)
+            {
+                var recipients = _networkSnapshot;
 
                 PacketBroadcast.Queue(
                     new RoomUserStatusWriter

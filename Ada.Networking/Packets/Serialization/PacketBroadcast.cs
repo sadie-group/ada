@@ -6,14 +6,16 @@ namespace Ada.Networking.Packets.Serialization;
 
 public static class PacketBroadcast
 {
-    public static void Queue(AbstractPacketWriter writer, IEnumerable<INetworkObject> recipients)
+    public static void Queue(AbstractPacketWriter writer, IReadOnlyList<INetworkObject> recipients)
     {
         IPacketCodec? firstCodec = null;
         INetworkPacketWriter? firstPacket = null;
         Dictionary<IPacketCodec, INetworkPacketWriter>? others = null;
 
-        foreach (var recipient in recipients)
+        for (var i = 0; i < recipients.Count; i++)
         {
+            var recipient = recipients[i];
+
             recipient.QueueOutbound(
                 ResolvePacket(writer, recipient.Codec, ref firstCodec, ref firstPacket, ref others));
         }

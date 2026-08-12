@@ -14,12 +14,13 @@ public class NetworkClientConnectionHandler(
     IWebSocketMessageReader webSocketMessageReader,
     PacketDispatcher packetDispatcher,
     IPacketRateThrottle packetRateThrottle,
-    IClientDisposalService clientDisposalService)
+    IClientDisposalService clientDisposalService,
+    TimeSpan? queueWaitTimeout = null)
     : INetworkClientConnectionHandler
 {
     private const int _queueCapacity = 256;
 
-    private static readonly TimeSpan _queueWaitTimeout = TimeSpan.FromSeconds(10);
+    private readonly TimeSpan _queueWaitTimeout = queueWaitTimeout ?? TimeSpan.FromSeconds(10);
 
     public async Task HandleClientAsync(INetworkClient client, CancellationToken ct)
     {
@@ -43,7 +44,7 @@ public class NetworkClientConnectionHandler(
         {
             queue.Writer.TryComplete();
 
-            await consumer;
+            await DrainAsync(client, consumer);
 
             packetRateThrottle.Forget(client.Guid);
 
@@ -105,6 +106,23 @@ public class NetworkClientConnectionHandler(
             }
 
             break;
+        }
+    }
+
+    private async Task DrainAsync(INetworkClient client, Task consumer)
+    {
+        try
+        {
+            await consumer.WaitAsync(_queueWaitTimeout);
+        }
+        catch (TimeoutException)
+        {
+            logger.LogError(
+                "Client {Guid} from {Ip} disconnected while a handler was still running after {TimeoutSeconds}s; " +
+                "releasing the connection without waiting for it",
+                client.Guid,
+                client.IpAddress,
+                _queueWaitTimeout.TotalSeconds);
         }
     }
 
