@@ -32,6 +32,9 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<PlayerFurnitureItemPlacementData> RoomFurnitureItems { get; init; }
     public DbSet<RoomPlayerRight> RoomPlayerRights { get; init; }
     public DbSet<RoomWordFilter> RoomWordFilters { get; init; }
+    public DbSet<RoomJukeboxTrack> RoomJukeboxTracks { get; init; }
+    public DbSet<RoomPromotion> RoomPromotions { get; init; }
+    public DbSet<PlayerPhoto> PlayerPhotos { get; init; }
     public DbSet<PlayerFavouriteRoom> PlayerFavouriteRooms { get; init; }
     public DbSet<PlayerEffectItem> PlayerEffectItems { get; init; }
     public DbSet<ModerationAuditEntry> ModerationAuditEntries { get; init; }
