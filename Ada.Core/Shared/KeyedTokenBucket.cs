@@ -16,7 +16,14 @@ public sealed class KeyedTokenBucket<TKey>(double burstCapacity, double refillPe
     public bool TryConsume(TKey key)
     {
         var now = Stopwatch.GetTimestamp();
-        var bucket = _buckets.GetOrAdd(key, _ => new Bucket(now, burstCapacity));
+
+        if (!_buckets.TryGetValue(key, out var bucket))
+        {
+            bucket = _buckets.GetOrAdd(
+                key,
+                static (_, state) => new Bucket(state.Now, state.Capacity),
+                (Now: now, Capacity: burstCapacity));
+        }
 
         bool allowed;
 
