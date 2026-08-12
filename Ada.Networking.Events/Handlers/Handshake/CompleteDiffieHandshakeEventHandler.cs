@@ -38,13 +38,14 @@ public class CompleteDiffieHandshakeEventHandler(
             ClientEncryption = false
         });
 
-        if (!client.TryApplyNegotiatedKey(sharedKey) &&
-            !networkOptions.Value.UseWss)
+        if (!networkOptions.Value.UseWss)
         {
             logger.LogWarning(
-                "Client {Guid} completed the Diffie-Hellman handshake, but the negotiated key is " +
-                "not applied to the stream and the listener is plaintext, so this connection is " +
-                "readable on the wire. Set NetworkOptions:UseWss for real confidentiality.",
+                "Client {Guid} completed the Diffie-Hellman handshake, but the exchange exists only " +
+                "because the client expects it: the completion packet tells the client not to " +
+                "encrypt, and nothing here encrypts the frame stream. The listener is plaintext, so " +
+                "this connection is readable on the wire. Set NetworkOptions:UseWss for real " +
+                "confidentiality.",
                 client.Guid);
         }
     }
