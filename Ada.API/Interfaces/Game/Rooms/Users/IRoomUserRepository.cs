@@ -4,6 +4,7 @@ public interface IRoomUserRepository : IAsyncDisposable
 {
     ICollection<IRoomUser> GetAll();
     bool TryAdd(IRoomUser user);
+    IReadOnlyList<INetworkObject> GetNetworkObjects();
     bool TryGetById(long id, out IRoomUser? user);
     bool TryGetByUsername(string username, out IRoomUser? user);
     Task TryRemoveAsync(long id, bool notifyLeft = true, bool hotelView = false);
