@@ -1,3 +1,4 @@
+using Ada.Db.Models.Moderation;
 using Ada.Db.Configuration;
 using Ada.Db.Models;
 using Ada.Db.Models.Catalog;
@@ -8,7 +9,6 @@ using Ada.Db.Models.Constants;
 using Ada.Db.Models.Furniture;
 using Ada.Db.Models.Groups;
 using Ada.Db.Models.Navigator;
-using Ada.Db.Models.Moderation;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Db.Models.Rooms;
@@ -31,6 +31,10 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<RoomChatMessage> RoomChatMessages { get; init; }
     public DbSet<PlayerFurnitureItemPlacementData> RoomFurnitureItems { get; init; }
     public DbSet<RoomPlayerRight> RoomPlayerRights { get; init; }
+    public DbSet<RoomWordFilter> RoomWordFilters { get; init; }
+    public DbSet<PlayerFavouriteRoom> PlayerFavouriteRooms { get; init; }
+    public DbSet<PlayerEffectItem> PlayerEffectItems { get; init; }
+    public DbSet<ModerationAuditEntry> ModerationAuditEntries { get; init; }
     public DbSet<RoomPaintSettings> RoomPaintSettings { get; init; }
     public DbSet<RoomSettings> RoomSettings { get; init; }
     public DbSet<RoomChatSettings> RoomChatSettings { get; init; }
@@ -78,8 +82,5 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<GroupForumMessage> GroupForumMessages { get; init; }
     public DbSet<SoundTrack> SoundTracks { get; init; }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        ModelConfigurationProvider.Active.Apply(modelBuilder);
-    }
+    protected override void OnModelCreating(ModelBuilder modelBuilder) => ModelConfigurationProvider.Active.Apply(modelBuilder);
 }

@@ -1225,6 +1225,43 @@ namespace Ada.Db.Migrations
                     b.ToTable("players", (string)null);
                 });
 
+            modelBuilder.Entity("Ada.Db.Models.Players.PlayerAchievement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AchievementCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("achievement_code");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<long>("PlayerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("int")
+                        .HasColumnName("progress");
+
+                    b.HasKey("Id")
+                        .HasName("pk_player_achievements");
+
+                    b.HasIndex("PlayerId", "AchievementCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_player_achievements_player_id_achievement_code");
+
+                    b.ToTable("player_achievements", (string)null);
+                });
+
             modelBuilder.Entity("Ada.Db.Models.Players.PlayerAvatarData", b =>
                 {
                     b.Property<int>("Id")
@@ -1441,6 +1478,10 @@ namespace Ada.Db.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("last_online");
 
+                    b.Property<DateTimeOffset?>("MuteExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("mute_expires_at");
+
                     b.Property<int>("PixelBalance")
                         .HasColumnType("int")
                         .HasColumnName("pixel_balance");
@@ -1464,6 +1505,10 @@ namespace Ada.Db.Migrations
                     b.Property<int>("SeasonalBalance")
                         .HasColumnType("int")
                         .HasColumnName("seasonal_balance");
+
+                    b.Property<DateTimeOffset?>("TradeLockExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("trade_lock_expires_at");
 
                     b.HasKey("Id")
                         .HasName("pk_player_data");
