@@ -247,4 +247,7 @@ public static class ServerPacketId
     public const short JukeboxPlaylist = 34;
     public const short JukeboxDiscs = 2602;
     public const short JukeboxNowPlaying = 469;
+    public const short CameraPhotoPreview = 3696;
+    public const short CameraPhotoPurchaseOk = 2783;
+    public const short RoomBotAction = 1618;
 }
