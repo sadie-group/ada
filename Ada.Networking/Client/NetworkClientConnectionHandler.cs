@@ -43,7 +43,7 @@ public class NetworkClientConnectionHandler(
                     continue;
                 }
 
-                if (!packetRateThrottle.TryConsume(client.Guid))
+                if (!packetRateThrottle.TryConsume(client.Guid, client.IpAddress))
                 {
                     ReturnBuffer(buffer);
 

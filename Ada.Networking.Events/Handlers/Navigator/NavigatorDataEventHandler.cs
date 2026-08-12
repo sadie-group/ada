@@ -85,9 +85,11 @@ public class NavigatorDataEventHandler : INetworkPacketEventHandler
             Rooms = []
         });
         
+        var collapsed = client.Player.State.Navigator.CollapsedCategories;
+
         await client.WriteToStreamAsync(new NavigatorCollapsedCategoriesWriter
         {
-            Categories = categories
+            Categories = collapsed.Count > 0 ? collapsed.ToList() : categories
         });
         
         await client.WriteToStreamAsync(new PlayerSavedSearchesWriter

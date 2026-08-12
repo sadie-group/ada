@@ -28,7 +28,7 @@ public class RoomBannedUsersEventHandler(IRoomRepository roomRepository) : INetw
 
         var banListMap = new Dictionary<long, string>();
 
-        foreach (var i in room.Room.PlayerBans.Where(x => x.ExpiresAt > DateTime.Now))
+        foreach (var i in room.Room.PlayerBans.Where(x => x.ExpiresAt > DateTimeOffset.UtcNow))
         {
             banListMap[i.PlayerId] = i.Player?.Username ?? string.Empty;
         }

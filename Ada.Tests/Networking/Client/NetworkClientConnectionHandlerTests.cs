@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.WebSockets;
 using Ada.API.Interfaces.Networking;
 using Ada.API.Interfaces.Networking.Client;
@@ -47,6 +48,7 @@ public class NetworkClientConnectionHandlerTests
         client.SetupGet(c => c.Guid).Returns(guid);
         client.SetupGet(c => c.WebSocket).Returns(socket);
         client.SetupGet(c => c.Codec).Returns(codec);
+        client.SetupGet(c => c.IpAddress).Returns(IPAddress.Loopback);
         return client;
     }
 

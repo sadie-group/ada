@@ -21,6 +21,7 @@ public static class NetworkServiceCollection
         serviceCollection.AddSingleton<ILoginAttemptThrottle, LoginAttemptThrottle>();
         serviceCollection.AddSingleton<IRoomAccessThrottle, RoomAccessThrottle>();
         serviceCollection.AddSingleton<IPacketRateThrottle, PacketRateThrottle>();
+        serviceCollection.AddSingleton<IWalkRequestThrottle, WalkRequestThrottle>();
 
         serviceCollection.AddTransient<INetworkClient, NetworkClient>();
 
