@@ -30,7 +30,8 @@ public static class RoomChatService
         IRoomWiredService wiredService,
         IRoomHelperService roomHelperService,
         IWordFilterService wordFilterService,
-        IRoomFloodProtectionService floodProtectionService)
+        IRoomFloodProtectionService floodProtectionService,
+        IRoomWordFilterService roomWordFilterService)
     {
         if (string.IsNullOrWhiteSpace(message) ||
             message.Length > roomConstants.MaxChatMessageLength)
@@ -43,6 +44,11 @@ public static class RoomChatService
                 client,
                 out var room,
                 out var roomUser))
+        {
+            return;
+        }
+
+        if (room.Room.IsMuted && !roomUser.HasRights())
         {
             return;
         }
@@ -79,6 +85,11 @@ public static class RoomChatService
             {
                 Seconds = muteSeconds.Value
             });
+            return;
+        }
+
+        if (await roomWordFilterService.ContainsFilteredWordAsync(room.Room.Id, message))
+        {
             return;
         }
 

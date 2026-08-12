@@ -34,8 +34,6 @@ public class NetworkClient(
 
     public bool EncryptionEnabled => networkOptions.Value.UseWss;
 
-    public bool TryApplyNegotiatedKey(byte[] sharedKey) => false;
-
     public DateTime LastPing { get; set; } = DateTime.UtcNow;
     public DateTime LastPong { get; set; } = DateTime.UtcNow;
 
@@ -142,7 +140,7 @@ public class NetworkClient(
         }
     }
 
-    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _sendTimeout = TimeSpan.FromSeconds(30);
 
     private CancellationTokenSource _sendCts = new();
 
@@ -154,7 +152,7 @@ public class NetworkClient(
             _sendCts = new CancellationTokenSource();
         }
 
-        _sendCts.CancelAfter(SendTimeout);
+        _sendCts.CancelAfter(_sendTimeout);
 
         return _sendCts.Token;
     }

@@ -125,17 +125,33 @@ public sealed class PacketWriterGenerator : IIncrementalGenerator
             return false;
         }
 
-        if (!SymbolEqualityComparer.Default.Equals(writer.BaseType, abstractWriter))
+        if (!DerivesFrom(writer, abstractWriter))
         {
             return false;
         }
 
-        if (DeclaresMethod(writer, "OnSerialize"))
+        for (var type = writer; type is not null && !SymbolEqualityComparer.Default.Equals(type, abstractWriter); type = type.BaseType)
         {
-            return false;
+            if (DeclaresMethod(type, "OnSerialize"))
+            {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    private static bool DerivesFrom(INamedTypeSymbol writer, INamedTypeSymbol abstractWriter)
+    {
+        for (var type = writer.BaseType; type is not null; type = type.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(type, abstractWriter))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool DeclaresMethod(INamedTypeSymbol type, string name)
@@ -444,7 +460,18 @@ public sealed class PacketWriterGenerator : IIncrementalGenerator
 
         private IEnumerable<IPropertySymbol> SerializableProperties(INamedTypeSymbol type, bool attributedOnly)
         {
-            foreach (var member in type.GetMembers())
+            var chain = new List<INamedTypeSymbol>();
+
+            for (var current = type;
+                 current is not null && current.Name != "AbstractPacketWriter" && current.SpecialType != SpecialType.System_Object;
+                 current = current.BaseType)
+            {
+                chain.Add(current);
+            }
+
+            chain.Reverse();
+
+            foreach (var member in chain.SelectMany(static c => c.GetMembers()))
             {
                 if (member is not IPropertySymbol property)
                 {
