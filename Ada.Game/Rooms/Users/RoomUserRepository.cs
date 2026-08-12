@@ -1,3 +1,4 @@
+using Ada.API;
 ﻿using System.Collections.Concurrent;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -18,16 +19,28 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
     private readonly object _snapshotLock = new();
     private volatile IRoomUser[] _snapshot = [];
+    private volatile INetworkObject[] _networkSnapshot = [];
 
     private void RebuildSnapshot()
     {
         lock (_snapshotLock)
         {
-            _snapshot = _users.Values.ToArray();
+            var users = _users.Values.ToArray();
+            var networkObjects = new INetworkObject[users.Length];
+
+            for (var i = 0; i < users.Length; i++)
+            {
+                networkObjects[i] = users[i].NetworkObject;
+            }
+
+            _snapshot = users;
+            _networkSnapshot = networkObjects;
         }
     }
 
     public ICollection<IRoomUser> GetAll() => _snapshot;
+
+    public IReadOnlyList<INetworkObject> GetNetworkObjects() => _networkSnapshot;
 
     public bool TryAdd(IRoomUser user)
     {

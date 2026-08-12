@@ -1,3 +1,4 @@
+using Ada.API;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
@@ -25,6 +26,8 @@ public class RoomDisposalRaceTests
         public void Join() => _count++;
 
         public ICollection<IRoomUser> GetAll() => [];
+        public IReadOnlyList<INetworkObject> GetNetworkObjects() => [];
+
         public bool TryAdd(IRoomUser user) => true;
         public bool TryGetById(long id, out IRoomUser? user) { user = null; return false; }
         public bool TryGetByUsername(string username, out IRoomUser? user) { user = null; return false; }
