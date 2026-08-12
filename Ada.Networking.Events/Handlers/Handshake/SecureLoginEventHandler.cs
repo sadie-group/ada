@@ -96,7 +96,7 @@ public class SecureLoginEventHandler(
             return;
         }
 
-        if (player.Bans.Any(x => x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now))
+        if (player.Bans.Any(x => x.ExpiresAt == null || x.ExpiresAt >= DateTimeOffset.UtcNow))
         {
             logger.LogWarning("Disconnected banned player {@PlayerUsername}", player.Username);
             await client.DisposeAsync();
@@ -164,7 +164,7 @@ public class SecureLoginEventHandler(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
         if (await dbContext.BannedIpAddresses.AnyAsync(x =>
-                x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+                x.IpAddress == ipAddress && (x.ExpiresAt == null || x.ExpiresAt >= DateTimeOffset.UtcNow)))
         {
             logger.LogWarning("Disconnected banned IP {@Ip}", ipAddress);
             return false;
@@ -194,7 +194,7 @@ public class SecureLoginEventHandler(
         }
 
         if (await dbContext.BannedMachines.AnyAsync(x =>
-                x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTime.Now)))
+                x.MachineId == machineId && (x.ExpiresAt == null || x.ExpiresAt >= DateTimeOffset.UtcNow)))
         {
             logger.LogWarning("Disconnected banned machine {@MachineId}", machineId);
             return false;

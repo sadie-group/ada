@@ -19,7 +19,8 @@ public class RoomUserShoutEventHandler(
     IRoomWiredService wiredService,
     IRoomHelperService roomHelperService,
     IWordFilterService wordFilterService,
-    IRoomFloodProtectionService floodProtectionService)
+    IRoomFloodProtectionService floodProtectionService,
+    IRoomWordFilterService roomWordFilterService)
     : INetworkPacketEventHandler, ICountsAsRoomActivity
 {
     public required string Message { get; init; }
@@ -37,6 +38,7 @@ public class RoomUserShoutEventHandler(
             wiredService,
             roomHelperService,
             wordFilterService,
-            floodProtectionService);
+            floodProtectionService,
+            roomWordFilterService);
     }
 }
