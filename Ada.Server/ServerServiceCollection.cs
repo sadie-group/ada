@@ -8,6 +8,7 @@ using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
 using Ada.Game.Groups;
+using Ada.Game.Guides;
 using Ada.Game.Jukebox;
 using Ada.Game.Locale;
 using Ada.Game.Mappers;
@@ -65,6 +66,7 @@ public static class ServerServiceCollection
         GroupServiceCollection.AddServices(services);
         WordFilterServiceCollection.AddServices(services);
         ModToolServiceCollection.AddServices(services);
+        GuideServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)

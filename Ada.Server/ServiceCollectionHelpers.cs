@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.Loader;
 using Ada.API.Interfaces.Game.Rooms.Chat.Commands;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Furniture.Processors;
@@ -119,10 +120,45 @@ public static class ServiceCollectionHelpers
                 continue;
             }
 
-            var assembly = Assembly.LoadFile(fullPath);
+            var context = new PluginLoadContext(fullPath);
+
+            _pluginContexts.Add(context);
+
+            var assembly = context.LoadFromAssemblyPath(fullPath);
             var version = assembly.GetName().Version;
 
             Console.WriteLine($"Loaded plugin: {Path.GetFileNameWithoutExtension(path)} {version}");
+        }
+    }
+
+    private static readonly List<PluginLoadContext> _pluginContexts = [];
+
+    public static IReadOnlyList<PluginLoadContext> PluginContexts => _pluginContexts;
+
+    public sealed class PluginLoadContext(string pluginPath) : AssemblyLoadContext(
+        name: $"Plugin:{Path.GetFileNameWithoutExtension(pluginPath)}",
+        isCollectible: true)
+    {
+        private readonly AssemblyDependencyResolver _resolver = new(pluginPath);
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            if (Default.Assemblies.Any(x =>
+                    string.Equals(x.GetName().Name, assemblyName.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
+            }
+
+            var resolved = _resolver.ResolveAssemblyToPath(assemblyName);
+
+            return resolved == null ? null : LoadFromAssemblyPath(resolved);
+        }
+
+        protected override nint LoadUnmanagedDll(string unmanagedDllName)
+        {
+            var resolved = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+
+            return resolved == null ? nint.Zero : LoadUnmanagedDllFromPath(resolved);
         }
     }
 
