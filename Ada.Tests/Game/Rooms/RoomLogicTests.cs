@@ -107,6 +107,10 @@ public class RoomLogicTests
         var userRepository = new Mock<IRoomUserRepository>();
         userRepository.Setup(x => x.GetAll()).Returns(users.Select(x => x.Object).ToList());
 
+        userRepository
+            .Setup(x => x.GetNetworkObjects())
+            .Returns(users.Select(x => x.Object.NetworkObject).ToList());
+
         return new RoomLogic(
             new RoomDto(),
             Mock.Of<IRoomTileMap>(),

@@ -30,19 +30,19 @@ public class RoomLogic(
     public IRoomBotRepository BotRepository { get; } = botRepository;
     public IRoomPetRepository PetRepository { get; } = petRepository;
 
-    private static readonly AsyncLocal<ImmutableHashSet<RoomLogic>?> HeldRooms = new();
+    private static readonly AsyncLocal<ImmutableHashSet<RoomLogic>?> _heldRooms = new();
 
     private sealed class LockAcquisition
     {
         public int ActiveReentrantBodies;
     }
 
-    private static readonly AsyncLocal<LockAcquisition?> Acquisition = new();
-    private static readonly AsyncLocal<int> ReentrancyDepth = new();
+    private static readonly AsyncLocal<LockAcquisition?> _acquisition = new();
+    private static readonly AsyncLocal<int> _reentrancyDepth = new();
 
     public async Task RunLockedAsync(Func<Task> action)
     {
-        var held = HeldRooms.Value ?? ImmutableHashSet<RoomLogic>.Empty;
+        var held = _heldRooms.Value ?? ImmutableHashSet<RoomLogic>.Empty;
 
         if (held.Contains(this))
         {
@@ -52,12 +52,12 @@ public class RoomLogic(
 
         await roomLock.AcquireAsync();
 
-        var acquisition = Acquisition.Value;
-        var depth = ReentrancyDepth.Value;
+        var acquisition = _acquisition.Value;
+        var depth = _reentrancyDepth.Value;
 
-        HeldRooms.Value = held.Add(this);
-        Acquisition.Value = new LockAcquisition();
-        ReentrancyDepth.Value = 0;
+        _heldRooms.Value = held.Add(this);
+        _acquisition.Value = new LockAcquisition();
+        _reentrancyDepth.Value = 0;
 
         try
         {
@@ -65,16 +65,16 @@ public class RoomLogic(
         }
         finally
         {
-            HeldRooms.Value = held;
-            Acquisition.Value = acquisition;
-            ReentrancyDepth.Value = depth;
+            _heldRooms.Value = held;
+            _acquisition.Value = acquisition;
+            _reentrancyDepth.Value = depth;
             roomLock.Release();
         }
     }
 
     private async Task RunReentrantAsync(Func<Task> action)
     {
-        var acquisition = Acquisition.Value;
+        var acquisition = _acquisition.Value;
 
         if (acquisition == null)
         {
@@ -82,7 +82,7 @@ public class RoomLogic(
             return;
         }
 
-        var depthBefore = ReentrancyDepth.Value;
+        var depthBefore = _reentrancyDepth.Value;
         var active = Interlocked.Increment(ref acquisition.ActiveReentrantBodies);
 
         if (active > depthBefore + 1)
@@ -90,7 +90,7 @@ public class RoomLogic(
             ConcurrentReentryDetected?.Invoke(Room.Id, active);
         }
 
-        ReentrancyDepth.Value = depthBefore + 1;
+        _reentrancyDepth.Value = depthBefore + 1;
 
         try
         {
@@ -98,7 +98,7 @@ public class RoomLogic(
         }
         finally
         {
-            ReentrancyDepth.Value = depthBefore;
+            _reentrancyDepth.Value = depthBefore;
             Interlocked.Decrement(ref acquisition.ActiveReentrantBodies);
         }
     }
@@ -158,8 +158,15 @@ public class RoomLogic(
         }
     }
 
-    private List<INetworkObject>? ResolveRecipients(IReadOnlyCollection<long>? excludedIds)
+    private IReadOnlyList<INetworkObject>? ResolveRecipients(IReadOnlyCollection<long>? excludedIds)
     {
+        if (excludedIds is not { Count: > 0 })
+        {
+            var all = UserRepository.GetNetworkObjects();
+
+            return all.Count == 0 ? null : all;
+        }
+
         var users = UserRepository.GetAll();
 
         if (users.Count == 0)
@@ -167,15 +174,12 @@ public class RoomLogic(
             return null;
         }
 
-        var excluded = excludedIds is { Count: > 0 }
-            ? excludedIds as IReadOnlySet<long> ?? new HashSet<long>(excludedIds)
-            : null;
-
+        var excluded = excludedIds as IReadOnlySet<long> ?? new HashSet<long>(excludedIds);
         var recipients = new List<INetworkObject>(users.Count);
 
         foreach (var user in users)
         {
-            if (excluded != null && excluded.Contains(user.Player.Player.Id))
+            if (excluded.Contains(user.Player.Player.Id))
             {
                 continue;
             }
