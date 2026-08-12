@@ -261,4 +261,8 @@ public static class EventHandlerId
     public const short PlayerFindNewFriends = 516;
     public const short RoomToggleMuteTool = 3637;
     public const short PlayerDisconnection = 2445;
+    public const short JukeboxGetPlaylist = 1435;
+    public const short JukeboxLoadDiscs = 2304;
+    public const short JukeboxAddDisc = 753;
+    public const short JukeboxRemoveDisc = 3050;
 }
