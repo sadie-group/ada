@@ -1,22 +1,27 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Writers.Players.Rooms;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players.Club;
 
 [PacketId(EventHandlerId.PlayerSetHomeRoom)]
 public class PlayerSetHomeRoomEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int RoomId { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (client.Player?.NetworkObject == null ||
-            client.Player.Player.Data.HomeRoomId == RoomId)
+            client.Player.Player.Data?.HomeRoomId == RoomId)
         {
             return;
         }
@@ -27,15 +32,15 @@ public class PlayerSetHomeRoomEventHandler(
             RoomIdToEnter = 0
         });
         
-        client.Player.Player.Data.HomeRoomId = RoomId;
+        if (client.Player.Player.Data != null)
+        {
+            client.Player.Player.Data.HomeRoomId = RoomId;
+        }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        dbContext
-            .Entry(client.Player.Player.Data)
-            .Property(x => x.HomeRoomId)
-            .IsModified = true;
-        
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerData
+            .Where(x => x.PlayerId == client.Player.Player.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.HomeRoomId, RoomId));
     }
 }

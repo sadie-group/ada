@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.Db;
 using Ada.Game.Navigator.Filterers;
 

@@ -8,4 +8,16 @@ namespace Ada.Networking.Writers.Players.Other;
 public class PlayerPerksWriter : AbstractPacketWriter
 {
     public required List<IPerkData> Perks { get; init; }
+
+    public override void OnSerialize(INetworkPacketWriter writer)
+    {
+        writer.WriteInteger(Perks.Count);
+
+        foreach (var perk in Perks)
+        {
+            writer.WriteString(perk.Code ?? "");
+            writer.WriteString(perk.ErrorMessage ?? "");
+            writer.WriteBool(perk.Allowed);
+        }
+    }
 }

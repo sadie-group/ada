@@ -1,23 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Ada.API.Interfaces.Game.Rooms;
+﻿using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
+using Ada.Core.Shared.Helpers;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Players;
 using Ada.Networking.Writers.Rooms.Users;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players;
 
 [PacketId(EventHandlerId.PlayerChangedAppearance)]
 public class PlayerChangedAppearanceEventHandler(
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required string Gender { get; set; }
     public required string FigureCode { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
@@ -27,22 +29,30 @@ public class PlayerChangedAppearanceEventHandler(
             return;
         }
 
-        var gender = Gender == "M" ? 
-            PlayerAvatarGender.Male : 
+        if (!AvatarHelpers.IsValidFigureCode(FigureCode))
+        {
+            return;
+        }
+
+        var gender = Gender == "M" ?
+            PlayerAvatarGender.Male :
             PlayerAvatarGender.Female;
 
         var figureCode = FigureCode;
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        if (player.Player.AvatarData.Gender != gender)
-        {
-            player.Player.AvatarData.Gender = gender;
-            dbContext.Entry(player.Player.AvatarData).Property(x => x.Gender).IsModified = true;
-        }
-
+        player.Player.AvatarData.Gender = gender;
         player.Player.AvatarData.FigureCode = figureCode;
-        dbContext.Entry(player.Player.AvatarData).Property(x => x.FigureCode).IsModified = true;
+
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+            await dbContext.PlayerAvatarData
+                .Where(x => x.PlayerId == player.Player.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Gender, gender)
+                    .SetProperty(x => x.FigureCode, figureCode));
+        };
         
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out var roomUser))
         {
@@ -59,7 +69,9 @@ public class PlayerChangedAppearanceEventHandler(
         {
             Users = [roomUser]
         });
-
-        await dbContext.SaveChangesAsync();
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

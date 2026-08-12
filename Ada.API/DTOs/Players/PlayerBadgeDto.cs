@@ -6,5 +6,5 @@ public record PlayerBadgeDto
     public long PlayerId { get; init; }
     public int BadgeId { get; init; }
     public BadgeDto? Badge { get; init; }
-    public int Slot { get; init; }
+    public int Slot { get; set; }
 }

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
@@ -6,13 +5,15 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Players;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Db.Models.Players;
 using Ada.Networking.Writers.Players;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players;
 
 [PacketId(EventHandlerId.PlayerIgnoredUser)]
 public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public required string Username { get; set; }
     
@@ -25,10 +26,11 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
             return;
         }
         
-        var targetPlayer = playerRepository.GetPlayerLogicByUsername(Username);
-        
-        if (targetPlayer == null || 
-            player.Player.OutgoingIgnores.Any(x => x.TargetPlayerId == targetPlayer.Player.Id))
+        var targetPlayer = await playerRepository.GetPlayerByUsernameAsync(Username);
+
+        if (targetPlayer == null ||
+            targetPlayer.Id == player.Player.Id ||
+            player.Player.OutgoingIgnores.Any(x => x.TargetPlayerId == targetPlayer.Id))
         {
             return;
         }
@@ -36,7 +38,7 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
         var ignore = new PlayerIgnoreDto
         {
             PlayerId = player.Player.Id,
-            TargetPlayerId = targetPlayer.Player.Id
+            TargetPlayerId = targetPlayer.Id
         };
 
         player.Player.OutgoingIgnores.Add(ignore);
@@ -45,12 +47,17 @@ public class PlayerIgnoreUserEventHandler(IPlayerRepository playerRepository,
             new PlayerIgnoreStateWriter
             {
                 State = (int) PlayerIgnoreState.Ignored,
-                Username = targetPlayer.Player.Username
+                Username = targetPlayer.Username
             });
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        dbContext.Entry(ignore).State = EntityState.Added;
+
+        dbContext.Set<PlayerIgnore>().Add(new PlayerIgnore
+        {
+            PlayerId = player.Player.Id,
+            TargetPlayerId = targetPlayer.Id
+        });
+
         await dbContext.SaveChangesAsync();
     }
 }

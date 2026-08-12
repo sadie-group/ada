@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Networking.Writers.Navigator;
@@ -11,6 +11,11 @@ public class NavigatorDataEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var metaData = new Dictionary<string, int>
         {
             {"official_view", 0},
@@ -80,9 +85,11 @@ public class NavigatorDataEventHandler : INetworkPacketEventHandler
             Rooms = []
         });
         
+        var collapsed = client.Player.State.Navigator.CollapsedCategories;
+
         await client.WriteToStreamAsync(new NavigatorCollapsedCategoriesWriter
         {
-            Categories = categories
+            Categories = collapsed.Count > 0 ? collapsed.ToList() : categories
         });
         
         await client.WriteToStreamAsync(new PlayerSavedSearchesWriter

@@ -1,17 +1,20 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.Interfaces.Game.Moderation;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.Players;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Moderation;
 
 [PacketId(EventHandlerId.ModToolsUpdateRoomSettings)]
 public class ModToolUpdateRoomSettingsEventHandler(
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory,
+    IModerationAuditService moderationAuditService) : INetworkPacketEventHandler, IDefersPersistence
 {
     public int RoomId { get; set; }
     public int LockDoor { get; set; }
@@ -20,8 +23,14 @@ public class ModToolUpdateRoomSettingsEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null ||
+            !client.Player.HasPermission(PlayerPermissionName.Moderator))
+        {
+            return;
+        }
+
         var room = roomRepository.TryGetRoomById(RoomId);
-        
+
         if (room == null)
         {
             return;
@@ -31,7 +40,10 @@ public class ModToolUpdateRoomSettingsEventHandler(
         
         if (LockDoor == 1)
         {
-            room.Room.Settings.AccessType = RoomAccessType.Doorbell;
+            if (room.Room.Settings != null)
+            {
+                room.Room.Settings.AccessType = RoomAccessType.Doorbell;
+            }
             needsSaving = true;
         }
 
@@ -51,9 +63,25 @@ public class ModToolUpdateRoomSettingsEventHandler(
 
         if (needsSaving)
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            dbContext.Entry(room).State = EntityState.Modified;
-            await dbContext.SaveChangesAsync();
+            _persist = async () =>
+            {
+                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+                await dbContext.Rooms
+                    .Where(x => x.Id == room.Room.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.Name, room.Room.Name));
+            };
         }
-    }
+    
+        await moderationAuditService.RecordAsync(
+            client.Player!.Player.Id,
+            client.Player.Player.Username,
+            "room-settings",
+            null,
+            RoomId);
+}
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

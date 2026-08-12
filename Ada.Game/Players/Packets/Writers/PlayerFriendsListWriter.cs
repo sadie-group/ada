@@ -1,4 +1,4 @@
-﻿using Ada.API;
+using Ada.API;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking;
@@ -29,7 +29,12 @@ public class PlayerFriendsListWriter : AbstractPacketWriter
             var friendData = friend.OriginPlayerId == PlayerId ? 
                 friend.TargetPlayer : 
                 friend.OriginPlayer;
-            
+
+            if (friendData == null)
+            {
+                continue;
+            }
+
             var onlineFriend = PlayerRepository.GetPlayerLogicById(friendData.Id);
             var isOnline = onlineFriend != null;
             var inRoom = isOnline && onlineFriend != null && onlineFriend.State.CurrentRoomId != 0;
@@ -38,14 +43,14 @@ public class PlayerFriendsListWriter : AbstractPacketWriter
                .FirstOrDefault(x => x.TargetPlayerId == friendData.Id)
                ?.TypeId ?? (int) PlayerRelationshipType.None;
 
-            writer.WriteLong(friendData.Id);
+            writer.WriteInteger((int) friendData.Id);
             writer.WriteString(friendData.Username);
-            writer.WriteInteger(friendData.AvatarData.Gender == PlayerAvatarGender.Male ? 0 : 1);
+            writer.WriteInteger(friendData.AvatarData?.Gender == PlayerAvatarGender.Male ? 0 : 1);
             writer.WriteBool(isOnline);
             writer.WriteBool(inRoom);
-            writer.WriteString(friendData.AvatarData.FigureCode);
+            writer.WriteString(friendData.AvatarData?.FigureCode ?? string.Empty);
             writer.WriteInteger(0); // category ID
-            writer.WriteString(friendData.AvatarData.Motto ?? string.Empty);
+            writer.WriteString(friendData.AvatarData?.Motto ?? string.Empty);
             writer.WriteString(friendData.Username); // real name
             writer.WriteString(""); // last access?
             writer.WriteBool(false);

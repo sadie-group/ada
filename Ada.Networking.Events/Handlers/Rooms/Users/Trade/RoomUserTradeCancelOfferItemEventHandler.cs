@@ -1,6 +1,7 @@
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users.Trading;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;
@@ -11,6 +12,11 @@ public class RoomUserTradeCancelOfferItemEventHandler(IRoomRepository roomReposi
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out _, out var roomUser))
         {
             return;

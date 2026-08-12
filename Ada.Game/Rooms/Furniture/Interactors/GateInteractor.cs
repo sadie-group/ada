@@ -1,11 +1,11 @@
 using System.Drawing;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Db;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
@@ -40,7 +40,10 @@ public class GateInteractor(
     {
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(item.PlayerFurnitureItem).Property(x => x.MetaData).IsModified = true;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
+            .Where(x => x.Id == item.PlayerFurnitureItem.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, item.PlayerFurnitureItem.MetaData));
     }
 }

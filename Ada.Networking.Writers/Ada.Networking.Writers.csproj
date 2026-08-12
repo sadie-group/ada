@@ -17,4 +17,9 @@
       <ProjectReference Include="..\Ada.API\Ada.API.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Ada.Networking.SourceGen\Ada.Networking.SourceGen.csproj"
+                        OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
 </Project>

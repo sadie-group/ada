@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Navigator;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Navigator;
@@ -8,48 +6,40 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
-using Ada.Db.Models.Navigator;
+using Ada.Core.Shared.Constants;
 using Ada.Networking.Writers.Navigator;
 
 namespace Ada.Networking.Events.Handlers.Navigator;
 
 [PacketId(EventHandlerId.NavigatorSearch)]
 public class NavigatorSearchEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+    INavigatorTabProvider navigatorTabProvider,
     INavigatorRoomProvider navigatorRoomProvider,
     IRoomRepository roomRepository,
-    IPlayerRepository playerRepository,
-    IMapper mapper)
-    : INetworkPacketEventHandler
+    IPlayerRepository playerRepository)
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? TabName { get; set; }
     public string? SearchQuery { get; set; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
         if (client.Player == null)
         {
             return;
         }
-        
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        var tab = await dbContext.Set<NavigatorTab>()
-            .Include(x => x.Categories)
-            .FirstOrDefaultAsync(x => x.Name == TabName);
 
-        if (tab == null)
+        if ((DateTime.UtcNow - client.Player.State.LastNavigatorSearch).TotalMilliseconds <
+            CooldownIntervals.NavigatorSearch)
         {
             return;
         }
 
-        var dbCategories = tab.
-            Categories.
-            OrderBy(x => x.OrderId).
-            ToList();
-        
-        var categories = mapper.Map<List<NavigatorCategoryDto>>(dbCategories);
+        client.Player.State.LastNavigatorSearch = DateTime.UtcNow;
+
+        // Tab layout is operator-edited reference data, so it comes from a cache rather than a
+        // fresh query on every message.
+        var categories = await navigatorTabProvider.GetCategoriesForTabAsync(TabName);
 
         var categoryRoomMap = new Dictionary<NavigatorCategoryDto, List<RoomDto>>();
 
@@ -70,14 +60,32 @@ public class NavigatorSearchEventHandler(
                 categoryRoomMap.Add(category, await navigatorRoomProvider.GetRoomsForCategoryNameAsync(client.Player, category.CodeName));
             }
         }
-        
+
+        var ownerIds = categoryRoomMap.Values
+            .SelectMany(x => x)
+            .Select(x => x.OwnerId)
+            .Distinct()
+            .ToList();
+
+        var resolved = await playerRepository.GetPlayerUsernamesByIdsAsync(ownerIds);
+        var ownerUsernames = ownerIds.ToDictionary(id => id,
+            id => resolved.GetValueOrDefault(id, "Unknown User"));
+
+        var liveUserCounts = categoryRoomMap.Values
+            .SelectMany(x => x)
+            .Select(x => x.Id)
+            .Distinct()
+            .Select(id => (Id: id, Room: roomRepository.TryGetRoomById(id)))
+            .Where(x => x.Room != null)
+            .ToDictionary(x => x.Id, x => x.Room!.UserRepository.Count);
+
         var searchResultPagesWriter = new NavigatorSearchResultPagesWriter
         {
             TabName = TabName,
             SearchQuery = SearchQuery,
             CategoryRoomMap = categoryRoomMap,
-            RoomRepository = roomRepository,
-            PlayerRepository = playerRepository
+            LiveUserCounts = liveUserCounts,
+            OwnerUsernames = ownerUsernames
         };
 
         await client.WriteToStreamAsync(searchResultPagesWriter);

@@ -7,12 +7,18 @@ using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Extensions;
 using Ada.Networking.Writers.Rooms.Users.HandItems;
 
+using Microsoft.Extensions.Logging;
+
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
 public class VendingInteractor(IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : AbstractRoomFurnitureItemInteractor
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    IRoomDeferralScheduler deferralScheduler,
+    ILogger<VendingInteractor> logger) : AbstractRoomFurnitureItemInteractor
 {
     public override List<string> InteractionTypes => [FurnitureItemInteractionType.VendingMachine];
+
+    private static readonly TimeSpan _dispenseDelay = TimeSpan.FromMilliseconds(500);
     
     public override async Task OnTriggerAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
     {
@@ -35,25 +41,27 @@ public class VendingInteractor(IRoomTileMapHelperService tileMapHelperService,
             roomUser.WalkToPoint(squareInFront, OnReachedGoal);
             return;
 
-            async void OnReachedGoal()
-            {
-                await OnTriggerAsync(room, item, roomUser);
-            }
+            void OnReachedGoal()
+                => OnTriggerAsync(room, item, roomUser)
+                    .FireAndForget(logger, "vending walk-to-goal trigger");
         }
         
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "1");
-        await Task.Delay(500);
-        await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
 
-        var handItem = handItems.PickRandom();
-
-        roomUser.HandItemId = handItem.Id;
-        roomUser.HandItemSet = DateTime.Now;
-        
-        await room.BroadcastDataAsync(new RoomUserHandItemWriter
+        deferralScheduler.Schedule(room, _dispenseDelay, async () =>
         {
-            UserId = roomUser.Player.Player.Id,
-            ItemId = handItem.Id
-        });
+            await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
+
+            var handItem = handItems.PickRandom();
+
+            roomUser.HandItemId = handItem.Id;
+            roomUser.HandItemSet = DateTime.UtcNow;
+
+            await room.BroadcastDataAsync(new RoomUserHandItemWriter
+            {
+                UserId = roomUser.Player.Player.Id,
+                ItemId = handItem.Id
+            });
+        }, "vending dispense settle");
     }
 }

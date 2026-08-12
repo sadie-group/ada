@@ -1,12 +1,14 @@
-﻿using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
+﻿using Ada.API;
+using System.Collections.Concurrent;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Networking.Packets.Serialization;
-using Ada.Networking.Writers.Rooms;
 using Ada.Networking.Writers.Rooms.Bots;
 using Ada.Networking.Writers.Rooms.Users;
+using Ada.Networking.Writers.Rooms.Users.Trading;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Users;
 
@@ -16,18 +18,50 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 {
     private readonly ConcurrentDictionary<long, IRoomUser> _users = new();
 
-    public ICollection<IRoomUser> GetAll() => _users.Values;
-    
-    public bool TryAdd(IRoomUser user) => _users.TryAdd(user.Player.Player.Id, user);
-    
+    private readonly object _snapshotLock = new();
+    private volatile IRoomUser[] _snapshot = [];
+    private volatile INetworkObject[] _networkSnapshot = [];
+
+    private void RebuildSnapshot()
+    {
+        lock (_snapshotLock)
+        {
+            var users = _users.Values.ToArray();
+            var networkObjects = new INetworkObject[users.Length];
+
+            for (var i = 0; i < users.Length; i++)
+            {
+                networkObjects[i] = users[i].NetworkObject;
+            }
+
+            _snapshot = users;
+            _networkSnapshot = networkObjects;
+        }
+    }
+
+    public ICollection<IRoomUser> GetAll() => _snapshot;
+
+    public IReadOnlyList<INetworkObject> GetNetworkObjects() => _networkSnapshot;
+
+    public bool TryAdd(IRoomUser user)
+    {
+        if (!_users.TryAdd(user.Player.Player.Id, user))
+        {
+            return false;
+        }
+
+        RebuildSnapshot();
+        return true;
+    }
+
     public bool TryGetById(long id, out IRoomUser? user) => _users.TryGetValue(id, out user);
 
     public bool TryGetByUsername(string username, out IRoomUser? user)
     {
-        user = _users.Values.FirstOrDefault(x => x.Player.Player.Username == username);
+        user = _snapshot.FirstOrDefault(x => x.Player.Player.Username == username);
         return user != null;
     }
-    
+
     private IRoomLogic _room = null!;
     public DateTime? NoUsersSince { get; set; }
 
@@ -37,18 +71,22 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
     }
 
     public async Task TryRemoveAsync(
-        long id, 
-        bool notifyLeft, 
+        long id,
+        bool notifyLeft,
         bool hotelView = false)
     {
         var result = _users.TryRemove(id, out var roomUser);
 
         if (!result || roomUser == null)
         {
-            logger.LogError($"Failed to remove a room user");
+            logger.LogError("Failed to remove a room user");
             return;
         }
-        
+
+        RebuildSnapshot();
+
+        await CancelTradeAsync(roomUser);
+
         if (notifyLeft)
         {
             var writer = new RoomUserLeftWriter
@@ -58,88 +96,167 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
 
             await _room.BroadcastDataAsync(writer);
         }
-        
+
         var player = roomUser.Player;
         player.State.CurrentRoomId = 0;
-        
+
         await playerHelperService.UpdatePlayerStatusForFriendsAsync(
             player,
             player.GetMergedFriendships(),
-            true, 
+            true,
             false,
             playerRepository);
-        
+
         if (hotelView)
         {
             await roomUser.NetworkObject.WriteToStreamAsync(new RoomUserHotelViewWriter());
         }
-        
+
         await roomUser.DisposeAsync();
     }
-    
+
+    private static async Task CancelTradeAsync(IRoomUser roomUser)
+    {
+        var trade = roomUser.Trade;
+
+        if (trade == null)
+        {
+            return;
+        }
+
+        foreach (var user in trade.Users)
+        {
+            user.Trade = null;
+            user.TradeStatus = 0;
+        }
+
+        foreach (var user in trade.Users)
+        {
+            if (user == roomUser)
+            {
+                continue;
+            }
+
+            try
+            {
+                await user.NetworkObject.WriteToStreamAsync(new RoomUserTradeCloseWindowWriter());
+            }
+            catch (Exception)
+            {
+            }
+        }
+    }
+
     public int Count => _users.Count;
 
     public ICollection<IRoomUser> GetAllWithRights()
     {
-        return _users.Values.Where(x => x.HasRights()).ToList();
+        return _snapshot.Where(x => x.HasRights()).ToList();
     }
-    
+
+    public async Task ProcessNewWalkRequestsAsync()
+    {
+        try
+        {
+            var users = _snapshot;
+            List<IRoomUser>? usersStartedWalking = null;
+
+            foreach (var user in users)
+            {
+                if (await user.TryStartPendingWalkAsync())
+                {
+                    (usersStartedWalking ??= []).Add(user);
+                }
+            }
+
+            if (usersStartedWalking == null)
+            {
+                return;
+            }
+
+            var recipients = _networkSnapshot;
+
+            PacketBroadcast.Queue(
+                new RoomUserStatusWriter
+                {
+                    Users = usersStartedWalking
+                },
+                recipients);
+
+            foreach (var u in usersStartedWalking)
+            {
+                u.NeedsUpdate = false;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to broadcast walking-user updates");
+        }
+    }
+
     public async Task RunPeriodicCheckAsync()
     {
         try
         {
-            var users = _users.Values;
+            var users = _snapshot;
 
-            if (users.Count == 0)
+            if (users.Length == 0)
             {
-                NoUsersSince ??= DateTime.Now;
+                NoUsersSince ??= DateTime.UtcNow;
             }
             else
             {
                 NoUsersSince = null;
             }
-            
+
             foreach (var user in users)
             {
                 await user.RunPeriodicCheckAsync();
             }
-        
-            var firstUser = users.FirstOrDefault();
-        
-            if (firstUser != null)
-            {
-                var bots = firstUser.Room.BotRepository.GetAll();
 
-                if (bots.Count > 0)
+            if (users.Length > 0 && _room.BotRepository.Count > 0)
+            {
+                List<IRoomBot>? botsNeedUpdate = null;
+
+                foreach (var bot in _room.BotRepository.GetAll())
                 {
-                    await _room.BroadcastDataAsync(new RoomBotStatusWriter { Bots = bots });
-                    await _room.BroadcastDataAsync(new RoomBotDataWriter { Bots = bots });
+                    if (bot.NeedsUpdate)
+                    {
+                        (botsNeedUpdate ??= []).Add(bot);
+                    }
+                }
+
+                if (botsNeedUpdate != null)
+                {
+                    await _room.BroadcastDataAsync(new RoomBotStatusWriter { Bots = botsNeedUpdate });
+
+                    foreach (var bot in botsNeedUpdate)
+                    {
+                        bot.NeedsUpdate = false;
+                    }
                 }
             }
 
-            var usersNeedsUpdate = users
-                .Where(x => x.NeedsUpdate)
-                .ToList();
+            List<IRoomUser>? usersNeedsUpdate = null;
 
-            if (usersNeedsUpdate.Count != 0)
+            foreach (var user in users)
             {
-                var dataWriter = NetworkPacketWriterSerializer.Serialize(
-                    new RoomUserDataWriter
-                    {
-                        Users = usersNeedsUpdate
-                    });
+                if (user.NeedsUpdate)
+                {
+                    (usersNeedsUpdate ??= []).Add(user);
+                }
+            }
 
-                var statusWriter = NetworkPacketWriterSerializer.Serialize(
+            if (usersNeedsUpdate != null)
+            {
+                var recipients = _networkSnapshot;
+
+                PacketBroadcast.Queue(
                     new RoomUserStatusWriter
                     {
                         Users = usersNeedsUpdate
-                    });
-
-                foreach (var u in users)
-                {
-                    u.NetworkObject.Outbox.Add(dataWriter);
-                    u.NetworkObject.Outbox.Add(statusWriter);
-                }
+                    },
+                    recipients);
 
                 foreach (var u in usersNeedsUpdate)
                 {
@@ -149,7 +266,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
         }
         catch (Exception e)
         {
-            logger.LogError(e.ToString());
+            logger.LogError(e, "Room periodic user check failed");
         }
     }
 
@@ -159,7 +276,7 @@ public class RoomUserRepository(ILogger<RoomUserRepository> logger,
         {
             await TryRemoveAsync(user.Player.Player.Id, false);
         }
-        
+
         _users.Clear();
     }
 }

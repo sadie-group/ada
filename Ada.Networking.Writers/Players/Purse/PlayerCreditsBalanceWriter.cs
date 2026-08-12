@@ -1,4 +1,5 @@
-﻿using Ada.API.Interfaces.Networking;
+﻿using Ada.API;
+using Ada.API.Interfaces.Networking;
 using Ada.Core.Shared.Attributes;
 
 namespace Ada.Networking.Writers.Players.Purse;
@@ -8,10 +9,8 @@ public class PlayerCreditsBalanceWriter : AbstractPacketWriter
 {
     public required long Credits { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Convert<string>(
-            GetType().GetProperty(nameof(Credits))!,
-            i => (long) i + ".0");
+        writer.WriteString(Credits + ".0");
     }
 }

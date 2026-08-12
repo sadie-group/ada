@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Ada.API.Interfaces.Game.Players;
+﻿using Ada.API.Interfaces.Game.Players;
 using Ada.Game.Players.Options;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Players;
 

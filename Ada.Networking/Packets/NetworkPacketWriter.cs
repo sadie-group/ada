@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Text;
 using Ada.API;
 
@@ -8,47 +9,89 @@ public class NetworkPacketWriter : INetworkPacketWriter
 {
     private readonly ArrayBufferWriter<byte> _packet = new();
 
+    private const int _maxStringByteLength = short.MaxValue;
+
     public void WriteString(string data)
     {
-        WriteShort((short) Encoding.Default.GetBytes(data).Length);
-        WriteBytes(Encoding.Default.GetBytes(data));
-    }
+        var count = Encoding.UTF8.GetByteCount(data);
 
-    private void WriteBytes(byte[] data, bool reverse = false)
-    {
-        _packet.Write(reverse ? data.Reverse().ToArray() : data);
+        if (count > _maxStringByteLength)
+        {
+            throw new InvalidOperationException(
+                $"String of {count} byte(s) exceeds the {_maxStringByteLength}-byte packet string limit.");
+        }
+
+        WriteShort((short) count);
+
+        var span = _packet.GetSpan(count);
+        Encoding.UTF8.GetBytes(data, span);
+        _packet.Advance(count);
     }
 
     public void WriteShort(short data)
     {
-        WriteBytes(BitConverter.GetBytes(data), true);
+        var span = _packet.GetSpan(sizeof(short));
+        BinaryPrimitives.WriteInt16BigEndian(span, data);
+        _packet.Advance(sizeof(short));
     }
 
     public void WriteInteger(int data)
     {
-        WriteBytes(BitConverter.GetBytes(data), true);
+        var span = _packet.GetSpan(sizeof(int));
+        BinaryPrimitives.WriteInt32BigEndian(span, data);
+        _packet.Advance(sizeof(int));
     }
 
     public void WriteLong(long data)
     {
-        WriteBytes(BitConverter.GetBytes((int)data), true);
+        if (data is > int.MaxValue or < int.MinValue)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(data),
+                data,
+                "The client protocol carries this value as a 32-bit integer; writing it would silently truncate.");
+        }
+
+        WriteInteger((int) data);
     }
 
     public void WriteBool(bool boolean)
     {
-        WriteBytes([(byte) (boolean ? 1 : 0)]);
+        var span = _packet.GetSpan(1);
+        span[0] = (byte) (boolean ? 1 : 0);
+        _packet.Advance(1);
     }
-    
-    public void WriteByte(byte b) => _packet.Write([b]);
+
+    public void WriteByte(byte b)
+    {
+        var span = _packet.GetSpan(1);
+        span[0] = b;
+        _packet.Advance(1);
+    }
+
+    private byte[]? _framedBytes;
 
     public byte[] GetAllBytes()
     {
-        var bytes = new List<byte>();
-            
-        bytes.AddRange(BitConverter.GetBytes(_packet.WrittenCount));
-        bytes.Reverse();
-        bytes.AddRange(_packet.WrittenSpan.ToArray());
+        if (_framedBytes != null)
+        {
+            return _framedBytes;
+        }
 
-        return bytes.ToArray();
+        var payloadLength = _packet.WrittenCount;
+        var result = new byte[sizeof(int) + payloadLength];
+
+        BinaryPrimitives.WriteInt32BigEndian(result, payloadLength);
+        _packet.WrittenSpan.CopyTo(result.AsSpan(sizeof(int)));
+
+        return _framedBytes = result;
+    }
+
+    public int FramedLength => sizeof(int) + _packet.WrittenCount;
+
+    public void WriteFramedTo(Span<byte> destination)
+    {
+        BinaryPrimitives.WriteInt32BigEndian(destination, _packet.WrittenCount);
+        _packet.WrittenSpan.CopyTo(destination[sizeof(int)..]);
     }
 }

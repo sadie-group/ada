@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Ada.API.Interfaces.Networking.Client;
+﻿using Ada.API.Interfaces.Networking.Client;
 using Ada.Networking.Client;
 using Ada.Networking.Packets;
 using Ada.Networking.Validators;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NetworkOptions = Ada.Networking.Options.NetworkOptions;
 using NetworkPacketOptions = Ada.Networking.Options.NetworkPacketOptions;
 
@@ -16,10 +16,15 @@ public static class NetworkServiceCollection
     {
         serviceCollection.AddSingleton<INetworkClientFactory, NetworkClientFactory>();
         serviceCollection.AddSingleton<INetworkClientRepository, NetworkClientRepository>();
+        serviceCollection.AddSingleton<IClientDisposalService, ClientDisposalService>();
+        serviceCollection.AddSingleton<IPlayerSessionResumeService, PlayerSessionResumeService>();
+        serviceCollection.AddSingleton<ILoginAttemptThrottle, LoginAttemptThrottle>();
+        serviceCollection.AddSingleton<IRoomAccessThrottle, RoomAccessThrottle>();
+        serviceCollection.AddSingleton<IPacketRateThrottle, PacketRateThrottle>();
+        serviceCollection.AddSingleton<IWalkRequestThrottle, WalkRequestThrottle>();
 
         serviceCollection.AddTransient<INetworkClient, NetworkClient>();
 
-        serviceCollection.AddTransient<INetworkClient, NetworkClient>();
         serviceCollection.AddHostedService<NetworkListener>();
         
         serviceCollection.Configure<NetworkOptions>(options => config.GetSection("NetworkOptions").Bind(options));
@@ -28,10 +33,6 @@ public static class NetworkServiceCollection
         serviceCollection.AddSingleton<IValidateOptions<NetworkOptions>, NetworkOptionsValidator>();
         serviceCollection.AddSingleton<IValidateOptions<NetworkPacketOptions>, NetworkPacketOptionsValidator>();
         
-        serviceCollection.AddSingleton<PacketHandlerFactory>(sp =>
-        {
-            var handlerTypes = sp.GetRequiredService<Dictionary<short, Type>>();
-            return new PacketHandlerFactory(sp, handlerTypes);
-        });
+        serviceCollection.AddSingleton<PacketHandlerFactory>(sp => new PacketHandlerFactory(sp));
     }
 }

@@ -1,24 +1,26 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Players;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Game.Rooms.Users;
+using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
+using Ada.Networking.Events.Attributes;
 using Ada.Networking.Writers.Rooms.Doorbell;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Doorbell;
 
 [PacketId(EventHandlerId.RoomDoorbellAnswer)]
 public class RoomDoorbellAnswerEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,
     IPlayerRepository playerRepository,
     IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomUserFactory roomUserFactory,
     INetworkClientRepository clientRepository,
     IRoomTileMapHelperService tileMapHelperService,
@@ -29,7 +31,8 @@ public class RoomDoorbellAnswerEventHandler(
 {
     public required string Username { get; init; }
     public bool Accept { get; init; }
-    
+
+    [RequiresRoomRights]
     public async Task HandleAsync(INetworkClient client)
     {
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _))
@@ -38,15 +41,30 @@ public class RoomDoorbellAnswerEventHandler(
         }
         
         var player = playerRepository.GetPlayerLogicByUsername(Username);
-        
-        if (player == null)
+
+        if (player?.NetworkObject == null)
         {
             return;
         }
 
+        if (player.State.PendingDoorbellRoomId != room.Room.Id)
+        {
+            return;
+        }
+
+        player.State.PendingDoorbellRoomId = 0;
+
         if (Accept)
         {
-            await player.NetworkObject!.WriteToStreamAsync(new RoomDoorbellAcceptWriter
+            if (!RoomHelpers.CanEnterRoom(room, player, out _))
+            {
+                await player.NetworkObject.WriteToStreamAsync(
+                    new RoomDoorbellNoAnswerWriter { Username = Username });
+
+                return;
+            }
+
+            await player.NetworkObject.WriteToStreamAsync(new RoomDoorbellAcceptWriter
             {
                 Username = Username
             });
@@ -71,6 +89,6 @@ public class RoomDoorbellAnswerEventHandler(
             return;
         }
 
-        await player.NetworkObject!.WriteToStreamAsync(new RoomDoorbellNoAnswerWriter { Username = Username });
+        await player.NetworkObject.WriteToStreamAsync(new RoomDoorbellNoAnswerWriter { Username = Username });
     }
 }

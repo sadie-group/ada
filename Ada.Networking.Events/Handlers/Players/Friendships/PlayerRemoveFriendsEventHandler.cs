@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
@@ -6,6 +5,7 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Players;
 using Ada.Networking.Writers.Players.Friendships;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Players.Friendships;
 
@@ -13,12 +13,17 @@ namespace Ada.Networking.Events.Handlers.Players.Friendships;
 public class PlayerRemoveFriendsEventHandler(
     IPlayerRepository playerRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public List<long> Ids { get; init; } = [];
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var playerId = client.Player.Player.Id;
         
         foreach (var currentId in Ids)
@@ -48,13 +53,13 @@ public class PlayerRemoveFriendsEventHandler(
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        foreach (var currentId in Ids)
+        if (Ids.Count > 0)
         {
             await dbContext
                 .Set<PlayerFriendship>()
-                .Where(x => 
-                    x.OriginPlayerId == currentId && x.TargetPlayerId == playerId ||
-                    x.TargetPlayerId == currentId && x.OriginPlayerId == playerId)
+                .Where(x =>
+                    Ids.Contains(x.OriginPlayerId) && x.TargetPlayerId == playerId ||
+                    Ids.Contains(x.TargetPlayerId) && x.OriginPlayerId == playerId)
                 .ExecuteDeleteAsync();
         }
         

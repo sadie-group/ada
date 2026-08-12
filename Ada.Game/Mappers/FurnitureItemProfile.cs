@@ -1,8 +1,8 @@
-using AutoMapper;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.Db.Models.Furniture;
 using Ada.Db.Models.Players.Furniture;
+using AutoMapper;
 
 namespace Ada.Game.Mappers;
 

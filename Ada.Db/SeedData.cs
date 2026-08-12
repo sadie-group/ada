@@ -6,8 +6,8 @@ public static class SeedData
 {
     public static async Task SeedInitialDataAsync(AdaDbContext dbContext)
     {
-        using var httpClient = new HttpClient();
-        var initialSql = await httpClient.GetStringAsync("https://cdn.ada.pw/seed.sql");
+        var path = Path.Combine(AppContext.BaseDirectory, "seed.sql");
+        var initialSql = await File.ReadAllTextAsync(path);
         await dbContext.Database.ExecuteSqlRawAsync(initialSql);
     }
 }

@@ -14,7 +14,7 @@ public class PlayerWardrobeEventHandler : INetworkPacketEventHandler
         {
             return;
         }
-        
+
         await client.WriteToStreamAsync(new PlayerWardrobeWriter
         {
             State = 1,

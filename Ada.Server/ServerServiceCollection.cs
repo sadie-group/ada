@@ -1,22 +1,29 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API;
+using Ada.API.Interfaces.Networking.Events.Filters;
+using Ada.API.Interfaces.Plugins;
 using Ada.API.Interfaces.Server;
 using Ada.API.Interfaces.Server.Tasks;
 using Ada.Db;
 using Ada.Db.Models.Server;
 using Ada.Game;
 using Ada.Game.Catalog;
+using Ada.Game.Groups;
+using Ada.Game.Guides;
+using Ada.Game.Jukebox;
 using Ada.Game.Locale;
 using Ada.Game.Mappers;
+using Ada.Game.Moderation;
 using Ada.Game.Navigator;
 using Ada.Game.Players;
 using Ada.Game.Rooms;
+using Ada.Game.WordFilter;
 using Ada.Networking;
 using Ada.Networking.Encryption;
 using Ada.Networking.Events;
 using Ada.Server.Infrastructure;
 using Ada.Server.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Server;
 
@@ -55,6 +62,11 @@ public static class ServerServiceCollection
         EncryptionServiceProvider.AddServices(services, config);
         LocaleServiceCollection.AddServices(services);
         CatalogServiceCollection.AddServices(services, config);
+        JukeboxServiceCollection.AddServices(services);
+        GroupServiceCollection.AddServices(services);
+        WordFilterServiceCollection.AddServices(services);
+        ModToolServiceCollection.AddServices(services);
+        GuideServiceCollection.AddServices(services);
     }
     
     private static void RegisterReflectionDiscoveredServices(IServiceCollection services)
@@ -70,6 +82,24 @@ public static class ServerServiceCollection
             .FromAssemblies(assemblies)
             .AddClasses(c => c.AssignableTo<IServerTask>())
             .AsImplementedInterfaces()
+            .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<IPlayerSessionListener>())
+            .As<IPlayerSessionListener>()
+            .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<INetworkPacketEventFilter>())
+            .As<INetworkPacketEventFilter>()
+            .WithSingletonLifetime());
+
+        services.Scan(scan => scan
+            .FromAssemblies(assemblies)
+            .AddClasses(c => c.AssignableTo<IPreDispatchPacketFilter>())
+            .As<IPreDispatchPacketFilter>()
             .WithSingletonLifetime());
     }
 }

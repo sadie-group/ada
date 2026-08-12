@@ -1,19 +1,23 @@
 using System.Drawing;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
+using Ada.Core.Shared.Extensions;
 using Ada.Db;
+using Microsoft.EntityFrameworkCore;
+
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
 public class OneWayGateInteractor(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IRoomTileMapHelperService tileMapHelperService,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : AbstractRoomFurnitureItemInteractor
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    ILogger<OneWayGateInteractor> logger) : AbstractRoomFurnitureItemInteractor
 {
     public override List<string> InteractionTypes => [FurnitureItemInteractionType.OneWayGate];
     
@@ -47,7 +51,10 @@ public class OneWayGateInteractor(
         
         return;
 
-        async void OnReachedGoal()
+        void OnReachedGoal()
+            => CompletePassageAsync().FireAndForget(logger, "one-way gate walk-to-goal");
+
+        async Task CompletePassageAsync()
         {
             await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
 
@@ -59,9 +66,12 @@ public class OneWayGateInteractor(
     public override async Task OnPlaceAsync(IRoomLogic room, PlayerFurnitureItemPlacementDataDto item, IRoomUser roomUser)
     {
         await roomFurnitureItemHelperService.UpdateMetaDataForItemAsync(room, item, "0");
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(item.PlayerFurnitureItem).Property(x => x.MetaData).IsModified = true;
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
+            .Where(x => x.Id == item.PlayerFurnitureItem.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, item.PlayerFurnitureItem.MetaData));
     }
 }

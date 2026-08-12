@@ -16,4 +16,6 @@ public class PlayerData
     public bool AllowFriendRequests { get; init; }
     public bool IsOnline { get; set; }
     public DateTimeOffset? LastOnline { get; set; }
+    public DateTimeOffset? MuteExpiresAt { get; set; }
+    public DateTimeOffset? TradeLockExpiresAt { get; set; }
 }

@@ -1,6 +1,6 @@
+using Ada.Db.Models.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Players;
 
 namespace Ada.Db.Configurations.Players;
 
@@ -17,6 +17,8 @@ public class PlayerSsoTokenConfiguration : IEntityTypeConfiguration<PlayerSsoTok
 
         entity.Property(x => x.Token)
             .HasMaxLength(200);
+
+        entity.HasIndex(x => x.Token);
 
         entity.Property(x => x.CreatedAt)
             .IsRequired();

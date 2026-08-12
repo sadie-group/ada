@@ -7,4 +7,5 @@ public interface ICatalogChargeService
 {
     bool HasRequiredMembership(INetworkClient client, CatalogItemDto item);
     Task<bool> TryChargeAsync(INetworkClient client, CatalogItemDto item, int amount);
+    Task RefundAsync(INetworkClient client, CatalogItemDto item, int amount);
 }

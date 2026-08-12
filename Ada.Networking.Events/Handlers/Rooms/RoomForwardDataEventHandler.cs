@@ -1,18 +1,19 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms;
 
 [PacketId(EventHandlerId.RoomForwardData)]
-public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
+public class RoomForwardDataEventHandler(
+    IDbContextFactory<AdaDbContext> dbContextFactory,IRoomRepository roomRepository,
     IMapper mapper,
     IPlayerRepository playerRepository) : INetworkPacketEventHandler
 {
@@ -39,7 +40,8 @@ public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
         }
 
         var isOwner = room.Room.OwnerId == client.Player.Player.Id;
-        
+        var ownerUsername = await playerRepository.GetPlayerUsernameByIdAsync(room.Room.OwnerId);
+
         await client.WriteToStreamAsync(new RoomForwardDataWriter
         {
             Room = room.Room,
@@ -47,7 +49,7 @@ public class RoomForwardDataEventHandler(IRoomRepository roomRepository,
             EnterRoom = EnterRoom != 0 || ForwardRoom != 1,
             IsOwner = isOwner,
             UsersNow = room.UserRepository.Count,
-            PlayerRepository = playerRepository
+            OwnerUsername = ownerUsername ?? string.Empty
         });
     }
 }

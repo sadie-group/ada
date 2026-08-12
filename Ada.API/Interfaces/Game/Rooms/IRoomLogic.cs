@@ -2,6 +2,7 @@ using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
 using Ada.API.Interfaces.Game.Rooms.Mapping;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
+using Ada.API.Interfaces.Game.Rooms.Pets;
 using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.API.Interfaces.Networking;
 
@@ -14,6 +15,12 @@ public interface IRoomLogic : IAsyncDisposable
     IRoomPathFinder PathFinder { get; }
     IRoomUserRepository UserRepository { get; }
     IRoomBotRepository BotRepository { get; }
+    IRoomPetRepository PetRepository { get; }
     Task BroadcastDataAsync(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null);
-    ValueTask DisposeAsync();
+    void QueueBroadcast(AbstractPacketWriter writer, IReadOnlyCollection<long>? excludedIds = null);
+    void FlushQueuedBroadcasts();
+    Task RunLockedAsync(Func<Task> action);
+    long LockHeldForMilliseconds => 0;
+    bool IsDisposed { get; }
+    new ValueTask DisposeAsync();
 }

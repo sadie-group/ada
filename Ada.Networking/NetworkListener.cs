@@ -1,16 +1,19 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using System.Collections.Concurrent;
+using System.Net;
+using Ada.API.Interfaces.Networking.Client;
+using Ada.Networking.Client;
+using Ada.Networking.Options;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Net;
-using Ada.API.Interfaces.Networking.Client;
-using Ada.Networking.Options;
 
 namespace Ada.Networking;
 
 public class NetworkListener(
     IOptions<NetworkOptions> options,
+    ILogger<NetworkListener> logger,
     INetworkClientFactory clientFactory,
     INetworkClientConnectionHandler connectionHandler)
     : IHostedService
@@ -18,24 +21,163 @@ public class NetworkListener(
     private readonly NetworkOptions _options = options.Value;
     private WebApplication? _app;
 
+    private const string _anyOrigin = "*";
+
+    private readonly ConcurrentDictionary<IPAddress, int> _connectionsPerAddress = new();
+    private int _connections;
+
+    internal ClientAddressResolver AddressResolver { get; } = new(options.Value.TrustedProxies);
+
+    internal bool TryReserveSlot(IPAddress ip)
+    {
+        var max = _options.MaxConnections;
+
+        if (max > 0 && Interlocked.Increment(ref _connections) > max)
+        {
+            Interlocked.Decrement(ref _connections);
+            return false;
+        }
+
+        var perAddress = _options.MaxConnectionsPerAddress;
+
+        if (perAddress <= 0)
+        {
+            return true;
+        }
+
+        var accepted = false;
+
+        while (true)
+        {
+            if (_connectionsPerAddress.TryGetValue(ip, out var count))
+            {
+                if (count >= perAddress)
+                {
+                    break;
+                }
+
+                if (_connectionsPerAddress.TryUpdate(ip, count + 1, count))
+                {
+                    accepted = true;
+                    break;
+                }
+            }
+            else if (_connectionsPerAddress.TryAdd(ip, 1))
+            {
+                accepted = true;
+                break;
+            }
+        }
+
+        if (!accepted && max > 0)
+        {
+            Interlocked.Decrement(ref _connections);
+        }
+
+        return accepted;
+    }
+
+    internal void ReleaseSlot(IPAddress ip)
+    {
+        if (_options.MaxConnections > 0)
+        {
+            Interlocked.Decrement(ref _connections);
+        }
+
+        if (_options.MaxConnectionsPerAddress <= 0)
+        {
+            return;
+        }
+
+        while (_connectionsPerAddress.TryGetValue(ip, out var count))
+        {
+            if (count <= 1)
+            {
+                if (_connectionsPerAddress.TryRemove(new KeyValuePair<IPAddress, int>(ip, count)))
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (_connectionsPerAddress.TryUpdate(ip, count - 1, count))
+            {
+                return;
+            }
+        }
+    }
+
+    internal bool IsAllowedOrigin(string? origin)
+    {
+        var allowed = _options.AllowedOrigins;
+
+        if (string.IsNullOrWhiteSpace(allowed))
+        {
+            return false;
+        }
+
+        var entries = allowed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (entries.Contains(_anyOrigin))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(origin))
+        {
+            return false;
+        }
+
+        return entries.Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase));
+    }
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        if (_options.AllowedOrigins?.Contains(_anyOrigin, StringComparison.Ordinal) == true)
+        {
+            logger.LogWarning(
+                "NetworkOptions:AllowedOrigins is '{AnyOrigin}', so a socket opened from any web page is " +
+                "accepted. List the origins your client is served from to close that off.",
+                _anyOrigin);
+        }
+
+        if (!AddressResolver.HasTrustedProxies)
+        {
+            logger.LogInformation(
+                "NetworkOptions:TrustedProxies is empty, so the peer address is used as the client " +
+                "address and X-Forwarded-For is ignored. If a reverse proxy terminates TLS in front " +
+                "of this listener, set it — otherwise every client counts as the proxy's address and " +
+                "the per-address connection cap, login throttle and address bans stop discriminating.");
+        }
+
         var builder = WebApplication.CreateBuilder();
 
         builder.WebHost.ConfigureKestrel(k =>
         {
             var ip = IPAddress.Parse(_options.Host ?? "127.0.0.1");
 
-            if (_options.UseWss && !string.IsNullOrWhiteSpace(_options.CertificateFile))
-            {
-                k.Listen(ip, _options.Port, o => o.UseHttps(_options.CertificateFile));
-            }
-            else
+            if (!_options.UseWss)
             {
                 k.Listen(ip, _options.Port);
+                return;
             }
+
+            if (string.IsNullOrWhiteSpace(_options.CertificateFile))
+            {
+                throw new InvalidOperationException(
+                    "Network:UseWss is enabled but Network:CertificateFile is not set.");
+            }
+
+            if (!File.Exists(_options.CertificateFile))
+            {
+                throw new InvalidOperationException(
+                    $"Network:CertificateFile '{_options.CertificateFile}' was not found.");
+            }
+
+            k.Listen(ip, _options.Port, o => o.UseHttps(_options.CertificateFile));
         });
-        
+
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
         builder.Logging.ClearProviders();
 
@@ -51,13 +193,40 @@ public class NetworkListener(
                 return;
             }
 
-            var socket = await ctx.WebSockets.AcceptWebSocketAsync();
-            var guid = Guid.NewGuid();
-            var ip = ctx.Connection.RemoteIpAddress ?? IPAddress.None;
+            if (!IsAllowedOrigin(ctx.Request.Headers.Origin.ToString()))
+            {
+                logger.LogWarning("Rejected connection with disallowed Origin '{Origin}'",
+                    ctx.Request.Headers.Origin.ToString());
 
-            var client = clientFactory.CreateClient(ip, guid, socket);
+                ctx.Response.StatusCode = 403;
+                return;
+            }
 
-            await connectionHandler.HandleClientAsync(client, ctx.RequestAborted);
+            var ip = AddressResolver.Resolve(
+                ctx.Connection.RemoteIpAddress,
+                ctx.Request.Headers["X-Forwarded-For"].ToString());
+
+            if (!TryReserveSlot(ip))
+            {
+                logger.LogWarning("Rejected connection from {Ip}: connection limit reached", ip);
+                ctx.Response.StatusCode = 503;
+
+                return;
+            }
+
+            try
+            {
+                var socket = await ctx.WebSockets.AcceptWebSocketAsync();
+                var guid = Guid.NewGuid();
+
+                var client = clientFactory.CreateClient(ip, guid, socket);
+
+                await connectionHandler.HandleClientAsync(client, ctx.RequestAborted);
+            }
+            finally
+            {
+                ReleaseSlot(ip);
+            }
         });
 
         _app = app;

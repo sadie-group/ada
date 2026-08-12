@@ -1,4 +1,3 @@
-using Moq;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players;
 using Ada.API.DTOs.Players.Furniture;
@@ -9,6 +8,7 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Rooms;
 using Ada.Game.Rooms.Mapping;
+using Moq;
 
 namespace Ada.Tests;
 
@@ -58,9 +58,10 @@ public class MockHelpers
         };
     }
 
-    protected static PlayerFurnitureItemPlacementDataDto MockFurnitureItemPlacementData(string interactionType, int x = 0, int y = 0, int z = 0, bool walkable = false) =>
+    protected static PlayerFurnitureItemPlacementDataDto MockFurnitureItemPlacementData(string interactionType, int x = 0, int y = 0, int z = 0, bool walkable = false, int id = 0) =>
         new()
         {
+            Id = id,
             PlayerFurnitureItem = new PlayerFurnitureItemDto
             {
                 FurnitureItemId = 0,
@@ -86,13 +87,15 @@ public class MockHelpers
     {
         var roomDto = new RoomDto
         {
-            FurnitureItems = furnitureItems
+            FurnitureItems = [..furnitureItems]
         };
 
         var mockRoomLogic = new Mock<IRoomLogic>();
         mockRoomLogic.SetupGet(x => x.Room).Returns(roomDto);
+        mockRoomLogic.Setup(x => x.RunLockedAsync(It.IsAny<Func<Task>>()))
+            .Returns((Func<Task> action) => action());
 
-        
+
         var roomUserRepo = new Mock<IRoomUserRepository>();
         roomUserRepo.Setup(x => x.GetAll()).Returns(users ?? []);
         

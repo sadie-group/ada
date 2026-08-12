@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Rooms;
@@ -8,6 +6,8 @@ using Ada.API.Interfaces.Game.Rooms.Users;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Db;
 using Ada.Db.Models.Rooms;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms.Furniture.Interactors;
 
@@ -80,10 +80,11 @@ public class DimmerInteractor(
      
         if (room.Room.DimmerSettings != null)
         {
+            await dbContext.RoomDimmerSettings
+                .Where(x => x.RoomId == room.Room.Id)
+                .ExecuteDeleteAsync();
+
             room.Room.DimmerSettings = null;
-            
-            dbContext.Entry(room.Room.DimmerSettings).State = EntityState.Deleted;
-            await dbContext.SaveChangesAsync();
         }
     }
 }

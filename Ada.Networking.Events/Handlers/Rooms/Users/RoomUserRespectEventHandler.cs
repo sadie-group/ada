@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -7,9 +5,12 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms.Users;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Db.Models.Players;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Rooms.Users;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users;
 
@@ -19,7 +20,7 @@ public class RoomUserRespectEventHandler(
     IRoomRepository roomRepository,
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper)
-    : INetworkPacketEventHandler
+    : INetworkPacketEventHandler, IDefersPersistence
 {
     public int TargetId { get; init; }
     
@@ -35,7 +36,8 @@ public class RoomUserRespectEventHandler(
         var lastRoom = player.State.CurrentRoomId;
         var targetPlayer = playerRepository.GetPlayerLogicById(TargetId);
         
-        if (playerData.RespectPoints < 1 || 
+        if (playerData == null ||
+            playerData.RespectPoints < 1 || 
             player.Player.Id == TargetId || 
             targetPlayer == null || 
             targetPlayer.State.CurrentRoomId != 0 && lastRoom != targetPlayer.State.CurrentRoomId)
@@ -54,10 +56,19 @@ public class RoomUserRespectEventHandler(
 
         var respectEntity = mapper.Map<PlayerRespect>(respect);
         
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.PlayerRespects.Add(respectEntity);
-        dbContext.Entry(playerData).Property(x => x.RespectPoints).IsModified = true;
-        await dbContext.SaveChangesAsync();
+        var respectPoints = playerData.RespectPoints;
+        var respectPlayerId = playerData.PlayerId;
+
+        _persist = async () =>
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+            dbContext.PlayerRespects.Add(respectEntity);
+            await dbContext.SaveChangesAsync();
+
+            await dbContext.PlayerData
+                .Where(x => x.PlayerId == respectPlayerId)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.RespectPoints, respectPoints));
+        };
 
         await room.BroadcastDataAsync(new RoomUserRespectWriter
         {
@@ -71,4 +82,8 @@ public class RoomUserRespectEventHandler(
             Action = (int) RoomUserAction.ThumbsUp
         });
     }
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
 }

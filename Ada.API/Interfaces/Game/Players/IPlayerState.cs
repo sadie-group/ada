@@ -5,10 +5,15 @@ namespace Ada.API.Interfaces.Game.Players;
 public interface IPlayerState
 {
     DateTime LastPlayerSearch { get; set; }
+    DateTime LastNavigatorSearch { get; set; }
     DateTime LastDirectMessage { get; set; }
     DateTime LastCatalogPurchase { get; set; }
     DateTime LastSubscriptionModification { get; set; }
-    string CatalogMode { get; set; }
+    string? CatalogMode { get; set; }
     PlayerFurnitureItemPlacementDataDto? Teleport { get; set; }
     int CurrentRoomId { get; set; }
+    int PendingDoorbellRoomId { get; set; }
+    PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
+    IPlayerUnseenItems UnseenItems { get; }
+    IPlayerNavigatorState Navigator { get; }
 }

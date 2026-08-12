@@ -1,58 +1,107 @@
+using System.Collections.Concurrent;
 using System.Reflection;
+using Ada.API.Interfaces.Networking.Packets;
 using Ada.Networking.Packets;
+using Ada.Networking.Packets.Serialization;
 
 namespace Ada.Networking;
 
 public static class EventSerializer
 {
-    public static void SetPropertiesForEventHandler(object handler, NetworkPacketReader packetReader)
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> WritableProperties = new();
+
+    public static Func<object, INetworkPacketReader, bool>? FastFill { get; set; }
+
+    public static void SetPropertiesForEventHandler(object handler, INetworkPacketReader packetReader)
     {
-        var t = handler.GetType();
-        var properties = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-        foreach (var property in properties)
+        if (FastFill is { } fastFill && fastFill(handler, packetReader))
         {
-            var type = property.PropertyType;
+            return;
+        }
 
-            if (type == typeof(int) || type == typeof(long))
-            {
-                property.SetValue(handler, packetReader.ReadInt(), null);
-            }
-            else if (type == typeof(string))
-            {
-                property.SetValue(handler, packetReader.ReadString(), null);
-            }
-            else if (type == typeof(bool))
-            {
-                property.SetValue(handler, packetReader.ReadBool(), null);
-            }
-            else if (type == typeof(List<string>))
-            {
-                property.SetValue(handler, ReadStringList(packetReader), null);
-            }
-            else if (type == typeof(List<int>))
-            {
-                property.SetValue(handler, ReadIntegerList(packetReader), null);
-            }
-            else if (type == typeof(List<long>))
-            {
-                property.SetValue(handler, ReadLongList(packetReader), null);
-            }
-            else if (type == typeof(Dictionary<string, string>))
-            {
-                property.SetValue(handler, ReadAllStringDictionary(packetReader), null);
-            }
-            else
-            {
-                throw new Exception($"{type.FullName}");
-            }
+        FillProperties(handler, packetReader);
+    }
+
+    public static int ReadCount(INetworkPacketReader packetReader) => ReadElementCount(packetReader, "list");
+
+    private static PropertyInfo[] GetWritableProperties(Type type)
+        => WritableProperties.GetOrAdd(type, t => t
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanWrite)
+            .OrderBy(p => p.MetadataToken)
+            .ToArray());
+
+    private static void FillProperties(object target, INetworkPacketReader packetReader)
+    {
+        foreach (var property in GetWritableProperties(target.GetType()))
+        {
+            PropertyAccessorCache.SetValue(property, target, ReadValue(property.PropertyType, packetReader));
         }
     }
 
-    private static Dictionary<string, string> ReadAllStringDictionary(NetworkPacketReader packetReader)
+    private static object ReadValue(Type type, INetworkPacketReader packetReader)
+    {
+        if (type == typeof(int))
+        {
+            return packetReader.ReadInt();
+        }
+
+        if (type == typeof(long))
+        {
+            return (long) packetReader.ReadInt();
+        }
+
+        if (type == typeof(string))
+        {
+            return packetReader.ReadString();
+        }
+
+        if (type == typeof(bool))
+        {
+            return packetReader.ReadBool();
+        }
+
+        if (type == typeof(Dictionary<string, string>))
+        {
+            return ReadAllStringDictionary(packetReader);
+        }
+
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
+        {
+            return ReadList(type.GetGenericArguments()[0], packetReader);
+        }
+
+        if (type is { IsClass: true, IsAbstract: false })
+        {
+            var instance = Activator.CreateInstance(type)
+                ?? throw new Exception($"Cannot instantiate packet record type {type.FullName}");
+
+            FillProperties(instance, packetReader);
+
+            return instance;
+        }
+
+        throw new Exception($"Unsupported packet property type {type.FullName}");
+    }
+
+    private static object ReadList(Type elementType, INetworkPacketReader packetReader)
+    {
+        var count = ReadElementCount(packetReader, "list");
+        var list = (System.Collections.IList) Activator.CreateInstance(
+            typeof(List<>).MakeGenericType(elementType))!;
+
+        for (var i = 0; i < count; i++)
+        {
+            list.Add(ReadValue(elementType, packetReader));
+        }
+
+        return list;
+    }
+
+    private static Dictionary<string, string> ReadAllStringDictionary(INetworkPacketReader packetReader)
     {
         var temp = new Dictionary<string, string>();
-        var amount = packetReader.ReadInt();
+        var amount = ReadElementCount(packetReader, "dictionary");
 
         for (var i = 0; i < amount / 2; i++)
         {
@@ -62,41 +111,16 @@ public static class EventSerializer
         return temp;
     }
 
-    private static List<int> ReadIntegerList(NetworkPacketReader packetReader)
+    private static int ReadElementCount(INetworkPacketReader packetReader, string kind)
     {
-        var tempList = new List<int>();
-        var amount = packetReader.ReadInt();
+        var count = packetReader.ReadInt();
 
-        for (var i = 0; i < amount; i++)
+        if (count < 0 || count > packetReader.Remaining)
         {
-            tempList.Add(packetReader.ReadInt());
+            throw new MalformedPacketException(
+                $"Declared {kind} count of {count} exceeds the {packetReader.Remaining} byte(s) remaining.");
         }
 
-        return tempList;
-    }
-
-    private static List<long> ReadLongList(NetworkPacketReader packetReader)
-    {
-        var tempList = new List<long>();
-        var amount = packetReader.ReadInt();
-
-        for (var i = 0; i < amount; i++)
-        {
-            tempList.Add(packetReader.ReadInt());
-        }
-
-        return tempList;
-    }
-
-    private static List<string> ReadStringList(NetworkPacketReader packetReader)
-    {
-        var tempList = new List<string>();
-
-        for (var i = 0; i < packetReader.ReadInt(); i++)
-        {
-            tempList.Add(packetReader.ReadString());
-        }
-
-        return tempList;
+        return count;
     }
 }

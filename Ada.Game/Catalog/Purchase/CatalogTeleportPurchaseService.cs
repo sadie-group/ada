@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Items;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
@@ -8,48 +6,64 @@ using Ada.API.Interfaces.Networking.Client;
 using Ada.Db;
 using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Players;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Game.Catalog.Purchase;
 
 public class CatalogTeleportPurchaseService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     ICatalogPurchaseConfirmationService confirmationService,
-    IMapper mapper) : ICatalogTeleportPurchaseService
+    IMapper mapper,
+    ILogger<CatalogTeleportPurchaseService> logger) : ICatalogTeleportPurchaseService
 {
     public async Task ProcessAsync(INetworkClient client, CatalogItemDto item, string? metaData, int amount)
     {
         var created = DateTime.Now;
         var furniture = mapper.Map<FurnitureItemDto>(item.FurnitureItems.First());
 
-        var parent = CreateItem(client, furniture, metaData, created);
-        var child = CreateItem(client, furniture, metaData, created);
-
-        client.Player.Player.FurnitureItems.Add(parent);
-        client.Player.Player.FurnitureItems.Add(child);
+        var parentEntity = mapper.Map<PlayerFurnitureItem>(CreateItem(client, furniture, metaData, created));
+        var childEntity = mapper.Map<PlayerFurnitureItem>(CreateItem(client, furniture, metaData, created));
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
-        dbContext.Entry(parent).State = EntityState.Added;
-        dbContext.Entry(child).State = EntityState.Added;
+        // Attach the roots only; the mapped FurnitureItem navigations already exist in the database.
+        dbContext.Entry(parentEntity).State = EntityState.Added;
+        dbContext.Entry(childEntity).State = EntityState.Added;
 
         await dbContext.SaveChangesAsync();
 
         dbContext.PlayerFurnitureItemLinks.Add(new PlayerFurnitureItemLink
         {
-            ParentId = parent.Id,
-            ChildId = child.Id
+            ParentId = parentEntity.Id,
+            ChildId = childEntity.Id
         });
 
         await dbContext.SaveChangesAsync();
 
-        await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
-        {
-            Count = 2,
-            Category = 1,
-            FurnitureItems = [parent, child]
-        });
+        var parent = mapper.Map<PlayerFurnitureItemDto>(parentEntity);
+        var child = mapper.Map<PlayerFurnitureItemDto>(childEntity);
 
-        await confirmationService.ConfirmAsync(client, item, amount);
+        client.Player!.Player.FurnitureItems.Add(parent);
+        client.Player.Player.FurnitureItems.Add(child);
+
+        try
+        {
+            await client.WriteToStreamAsync(new PlayerInventoryUnseenItemsWriter
+            {
+                Count = 2,
+                Category = 1,
+                FurnitureItems = [parent, child]
+            });
+
+            await confirmationService.ConfirmAsync(client, item, amount);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to notify player {PlayerId} of delivered teleport purchase",
+                client.Player.Player.Id);
+        }
     }
 
     private static PlayerFurnitureItemDto CreateItem(
@@ -60,7 +74,7 @@ public class CatalogTeleportPurchaseService(
     {
         return new PlayerFurnitureItemDto
         {
-            PlayerId = client.Player.Player.Id,
+            PlayerId = client.Player!.Player.Id,
             FurnitureItemId = furniture.Id,
             FurnitureItem = furniture,
             LimitedData = "1:1",

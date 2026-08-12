@@ -8,9 +8,6 @@ namespace Ada.Networking.Events.Handlers.Rooms.Polls;
 public class RoomPollStartEventHandler : INetworkPacketEventHandler
 {
     public int Unknown { get; init; }
-    
-    public Task HandleAsync(INetworkClient client)
-    {
-        throw new NotImplementedException();
-    }
+
+    public Task HandleAsync(INetworkClient client) => Task.CompletedTask;
 }

@@ -18,11 +18,16 @@ public class CatalogPageEventHandler(
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var page = pageRepository
             .Pages
             .FirstOrDefault(x => x.Id == PageId);
 
-        if (page is not { Enabled: true } || !page.Visible)
+        if (page == null || !CatalogPageAccess.CanAccess(page, client.Player))
         {
             return;
         }
@@ -31,8 +36,8 @@ public class CatalogPageEventHandler(
         {
             PageId = page.Id,
             PageLayout = page.Layout,
-            Images = page.ImagesJson,
-            Texts = page.TextsJson,
+            Images = page.ImagesJson?.Cast<string?>().ToList() ?? [],
+            Texts = page.TextsJson?.Cast<string?>().ToList() ?? [],
             Items = page.Items.ToList(),
             CatalogMode = CatalogMode,
             AcceptSeasonCurrencyAsCredits = false,

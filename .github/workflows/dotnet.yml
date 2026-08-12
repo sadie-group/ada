@@ -13,7 +13,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.x
 
     - name: Restore dependencies
       run: dotnet restore
@@ -23,3 +23,27 @@ jobs:
 
     - name: Test
       run: dotnet test --no-build --verbosity normal
+
+  benchmarks:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+
+    - name: Run benchmarks
+      run: dotnet run --project Ada.Console -c Release -- --benchmark --filter '*' --job short
+
+    - name: Upload benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          **/BenchmarkDotNet.Artifacts/results/*
+        if-no-files-found: warn

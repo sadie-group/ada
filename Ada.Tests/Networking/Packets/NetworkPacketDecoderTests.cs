@@ -39,6 +39,17 @@ public class NetworkPacketDecoderTests
         });
     }
 
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(5)]
+    public void Decode_FrameShorterThanHeader_ThrowsMalformedPacket(int length)
+    {
+        var buffer = new byte[8];
+
+        Assert.Throws<MalformedPacketException>(
+            () => _decoder.Decode(Guid.NewGuid(), buffer, length));
+    }
+
     [Test]
     public void Decode_MinimalPacket_EmptyBody()
     {

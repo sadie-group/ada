@@ -11,22 +11,21 @@ public class RoomBotRepository : IRoomBotRepository
     public ICollection<IRoomBot> GetAll() => _bots.Values;
     public bool TryAdd(IRoomBot bot) => _bots.TryAdd(bot.Bot.Id, bot);
     public bool TryGetById(int id, out IRoomBot? bot) => _bots.TryGetValue(id, out bot);
+    public bool TryRemove(int id, out IRoomBot? bot) => _bots.TryRemove(id, out bot);
     public int Count => _bots.Count;
     
     public async Task RunPeriodicCheckAsync()
     {
-        try
+        foreach (var bot in _bots.Values)
         {
-            var bots = _bots.Values;
-
-            foreach (var bot in bots)
+            try
             {
                 await bot.RunPeriodicCheckAsync();
             }
-        }
-        catch (Exception e)
-        {
-            Log.Logger.Error(e.ToString());
+            catch (Exception e)
+            {
+                Log.Logger.Error(e, "Periodic check failed for a bot");
+            }
         }
     }
 

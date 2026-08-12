@@ -1,0 +1,352 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+namespace Ada.Networking.SourceGen;
+
+[Generator(LanguageNames.CSharp)]
+public sealed class PacketReaderGenerator : IIncrementalGenerator
+{
+    private const string _handlerInterfaceName = "Ada.API.Interfaces.Networking.Events.Handlers.INetworkPacketEventHandler";
+    private const string _readerType = "global::Ada.API.Interfaces.Networking.Packets.INetworkPacketReader";
+    private const string _actionType = "global::System.Action<object, global::Ada.API.Interfaces.Networking.Packets.INetworkPacketReader>";
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var candidates = context.SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (node, _) => node is ClassDeclarationSyntax { BaseList: not null },
+                transform: static (ctx, _) =>
+                {
+                    if (ctx.SemanticModel.GetDeclaredSymbol(ctx.Node) is not INamedTypeSymbol symbol)
+                    {
+                        return null;
+                    }
+
+                    var handlerInterface = ctx.SemanticModel.Compilation.GetTypeByMetadataName(_handlerInterfaceName);
+
+                    return handlerInterface is not null && IsCandidate(symbol, handlerInterface)
+                        ? symbol
+                        : null;
+                })
+            .Where(static s => s is not null)
+            .Select(static (s, _) => s!);
+
+        context.RegisterSourceOutput(candidates.Collect(), static (spc, handlers) => Execute(spc, handlers));
+    }
+
+    private static void Execute(SourceProductionContext spc, ImmutableArray<INamedTypeSymbol> candidates)
+    {
+        var seen = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var entries = new List<(string TypeName, string Method)>();
+        var methods = new StringBuilder();
+        var accessors = new StringBuilder();
+        var emitter = new Emitter();
+        var index = 0;
+
+        foreach (var handler in candidates.OrderBy(static c => c.ToDisplayString(), System.StringComparer.Ordinal))
+        {
+            if (!seen.Add(handler))
+            {
+                continue;
+            }
+
+            var properties = WritableProperties(handler).ToList();
+
+            if (properties.Count == 0)
+            {
+                continue;
+            }
+
+            var emitted = emitter.TryEmit(handler, properties);
+
+            if (emitted is null)
+            {
+                continue;
+            }
+
+            var typeName = handler.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var method = "Fill_" + index++;
+            entries.Add((typeName, method));
+
+            methods.Append("        private static void ").Append(method)
+                .Append('(').Append(typeName).Append(" h, ").Append(_readerType).Append(" r)\n        {\n")
+                .Append(emitted.Value.Body)
+                .Append("        }\n\n");
+
+            accessors.Append(emitted.Value.Accessors);
+        }
+
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        spc.AddSource("GeneratedPacketReaders.g.cs", BuildSource(entries, methods.ToString(), accessors.ToString()));
+    }
+
+    private static bool IsCandidate(INamedTypeSymbol handler, INamedTypeSymbol handlerInterface)
+    {
+        if (handler.TypeKind != TypeKind.Class || handler.IsAbstract || handler.IsStatic)
+        {
+            return false;
+        }
+
+        if (!handler.TypeParameters.IsEmpty || handler.ContainingType is not null)
+        {
+            return false;
+        }
+
+        if (handler.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal))
+        {
+            return false;
+        }
+
+        if (handler.BaseType?.SpecialType != SpecialType.System_Object)
+        {
+            return false;
+        }
+
+        return handler.AllInterfaces.Contains(handlerInterface, SymbolEqualityComparer.Default);
+    }
+
+    private static IEnumerable<IPropertySymbol> WritableProperties(INamedTypeSymbol type)
+    {
+        foreach (var member in type.GetMembers())
+        {
+            if (member is not IPropertySymbol property)
+            {
+                continue;
+            }
+
+            if (property.IsStatic || property.IsIndexer || property.SetMethod is null)
+            {
+                continue;
+            }
+
+            if (property.DeclaredAccessibility != Accessibility.Public)
+            {
+                continue;
+            }
+
+            yield return property;
+        }
+    }
+
+    private static string BuildSource(List<(string TypeName, string Method)> entries, string methods, string accessors)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append("// <auto-generated/>\n#nullable enable\n");
+        sb.Append("namespace Ada.Networking.Events.Generated\n{\n");
+        sb.Append("    public static class GeneratedPacketReaders\n    {\n");
+
+        sb.Append("        private static readonly global::System.Collections.Frozen.FrozenDictionary<global::System.Type, ")
+            .Append(_actionType).Append("> Readers = Create();\n\n");
+
+        sb.Append("        [global::System.Runtime.CompilerServices.ModuleInitializer]\n");
+        sb.Append("        internal static void Initialize()\n");
+        sb.Append("            => global::Ada.Networking.EventSerializer.FastFill = TryFill;\n\n");
+
+        sb.Append("        public static bool TryFill(object handler, ").Append(_readerType).Append(" reader)\n        {\n");
+        sb.Append("            if (Readers.TryGetValue(handler.GetType(), out var fill))\n            {\n");
+        sb.Append("                fill(handler, reader);\n                return true;\n            }\n\n");
+        sb.Append("            return false;\n        }\n\n");
+
+        sb.Append("        private static global::System.Collections.Frozen.FrozenDictionary<global::System.Type, ")
+            .Append(_actionType).Append("> Create()\n        {\n");
+        sb.Append("            var map = new global::System.Collections.Generic.Dictionary<global::System.Type, ")
+            .Append(_actionType).Append(">(").Append(entries.Count).Append(")\n            {\n");
+
+        foreach (var (typeName, method) in entries)
+        {
+            sb.Append("                [typeof(").Append(typeName).Append(")] = static (o, r) => ")
+                .Append(method).Append("((").Append(typeName).Append(")o, r),\n");
+        }
+
+        sb.Append("            };\n\n");
+        sb.Append("            return global::System.Collections.Frozen.FrozenDictionary.ToFrozenDictionary(map);\n        }\n\n");
+
+        sb.Append(methods);
+        sb.Append(accessors);
+        sb.Append("    }\n}\n");
+
+        return sb.ToString();
+    }
+
+    private sealed class Emitter
+    {
+        private int _accessor;
+        private int _local;
+
+        public (string Body, string Accessors)? TryEmit(INamedTypeSymbol handler, List<IPropertySymbol> properties)
+        {
+            var body = new StringBuilder();
+            var accessors = new StringBuilder();
+
+            foreach (var property in properties)
+            {
+                if (!EmitProperty(handler, property, body, accessors))
+                {
+                    return null;
+                }
+            }
+
+            return (body.ToString(), accessors.ToString());
+        }
+
+        private bool EmitProperty(INamedTypeSymbol handler, IPropertySymbol property, StringBuilder body, StringBuilder accessors)
+        {
+            var lhs = ResolveTarget(handler, property, accessors);
+
+            if (lhs is null)
+            {
+                return false;
+            }
+
+            var scalar = ScalarRead(property.Type);
+
+            if (scalar is not null)
+            {
+                body.Append("            ").Append(lhs).Append(" = ").Append(scalar).Append(";\n");
+                return true;
+            }
+
+            if (property.Type is not INamedTypeSymbol named
+                || named.ContainingNamespace?.ToDisplayString() != "System.Collections.Generic")
+            {
+                return false;
+            }
+
+            if (named.Name == "List" && named.Arity == 1)
+            {
+                var elementType = named.TypeArguments[0];
+                var elementRead = ScalarRead(elementType) ?? DtoInitializer(elementType);
+
+                if (elementRead is null)
+                {
+                    return false;
+                }
+
+                var element = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var id = _local++;
+
+                body.Append("            {\n");
+                body.Append("                var __n").Append(id).Append(" = global::Ada.Networking.EventSerializer.ReadCount(r);\n");
+                body.Append("                var __l").Append(id).Append(" = new global::System.Collections.Generic.List<").Append(element).Append(">();\n");
+                body.Append("                for (var __i").Append(id).Append(" = 0; __i").Append(id).Append(" < __n").Append(id).Append("; __i").Append(id).Append("++)\n");
+                body.Append("                {\n");
+                body.Append("                    __l").Append(id).Append(".Add(").Append(elementRead).Append(");\n");
+                body.Append("                }\n");
+                body.Append("                ").Append(lhs).Append(" = __l").Append(id).Append(";\n");
+                body.Append("            }\n");
+                return true;
+            }
+
+            if (named.Name == "Dictionary" && named.Arity == 2
+                && named.TypeArguments[0].SpecialType == SpecialType.System_String
+                && named.TypeArguments[1].SpecialType == SpecialType.System_String)
+            {
+                var id = _local++;
+
+                body.Append("            {\n");
+                body.Append("                var __n").Append(id).Append(" = global::Ada.Networking.EventSerializer.ReadCount(r);\n");
+                body.Append("                var __d").Append(id).Append(" = new global::System.Collections.Generic.Dictionary<string, string>();\n");
+                body.Append("                for (var __i").Append(id).Append(" = 0; __i").Append(id).Append(" < __n").Append(id).Append(" / 2; __i").Append(id).Append("++)\n");
+                body.Append("                {\n");
+                body.Append("                    var __k").Append(id).Append(" = r.ReadString();\n");
+                body.Append("                    __d").Append(id).Append("[__k").Append(id).Append("] = r.ReadString();\n");
+                body.Append("                }\n");
+                body.Append("                ").Append(lhs).Append(" = __d").Append(id).Append(";\n");
+                body.Append("            }\n");
+                return true;
+            }
+
+            return false;
+        }
+
+        private string? DtoInitializer(ITypeSymbol type)
+        {
+            if (type is not INamedTypeSymbol dto
+                || dto.TypeKind != TypeKind.Class
+                || dto.IsAbstract
+                || !dto.TypeParameters.IsEmpty
+                || dto.BaseType?.SpecialType != SpecialType.System_Object)
+            {
+                return null;
+            }
+
+            if (!dto.InstanceConstructors.Any(c => c.Parameters.IsEmpty && c.DeclaredAccessibility == Accessibility.Public))
+            {
+                return null;
+            }
+
+            var assignments = new List<string>();
+
+            foreach (var property in WritableProperties(dto))
+            {
+                if (property.SetMethod!.DeclaredAccessibility != Accessibility.Public)
+                {
+                    return null;
+                }
+
+                var read = ScalarRead(property.Type);
+
+                if (read is null)
+                {
+                    return null;
+                }
+
+                assignments.Add(property.Name + " = " + read);
+            }
+
+            if (assignments.Count == 0)
+            {
+                return null;
+            }
+
+            return "new " + dto.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + " { " + string.Join(", ", assignments) + " }";
+        }
+
+        private string? ResolveTarget(INamedTypeSymbol handler, IPropertySymbol property, StringBuilder accessors)
+        {
+            var setter = property.SetMethod!;
+
+            if (setter.DeclaredAccessibility == Accessibility.Public && !setter.IsInitOnly)
+            {
+                return "h." + property.Name;
+            }
+
+            var backingField = property.ContainingType.GetMembers()
+                .OfType<IFieldSymbol>()
+                .FirstOrDefault(f => f.IsImplicitlyDeclared && SymbolEqualityComparer.Default.Equals(f.AssociatedSymbol, property));
+
+            if (backingField is null)
+            {
+                return null;
+            }
+
+            var name = "Access_" + _accessor++;
+            var handlerName = handler.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var fieldType = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+            accessors.Append("        [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"")
+                .Append(backingField.Name).Append("\")]\n");
+            accessors.Append("        private static extern ref ").Append(fieldType).Append(' ').Append(name)
+                .Append('(').Append(handlerName).Append(" target);\n\n");
+
+            return name + "(h)";
+        }
+
+        private static string? ScalarRead(ITypeSymbol type) => type.SpecialType switch
+        {
+            SpecialType.System_Int32 => "r.ReadInt()",
+            SpecialType.System_Int64 => "(long) r.ReadInt()",
+            SpecialType.System_String => "r.ReadString()",
+            SpecialType.System_Boolean => "r.ReadBool()",
+            _ => null
+        };
+    }
+}

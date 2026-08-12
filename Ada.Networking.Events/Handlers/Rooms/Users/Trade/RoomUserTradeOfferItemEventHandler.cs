@@ -2,6 +2,7 @@ using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
+using Ada.Game.Rooms;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Trade;
 
@@ -23,9 +24,15 @@ public class RoomUserTradeOfferItemEventHandler(IRoomRepository roomRepository) 
         }
 
         var player = client.Player;
+
+        if (player == null)
+        {
+            return;
+        }
+
         var playerItem = player.Player.FurnitureItems.FirstOrDefault(x => x.Id == ItemId);
 
-        if (playerItem == null)
+        if (playerItem == null || playerItem.PlacementData != null)
         {
             return;
         }

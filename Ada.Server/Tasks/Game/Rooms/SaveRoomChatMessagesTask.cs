@@ -1,11 +1,11 @@
-using AutoMapper;
-using EFCore.BulkExtensions;
-using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using Ada.API.DTOs.Rooms.Chat;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Server.Tasks;
 using Ada.Db;
 using Ada.Db.Models.Rooms.Chat;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Server.Tasks.Game.Rooms;
 
@@ -16,27 +16,68 @@ public class SaveRoomChatMessagesTask(IRoomRepository roomRepository,
     public TimeSpan PeriodicInterval => TimeSpan.FromSeconds(10);
     public long LastExecutedTicks { get; set; }
 
+    private const int _maxRetainedMessagesPerRoom = 150;
+
+    private readonly ParallelOptions _parallelOptions = new()
+    {
+        MaxDegreeOfParallelism = Environment.ProcessorCount
+    };
+
     public async Task ExecuteAsync()
     {
-        var messagesToSave = new List<RoomChatMessageDto>();
-        
-        foreach (var room in roomRepository.GetAllRooms())
-        {
-            var chatMessages = room
-                .Room.ChatMessages
-                .Where(x => x.Id == 0)
-                .ToList();
+        var collected = new ConcurrentBag<List<RoomChatMessageDto>>();
 
-            if (chatMessages.Count == 0)
+        await Parallel.ForEachAsync(
+            roomRepository.GetAllRooms(),
+            _parallelOptions,
+            async (room, _) =>
             {
-                continue;
-            }
+                await room.RunLockedAsync(() =>
+                {
+                    var pending = room.Room.ChatMessages.Where(x => x.Id == 0).ToList();
 
-            messagesToSave.AddRange(chatMessages);
+                    if (pending.Count > 0)
+                    {
+                        collected.Add(pending);
+                    }
+
+                    TrimPersistedMessages(room.Room.ChatMessages);
+
+                    return Task.CompletedTask;
+                });
+            });
+
+        var messagesToSave = collected.SelectMany(x => x).ToList();
+
+        if (messagesToSave.Count == 0)
+        {
+            return;
         }
 
         var entitiesToSave = mapper.Map<List<RoomChatMessage>>(messagesToSave);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        await dbContext.BulkInsertAsync(entitiesToSave);
+
+        dbContext.RoomChatMessages.AddRange(entitiesToSave);
+        await dbContext.SaveChangesAsync();
+
+        for (var i = 0; i < messagesToSave.Count; i++)
+        {
+            messagesToSave[i].Id = entitiesToSave[i].Id;
+        }
+    }
+
+    private static void TrimPersistedMessages(ICollection<RoomChatMessageDto> chatMessages)
+    {
+        var persistedOverflow = chatMessages.Count(x => x.Id != 0) - _maxRetainedMessagesPerRoom;
+
+        if (persistedOverflow <= 0)
+        {
+            return;
+        }
+
+        foreach (var message in chatMessages.Where(x => x.Id != 0).Take(persistedOverflow).ToList())
+        {
+            chatMessages.Remove(message);
+        }
     }
 }

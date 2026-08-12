@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Players;
@@ -6,27 +6,39 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Networking.Writers.Players.Purse;
 using Ada.Networking.Writers.Rooms.Furniture;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 
 [PacketId(EventHandlerId.RedeemItem)]
 public class RoomRedeemItemEventHandler(
-    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler
+    IDbContextFactory<AdaDbContext> dbContextFactory) : INetworkPacketEventHandler, IDefersPersistence
 {
     public required int ItemId { get; init; }
-    
+
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
+
     public async Task HandleAsync(INetworkClient client)
     {
         var player = client.Player;
         var room = client.RoomUser!.Room;
 
-        if (player?.NetworkObject == null || 
-            client.RoomUser == null || 
-            room.Room.OwnerId != client.Player!.Player.Id)
+        if (player?.NetworkObject == null ||
+            client.RoomUser == null ||
+            room.Room.OwnerId != player.Player.Id)
         {
             return;
         }
-        
+
+        var data = player.Player.Data;
+
+        if (data == null)
+        {
+            return;
+        }
+
         var roomFurnitureItem = room
             .Room.FurnitureItems
             .FirstOrDefault(x => x.PlayerFurnitureItemId == ItemId);
@@ -36,24 +48,33 @@ public class RoomRedeemItemEventHandler(
             return;
         }
 
-        var allowedPrefixes = new List<string>
+        if (roomFurnitureItem.PlayerFurnitureItem.PlayerId != player.Player.Id)
         {
-            "CF_",
-            "CFC_",
-            "DF_",
-            "PF_"
-        };
+            return;
+        }
 
         var assetName = roomFurnitureItem
             .PlayerFurnitureItem
             .FurnitureItem
             .AssetName;
-        
-        if (!allowedPrefixes.Any(prefix => assetName.StartsWith(prefix)))
+
+        if (!TryGetRedemptionValue(assetName, out var currency, out var value))
         {
             return;
         }
-        
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+
+        var consumed = await dbContext.PlayerFurnitureItems
+            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id &&
+                        x.PlayerId == player.Player.Id)
+            .ExecuteDeleteAsync();
+
+        if (consumed == 0)
+        {
+            return;
+        }
+
         await room.BroadcastDataAsync(new RoomFloorFurnitureItemRemovedWriter
         {
             Id = roomFurnitureItem.PlayerFurnitureItemId.ToString(),
@@ -61,72 +82,157 @@ public class RoomRedeemItemEventHandler(
             OwnerId = 0,
             Delay = 0
         });
-        
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        dbContext.Entry(roomFurnitureItem).State = EntityState.Deleted;
-        dbContext.Entry(roomFurnitureItem.PlayerFurnitureItem).State = EntityState.Deleted;
-        await dbContext.SaveChangesAsync();
 
-        if (assetName.StartsWith("CF_") ||
-            assetName.StartsWith("CFC_") ||
-            assetName.Contains("_diamond_"))
+        room.Room.FurnitureItems.Remove(roomFurnitureItem);
+
+        var inventoryItem = player.Player.FurnitureItems
+            .FirstOrDefault(x => x.Id == roomFurnitureItem.PlayerFurnitureItemId);
+
+        if (inventoryItem != null)
         {
-            var value = int.TryParse(assetName.Split("_")[1], out var amount) ? 
-                amount : 
-                0;
+            player.Player.FurnitureItems.Remove(inventoryItem);
+        }
 
-            if (assetName.StartsWith("PF_"))
-            {
-                player.Player.Data.PixelBalance += value;
-                dbContext.Entry(player.Player.Data).Property(x => x.PixelBalance).IsModified = true;
-                
-                await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
-                {
-                    Currencies = PlayerCurrencyMapper.FromBalances(
-                        player.Player.Data.PixelBalance,
-                        player.Player.Data.SeasonalBalance,
-                        player.Player.Data.GotwPoints)
-                });
-            }
-            else
-            {
-                player.Player.Data.CreditBalance += value;
-                dbContext.Entry(player.Player.Data).Property(x => x.CreditBalance).IsModified = true;
-                
+        var roomFurnitureItemId = roomFurnitureItem.Id;
+        var playerId = player.Player.Id;
+
+        _persist = async () =>
+        {
+            await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+            await persistContext.RoomFurnitureItems
+                .Where(x => x.Id == roomFurnitureItemId)
+                .ExecuteDeleteAsync();
+
+            await CreditBalanceAsync(persistContext, playerId, currency, value);
+        };
+
+        switch (currency)
+        {
+            case RedemptionCurrency.Credits:
+                data.CreditBalance += value;
+
                 await client.WriteToStreamAsync(new PlayerCreditsBalanceWriter
                 {
-                    Credits = player.Player.Data.CreditBalance
+                    Credits = data.CreditBalance
                 });
-            }
-        }
-        else if (assetName.StartsWith("DF"))
-        {
-            if (!int.TryParse(assetName.Split("_")[1], out var pointsType) || 
-                !int.TryParse(assetName.Split("_")[2], out var points))
-            {
-                return;
-            }
+                break;
 
-            if (pointsType == 5 || assetName.StartsWith("CF_diamond_"))
-            {
-                player.Player.Data.SeasonalBalance += points;
-                dbContext.Entry(player.Player.Data).Property(x => x.SeasonalBalance).IsModified = true;
-            }
-            else if (pointsType == 103)
-            {
-                player.Player.Data.GotwPoints += points;
-                dbContext.Entry(player.Player.Data).Property(x => x.SeasonalBalance).IsModified = true;
-            }
-                
-            await client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
-            {
-                Currencies = PlayerCurrencyMapper.FromBalances(
-    player.Player.Data.PixelBalance,
-    player.Player.Data.SeasonalBalance,
-    player.Player.Data.GotwPoints)
-            });
-        }
+            case RedemptionCurrency.Pixels:
+                data.PixelBalance += value;
+                await WriteActivityPointsAsync(client, data);
+                break;
 
-        await dbContext.SaveChangesAsync();
+            case RedemptionCurrency.Seasonal:
+                data.SeasonalBalance += value;
+                await WriteActivityPointsAsync(client, data);
+                break;
+
+            case RedemptionCurrency.Gotw:
+                data.GotwPoints += value;
+                await WriteActivityPointsAsync(client, data);
+                break;
+        }
     }
+
+    private static async Task CreditBalanceAsync(
+        AdaDbContext dbContext,
+        long playerId,
+        RedemptionCurrency currency,
+        int value)
+    {
+        var query = dbContext.PlayerData.Where(x => x.PlayerId == playerId);
+
+        switch (currency)
+        {
+            case RedemptionCurrency.Credits:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.CreditBalance, x => x.CreditBalance + value));
+                break;
+            case RedemptionCurrency.Pixels:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.PixelBalance, x => x.PixelBalance + value));
+                break;
+            case RedemptionCurrency.Seasonal:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.SeasonalBalance, x => x.SeasonalBalance + value));
+                break;
+            case RedemptionCurrency.Gotw:
+                await query.ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.GotwPoints, x => x.GotwPoints + value));
+                break;
+        }
+    }
+
+    private enum RedemptionCurrency
+    {
+        None,
+        Credits,
+        Pixels,
+        Seasonal,
+        Gotw
+    }
+
+    private static bool TryGetRedemptionValue(string assetName, out RedemptionCurrency currency, out int value)
+    {
+        currency = RedemptionCurrency.None;
+        value = 0;
+
+        var parts = assetName.Split('_');
+
+        if (parts.Length < 2)
+        {
+            return false;
+        }
+
+        switch (parts[0])
+        {
+            case "CF":
+            case "CFC":
+                if (parts[1] == "diamond")
+                {
+                    currency = RedemptionCurrency.Seasonal;
+                    return parts.Length >= 3 && TryParseValue(parts[2], out value);
+                }
+
+                currency = RedemptionCurrency.Credits;
+                return TryParseValue(parts[1], out value);
+
+            case "PF":
+                currency = RedemptionCurrency.Pixels;
+                return TryParseValue(parts[1], out value);
+
+            case "DF":
+                if (parts.Length < 3 ||
+                    !int.TryParse(parts[1], out var pointsType) ||
+                    !TryParseValue(parts[2], out value))
+                {
+                    return false;
+                }
+
+                currency = pointsType switch
+                {
+                    5 => RedemptionCurrency.Seasonal,
+                    103 => RedemptionCurrency.Gotw,
+                    _ => RedemptionCurrency.None
+                };
+
+                return currency != RedemptionCurrency.None;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryParseValue(string raw, out int value)
+        => int.TryParse(raw, out value) && value >= 0;
+
+    private static Task WriteActivityPointsAsync(INetworkClient client, PlayerDataDto data)
+        => client.WriteToStreamAsync(new PlayerActivityPointsBalanceWriter
+        {
+            Currencies = PlayerCurrencyMapper.FromBalances(
+                data.PixelBalance,
+                data.SeasonalBalance,
+                data.GotwPoints)
+        });
 }

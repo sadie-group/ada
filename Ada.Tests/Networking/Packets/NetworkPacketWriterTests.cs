@@ -66,6 +66,24 @@ public class NetworkPacketWriterTests
     }
 
     [Test]
+    public void WriteLong_JustBeyondInt32_ThrowsInsteadOfTruncating()
+    {
+        var writer = new NetworkPacketWriter();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteLong(int.MaxValue + 1L));
+    }
+
+    [Test]
+    public void WriteByte_WritesRawByte()
+    {
+        var writer = new NetworkPacketWriter();
+        writer.WriteByte(0xAB);
+
+        var bytes = writer.GetAllBytes();
+        Assert.That(bytes[4], Is.EqualTo(0xAB));
+    }
+
+    [Test]
     public void GetAllBytes_IncludesLengthPrefix()
     {
         var writer = new NetworkPacketWriter();
@@ -76,5 +94,22 @@ public class NetworkPacketWriterTests
         
         var lengthPrefix = BitConverter.ToInt32(bytes.Take(4).Reverse().ToArray(), 0);
         Assert.That(lengthPrefix, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void WriteLong_ValueFittingInInt32_IsAccepted()
+    {
+        var writer = new NetworkPacketWriter();
+        writer.WriteLong(1234567L);
+
+        Assert.That(writer.GetAllBytes(), Is.Not.Empty);
+    }
+
+    [Test]
+    public void WriteLong_ValueBeyondInt32_ThrowsInsteadOfTruncating()
+    {
+        var writer = new NetworkPacketWriter();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => writer.WriteLong(1234567890123L));
     }
 }

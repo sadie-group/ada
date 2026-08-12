@@ -8,5 +8,7 @@ public interface INetworkPacketWriter
     void WriteLong(long data);
     void WriteBool(bool boolean);
     void WriteByte(byte b);
+    int FramedLength { get; }
+    void WriteFramedTo(Span<byte> destination);
     byte[] GetAllBytes();
 }

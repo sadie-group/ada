@@ -1,7 +1,7 @@
-﻿using Ada.Networking.Encryption.Extensions;
-using System.Globalization;
+﻿using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
+using Ada.Networking.Encryption.Extensions;
 
 namespace Ada.Networking.Encryption;
 
@@ -10,6 +10,8 @@ public class RsaCrypto(string exponent, string modules, string privateExponent)
     private readonly BigInteger _exponent = BigInteger.Parse(exponent, NumberStyles.HexNumber);
     private readonly BigInteger _modules = BigInteger.Parse(modules, NumberStyles.HexNumber);
     private readonly BigInteger _privateExponent = BigInteger.Parse(privateExponent, NumberStyles.HexNumber);
+
+    public int BlockSize => GetBlockSize();
 
     private int GetBlockSize()
     {
@@ -43,17 +45,33 @@ public class RsaCrypto(string exponent, string modules, string privateExponent)
 
     private byte[] DoDecrypt(byte[] src, RsaCalculateDelegate method)
     {
-        if (src.Length > GetBlockSize())
+        var normalised = TrimEncodingPadding(src, GetBlockSize());
+
+        if (normalised.Length > GetBlockSize())
         {
             throw new ArgumentException("Src is to long to encrypt.");
         }
 
-        return Pkcs1Unpad(src.PerformCalculation(method));
+        return Pkcs1Unpad(normalised.PerformCalculation(method));
     }
+
+    private static byte[] TrimEncodingPadding(byte[] src, int blockSize)
+        => src.Length == blockSize + 1 && src[0] == 0 ? src[1..] : src;
 
     private byte[] Pkcs1Pad(byte[] source)
     {
         var n = GetBlockSize();
+
+        var maxMessageLength = n - 11;
+
+        if (source.Length > maxMessageLength)
+        {
+            throw new ArgumentException(
+                $"Message of {source.Length} byte(s) does not fit a {n}-byte RSA key, which carries at " +
+                $"most {maxMessageLength} byte(s) with PKCS#1 v1.5 padding.",
+                nameof(source));
+        }
+
         var bytes = new byte[n];
 
         var i = source.Length - 1;
@@ -78,14 +96,14 @@ public class RsaCrypto(string exponent, string modules, string privateExponent)
 
     private static byte[] Pkcs1Unpad(byte[] src)
     {
-        if (src[0] == 2)
+        if (src.Length >= 1 && src[0] == 2)
         {
             var temp = new byte[src.Length + 1];
             Array.Copy(src, 0, temp, 1, src.Length);
             src = temp;
         }
 
-        if (src[0] != 0 || src[1] != 2)
+        if (src.Length < 2 || src[0] != 0 || src[1] != 2)
         {
             throw new CryptographicException("PKCS v1.5 Decode Error");
         }
@@ -93,7 +111,7 @@ public class RsaCrypto(string exponent, string modules, string privateExponent)
         var startIndex = 2;
         do
         {
-            if (src.Length < startIndex)
+            if (src.Length <= startIndex)
             {
                 throw new CryptographicException("PKCS v1.5 Decode Error");
             }

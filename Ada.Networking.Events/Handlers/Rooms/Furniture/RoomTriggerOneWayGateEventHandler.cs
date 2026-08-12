@@ -12,6 +12,11 @@ public class RoomTriggerOneWayGateEventHandler(IRoomFurnitureItemInteractorRepos
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.RoomUser == null)
+        {
+            return;
+        }
+
         var roomFurnitureItem = client
             .RoomUser
             .Room

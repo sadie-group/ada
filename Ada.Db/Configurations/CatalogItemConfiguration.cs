@@ -1,6 +1,6 @@
+using Ada.Db.Models.Catalog.Items;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Catalog.Items;
 
 namespace Ada.Db.Configurations;
 

@@ -6,3 +6,5 @@ appsettings.json
 .idea/
 *.sln.iml
 plugins/
+TestResults/
+errors*.log

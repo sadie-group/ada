@@ -1,10 +1,10 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Shared.Attributes;
 using Ada.Db;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Networking.Events.Handlers.Navigator;
 
@@ -12,7 +12,7 @@ namespace Ada.Networking.Events.Handlers.Navigator;
 public class SaveNavigatorSettingsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
     IMapper mapper,
-    ILogger<SaveNavigatorSettingsEventHandler> logger) : INetworkPacketEventHandler
+    ILogger<SaveNavigatorSettingsEventHandler> logger) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public int WindowX { get; set; }
     public int WindowY { get; set; }

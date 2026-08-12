@@ -1,6 +1,6 @@
+using Ada.Db.Models.Rooms;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Rooms;
 
 namespace Ada.Db.Configurations.Rooms;
 

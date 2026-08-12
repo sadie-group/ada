@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Logging;
 using Ada.API.Interfaces.Server.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Ada.Server.Tasks;
 
@@ -27,14 +27,13 @@ public class ServerTaskWorker(
 
     private async Task RunPeriodicTaskAsync(IServerTask task, CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
-                var now = DateTime.UtcNow;
-                var last = new DateTime(task.LastExecutedTicks);
+        using var timer = new PeriodicTimer(task.PeriodicInterval);
 
-                if (now - last >= task.PeriodicInterval)
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                try
                 {
                     var sw = Stopwatch.StartNew();
 
@@ -52,22 +51,16 @@ public class ServerTaskWorker(
                         );
                     }
                 }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Unhandled exception in server task '{TaskName}'",
+                        task.GetType().Name);
+                }
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "Unhandled exception in server task '{TaskName}'",
-                    task.GetType().Name);
-            }
-
-            try
-            {
-                await Task.Delay(50, token);
-            }
-            catch (TaskCanceledException)
-            {
-                return;
-            }
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 

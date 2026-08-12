@@ -6,6 +6,7 @@
   <Project Path="Ada.Game/Ada.Game.csproj" />
   <Project Path="Ada.Networking.Encryption/Ada.Networking.Encryption.csproj" />
   <Project Path="Ada.Networking.Events/Ada.Networking.Events.csproj" />
+  <Project Path="Ada.Networking.SourceGen/Ada.Networking.SourceGen.csproj" />
   <Project Path="Ada.Networking.Writers/Ada.Networking.Writers.csproj" />
   <Project Path="Ada.Networking/Ada.Networking.csproj" />
   <Project Path="Ada.Server/Ada.Server.csproj" />

@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Catalog.Pages;
 using Ada.API.DTOs.Players;
 using Ada.API.Interfaces.Networking.Client;
@@ -8,13 +6,15 @@ using Ada.Core.Shared.Attributes;
 using Ada.Db;
 using Ada.Db.Models.Catalog.Pages;
 using Ada.Networking.Writers.Players.Other;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Networking.Events.Handlers.Club;
 
 [PacketId(EventHandlerId.HabboClubGifts)]
 public class HabboClubGiftsEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IMapper mapper) : INetworkPacketEventHandler
+    IMapper mapper) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public async Task HandleAsync(INetworkClient client)
     {
@@ -49,13 +49,13 @@ public class HabboClubGiftsEventHandler(
 
         foreach (var subscription in subscriptions)
         {
-            if (subscription.ExpiresAt >= DateTime.Now)
+            if (subscription.ExpiresAt >= DateTimeOffset.UtcNow)
             {
                 days += (int) (subscription.ExpiresAt - subscription.CreatedAt).TotalDays;
             }
             else
             {
-                days += (int) (DateTime.Now - subscription.CreatedAt).TotalDays;
+                days += (int) (DateTimeOffset.UtcNow - subscription.CreatedAt).TotalDays;
             }
         }
 

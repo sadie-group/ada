@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Helpers;
 using Ada.Db.Models.Furniture;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Ada.Db.Configurations;
 

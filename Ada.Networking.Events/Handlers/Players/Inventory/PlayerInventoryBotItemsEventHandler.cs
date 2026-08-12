@@ -10,6 +10,11 @@ public class PlayerInventoryBotItemsEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         await client.WriteToStreamAsync(new PlayerInventoryBotItemsWriter
         {
             Bots = client.Player.Player.Bots.Where(x => x.RoomId is null).ToList()

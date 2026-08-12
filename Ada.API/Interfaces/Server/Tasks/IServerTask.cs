@@ -14,11 +14,7 @@ public interface IServerTask
             return true;
         }
         
-        var now = Stopwatch.GetTimestamp();
-        var elapsed = now - LastExecutedTicks;
-        var intervalTicks = PeriodicInterval.Ticks * Stopwatch.Frequency / TimeSpan.TicksPerSecond;
-        
-        return elapsed >= intervalTicks;
+        return Stopwatch.GetElapsedTime(LastExecutedTicks) >= PeriodicInterval;
     }
 
     Task ExecuteAsync();

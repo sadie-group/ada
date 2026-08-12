@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.Interfaces.Game.Rooms.Furniture;
+using Ada.API.Interfaces.Game.Rooms.Services;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
+using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Networking.Events.Attributes;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
@@ -11,8 +11,8 @@ namespace Ada.Networking.Events.Handlers.Rooms.Furniture;
 [PacketId(EventHandlerId.RoomItemUse)]
 public class RoomItemUseEventHandler(
     IRoomFurnitureItemInteractorRepository interactorRepository,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomFurnitureItemHelperService roomFurnitureItemHelperService) : INetworkPacketEventHandler
+    IRoomFurnitureItemHelperService roomFurnitureItemHelperService,
+    IRoomWiredService wiredService) : INetworkPacketEventHandler
 {
     public int ItemId { get; init; }
     
@@ -46,6 +46,16 @@ public class RoomItemUseEventHandler(
             {
                 await interactor.OnTriggerAsync(room, roomFurnitureItem, client.RoomUser);
             }
+        }
+
+        var stateTriggers = wiredService.GetTriggers(
+            FurnitureItemInteractionType.WiredTriggerFurnitureStateChanged,
+            room.Room.FurnitureItems,
+            requiredSelectedIds: [roomFurnitureItem.Id]);
+
+        foreach (var trigger in stateTriggers)
+        {
+            await wiredService.RunTriggerForRoomAsync(room, trigger, client.RoomUser);
         }
     }
 }

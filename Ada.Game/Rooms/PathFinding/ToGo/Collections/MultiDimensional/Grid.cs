@@ -28,6 +28,8 @@ public class Grid<T> : IModelAGrid<T>
     public int Height { get; }
 
     public int Width { get; }
+
+    protected T[] BackingArray => _grid;
         
     public IEnumerable<IPosition> GetSuccessorPositions(IPosition node, bool optionsUseDiagonals = false)
     {

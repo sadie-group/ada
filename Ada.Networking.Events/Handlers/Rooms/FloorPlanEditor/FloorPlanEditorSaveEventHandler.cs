@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -8,18 +6,25 @@ using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
 using Ada.Core.Shared.Helpers;
-using Ada.Db;
 using Ada.Db.Models.Rooms;
+using Ada.Db;
+using Ada.Game.Rooms;
 using Ada.Networking.Writers.Generic;
 using Ada.Networking.Writers.Rooms.Users;
+using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace Ada.Networking.Events.Handlers.Rooms.FloorPlanEditor;
 
 [PacketId(EventHandlerId.FloorPlanEditorSave)]
-public class FloorPlanEditorSaveEventHandler(
+public partial class FloorPlanEditorSaveEventHandler(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomRepository roomRepository) : INetworkPacketEventHandler
+    IRoomRepository roomRepository) : INetworkPacketEventHandler, IDefersPersistence
 {
+    private Func<Task>? _persist;
+
+    public Task PersistAsync() => _persist?.Invoke() ?? Task.CompletedTask;
+
     public required string HeightMap { get; init; }
     public required int DoorX { get; init; }
     public required int DoorY { get; init; }
@@ -27,18 +32,23 @@ public class FloorPlanEditorSaveEventHandler(
     public required int WallSize { get; init; }
     public required int FloorSize { get; init; }
     public required int WallHeight { get; init; }
-    
+
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         if (!RoomContextResolver.TryResolveRoomObjectsForClient(roomRepository, client, out var room, out _) ||
-            room.Room.OwnerId != client.Player.Player.Id || 
+            room.Room.OwnerId != client.Player.Player.Id ||
             room.Room.Layout == null)
         {
             return;
         }
 
         var errors = GetErrors();
-        
+
         if (errors.Count != 0)
         {
             await client.WriteToStreamAsync(new BubbleAlertWriter
@@ -49,17 +59,15 @@ public class FloorPlanEditorSaveEventHandler(
                     { "message", string.Join("<br>", errors) }
                 }
             });
-            
+
             return;
         }
 
-        var newLayout = false;
-
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
+
         if (!room.Room.Layout.Name!.Contains("custom_"))
         {
-            room.Room.Layout = new RoomLayoutDto
+            var layoutEntity = new RoomLayout
             {
                 Name = $"custom_{Guid.NewGuid().ToString().Replace("-", "")[..15]}",
                 DoorDirection = DoorDirection,
@@ -67,9 +75,33 @@ public class FloorPlanEditorSaveEventHandler(
                 DoorY = DoorY,
                 Heightmap = HeightMap
             };
-            
-            dbContext.Entry(room.Room.Layout).State = EntityState.Added;
-            newLayout = true;
+
+            dbContext.RoomLayouts.Add(layoutEntity);
+            await dbContext.SaveChangesAsync();
+
+            room.Room.Layout = new RoomLayoutDto
+            {
+                Id = layoutEntity.Id,
+                Name = layoutEntity.Name,
+                DoorDirection = DoorDirection,
+                DoorX = DoorX,
+                DoorY = DoorY,
+                Heightmap = HeightMap
+            };
+
+            room.Room.LayoutId = layoutEntity.Id;
+
+            var newLayoutId = layoutEntity.Id;
+            var roomId = room.Room.Id;
+
+            _persist = async () =>
+            {
+                await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+                await persistContext.Rooms
+                    .Where(x => x.Id == roomId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(x => x.LayoutId, newLayoutId));
+            };
         }
         else
         {
@@ -77,18 +109,21 @@ public class FloorPlanEditorSaveEventHandler(
             room.Room.Layout.DoorX = DoorX;
             room.Room.Layout.DoorY = DoorY;
             room.Room.Layout.Heightmap = HeightMap;
-            
-            dbContext.Entry(room.Room.Layout).State = EntityState.Modified;
-        }
 
-        await dbContext.SaveChangesAsync();
+            var layoutId = room.Room.Layout.Id;
 
-        if (newLayout)
-        {
-            room.Room.LayoutId = room.Room.Layout.Id;
-            
-            dbContext.Entry((Room) room).Property(x => x.LayoutId).IsModified = true;
-            await dbContext.SaveChangesAsync();
+            _persist = async () =>
+            {
+                await using var persistContext = await dbContextFactory.CreateDbContextAsync();
+
+                await persistContext.RoomLayouts
+                    .Where(x => x.Id == layoutId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.DoorDirection, DoorDirection)
+                        .SetProperty(x => x.DoorX, DoorX)
+                        .SetProperty(x => x.DoorY, DoorY)
+                        .SetProperty(x => x.Heightmap, HeightMap));
+            };
         }
 
         var playersToForward = new List<IPlayerLogic>();
@@ -115,16 +150,18 @@ public class FloorPlanEditorSaveEventHandler(
             {
                 continue;
             }
-            
+
             await player.NetworkObject.WriteToStreamAsync(writer);
         }
     }
+
+    private const int _maxDimension = 64;
 
     public List<string> GetErrors()
     {
         var errors = new List<string>();
 
-        if (!Regex.IsMatch(HeightMap, "[a-zA-Z0-9\r]+"))
+        if (!MyRegex().IsMatch(HeightMap))
         {
             errors.Add("${notification.floorplan_editor.error.title}");
         }
@@ -136,12 +173,25 @@ public class FloorPlanEditorSaveEventHandler(
 
         var rows = HeightMap.Split("\r");
 
-        if (DoorX < 0 || DoorX > rows[0].Length || DoorY < 0 || DoorY >= rows.Length)
+        var mapRows = rows.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
+        if (mapRows.Count == 0 ||
+            mapRows.Count > _maxDimension ||
+            mapRows[0].Length > _maxDimension ||
+            mapRows.Any(x => x.Length != mapRows[0].Length))
+        {
+            errors.Add("${notification.floorplan_editor.error.message.too_large_area}");
+        }
+
+        var doorOutsideMap = mapRows.Count == 0 ||
+                             DoorX < 0 || DoorX >= mapRows[0].Length ||
+                             DoorY < 0 || DoorY >= mapRows.Count;
+
+        if (doorOutsideMap)
         {
             errors.Add("${notification.floorplan_editor.error.message.entry_tile_outside_map}");
         }
-
-        if (DoorY < rows.Length && DoorX < rows[DoorY].Length && rows[DoorY][DoorX] == 'x')
+        else if (mapRows[DoorY][DoorX] == 'x')
         {
             errors.Add("${notification.floorplan_editor.error.message.entry_not_on_tile}");
         }
@@ -168,4 +218,7 @@ public class FloorPlanEditorSaveEventHandler(
 
         return errors;
     }
+
+    [GeneratedRegex(@"\A[a-zA-Z0-9\r]+\z")]
+    private static partial Regex MyRegex();
 }

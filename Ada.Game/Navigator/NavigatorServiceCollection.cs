@@ -1,6 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Navigator;
 using Ada.Game.Navigator.Filterers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Navigator;
 
@@ -11,6 +11,7 @@ public static class NavigatorServiceCollection
         var assemblies = AppDomain.CurrentDomain.GetAssemblies();
         
         serviceCollection.AddTransient<INavigatorRoomProvider, NavigatorRoomProvider>();
+        serviceCollection.AddSingleton<INavigatorTabProvider, NavigatorTabProvider>();
         
         serviceCollection.Scan(scan => scan
             .FromAssemblies(assemblies)

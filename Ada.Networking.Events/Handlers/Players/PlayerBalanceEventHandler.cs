@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Networking.Client;
+using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Players;
 using Ada.Core.Shared.Attributes;
@@ -11,7 +11,17 @@ public class PlayerBalanceEventHandler : INetworkPacketEventHandler
 {
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.Player == null)
+        {
+            return;
+        }
+
         var playerData = client.Player.Player.Data;
+
+        if (playerData == null)
+        {
+            return;
+        }
         
         await client.WriteToStreamAsync(new PlayerCreditsBalanceWriter
         {

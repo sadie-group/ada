@@ -1,16 +1,32 @@
 using System.Drawing;
-using Moq;
 using Ada.API.DTOs.Furniture;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Rooms.Unit;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Game.Rooms.Mapping;
+using Moq;
 
 namespace Ada.Tests.Game.Rooms.Mapping;
 
 [TestFixture]
 public class RoomTileMapTests
 {
+    [Test]
+    public void FirstExistingTile_SkipsHolesAndReturnsTheFirstRealTile()
+    {
+        var map = new RoomTileMap("x0\r00", []);
+
+        Assert.That(map.FirstExistingTile(), Is.EqualTo(new Point(1, 0)));
+    }
+
+    [Test]
+    public void FirstExistingTile_LayoutWithNoTiles_ReturnsNull()
+    {
+        var map = new RoomTileMap("xx\rxx", []);
+
+        Assert.That(map.FirstExistingTile(), Is.Null);
+    }
+
     [Test]
     public void UpdateEffectMapForTile_SwimTiles_WorksAsExpected()
     {

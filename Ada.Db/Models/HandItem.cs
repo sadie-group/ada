@@ -6,6 +6,6 @@ namespace Ada.Db.Models;
 public class HandItem
 {
     [Key] public int Id { get; init; }
-    public string Name { get; init; }
+    public string Name { get; init; } = string.Empty;
     public ICollection<FurnitureItem> FurnitureItems { get; init; } = [];
 }

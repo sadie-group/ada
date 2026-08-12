@@ -26,6 +26,6 @@ public class PlayerSubscriptionEventHandler(IPlayerHelperService playerHelperSer
         }
         
         await client.WriteToStreamAsync((PlayerSubscriptionWriter) writer);
-        client.Player.State.LastSubscriptionModification = DateTime.Now;
+        client.Player.State.LastSubscriptionModification = DateTime.UtcNow;
     }
 }

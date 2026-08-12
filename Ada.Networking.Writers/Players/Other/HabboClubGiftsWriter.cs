@@ -32,8 +32,11 @@ public class HabboClubGiftsWriter : AbstractPacketWriter
 
         foreach (var item in ClubGiftPage.Items)
         {
+            var itemName = item.Name ?? string.Empty;
+            var metaData = item.MetaData ?? string.Empty;
+
             writer.WriteInteger(item.Id);
-            writer.WriteString(item.Name);
+            writer.WriteString(itemName);
             writer.WriteBool(false);
             writer.WriteInteger(item.CostCredits);
             writer.WriteInteger(item.CostPoints);
@@ -53,24 +56,24 @@ public class HabboClubGiftsWriter : AbstractPacketWriter
                 {
                     writer.WriteInteger(furnitureItem.AssetId);
 
-                    if (item.Name.Contains("wallpaper_single") || 
-                        item.Name.Contains("floor_single") || 
-                        item.Name.Contains("landscape_single"))
+                    if (itemName.Contains("wallpaper_single") ||
+                        itemName.Contains("floor_single") ||
+                        itemName.Contains("landscape_single"))
                     {
-                        writer.WriteString(item.Name.Split("_")[2]);
+                        writer.WriteString(itemName.Split("_")[2]);
                     }
-                    else if (item.Name.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
+                    else if (itemName.Contains("bot") && furnitureItem.Type == FurnitureItemType.Bot)
                     {
-                        var look = item.MetaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
-                        
+                        var look = metaData.Split(";").FirstOrDefault(x => x.StartsWith("figure:"));
+
                         writer.WriteString(!string.IsNullOrEmpty(look)
                             ? look.Replace("figure:", "")
-                            : item.MetaData);
+                            : metaData);
                     }
-                    else if (furnitureItem.Type == FurnitureItemType.Bot || item.Name.ToLower() == "poster" ||
-                             item.Name.StartsWith("SONG "))
+                    else if (furnitureItem.Type == FurnitureItemType.Bot || itemName.ToLower() == "poster" ||
+                             itemName.StartsWith("SONG "))
                     {
-                        writer.WriteString(item.MetaData);
+                        writer.WriteString(metaData);
                     }
                     else
                     {

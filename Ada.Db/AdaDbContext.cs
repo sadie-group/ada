@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+using Ada.Db.Models.Moderation;
+using Ada.Db.Configuration;
 using Ada.Db.Models;
 using Ada.Db.Models.Catalog;
 using Ada.Db.Models.Catalog.FrontPage;
@@ -6,6 +7,7 @@ using Ada.Db.Models.Catalog.Items;
 using Ada.Db.Models.Catalog.Pages;
 using Ada.Db.Models.Constants;
 using Ada.Db.Models.Furniture;
+using Ada.Db.Models.Groups;
 using Ada.Db.Models.Navigator;
 using Ada.Db.Models.Players;
 using Ada.Db.Models.Players.Furniture;
@@ -13,6 +15,7 @@ using Ada.Db.Models.Rooms;
 using Ada.Db.Models.Rooms.Chat;
 using Ada.Db.Models.Rooms.Rights;
 using Ada.Db.Models.Server;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Db;
 
@@ -28,6 +31,13 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<RoomChatMessage> RoomChatMessages { get; init; }
     public DbSet<PlayerFurnitureItemPlacementData> RoomFurnitureItems { get; init; }
     public DbSet<RoomPlayerRight> RoomPlayerRights { get; init; }
+    public DbSet<RoomWordFilter> RoomWordFilters { get; init; }
+    public DbSet<RoomJukeboxTrack> RoomJukeboxTracks { get; init; }
+    public DbSet<RoomPromotion> RoomPromotions { get; init; }
+    public DbSet<PlayerPhoto> PlayerPhotos { get; init; }
+    public DbSet<PlayerFavouriteRoom> PlayerFavouriteRooms { get; init; }
+    public DbSet<PlayerEffectItem> PlayerEffectItems { get; init; }
+    public DbSet<ModerationAuditEntry> ModerationAuditEntries { get; init; }
     public DbSet<RoomPaintSettings> RoomPaintSettings { get; init; }
     public DbSet<RoomSettings> RoomSettings { get; init; }
     public DbSet<RoomChatSettings> RoomChatSettings { get; init; }
@@ -39,6 +49,7 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<PlayerFurnitureItem> PlayerFurnitureItems { get; init; }
     public DbSet<PlayerFurnitureItemLink> PlayerFurnitureItemLinks { get; init; }
     public DbSet<PlayerBadge> PlayerBadges { get; init; }
+    public DbSet<PlayerAchievement> PlayerAchievements { get; init; }
     public DbSet<Badge> Badges { get; init; }
     public DbSet<CatalogClubOffer> CatalogClubOffers { get; init; }
     public DbSet<ServerPlayerConstants> ServerPlayerConstants { get; init; }
@@ -51,21 +62,28 @@ public class AdaDbContext(DbContextOptions<AdaDbContext> options) : DbContext(op
     public DbSet<Subscription> Subscriptions { get; init; }
     public DbSet<PlayerSubscription> PlayerSubscriptions { get; init; }
     public DbSet<PlayerBot> PlayerBots { get; init; }
+    public DbSet<PlayerPet> PlayerPets { get; init; }
     public DbSet<RoomDimmerSettings> RoomDimmerSettings { get; init; }
     public DbSet<RoomDimmerPreset> RoomDimmerPresets { get; init; }
     public DbSet<PlayerRoomVisit> PlayerRoomVisits { get; init; }
     public DbSet<PlayerRoomLike> PlayerRoomLikes { get; init; }
     public DbSet<PlayerMessage> PlayerMessages { get; init; }
     public DbSet<PlayerBan> PlayerBans { get; init; }
+    public DbSet<ModerationTicket> ModerationTickets { get; init; }
+    public DbSet<ModerationCfhTopic> ModerationCfhTopics { get; init; }
     public DbSet<BannedIpAddress> BannedIpAddresses { get; init; }
+    public DbSet<BannedMachine> BannedMachines { get; init; }
     public DbSet<OauthClient> OauthClients { get; init; }
     public DbSet<PlayerWebsiteData> PlayerWebsiteData { get; init; }
     public DbSet<ServerLocaleText> ServerLocaleTexts { get; init; }
     public DbSet<PlayerWardrobeItem> PlayerWardrobeItems { get; set; }
+    public DbSet<WordFilterEntry> WordFilterEntries { get; set; }
     public DbSet<PlayerRespect> PlayerRespects { get; set; }
+    public DbSet<Group> Groups { get; init; }
+    public DbSet<GroupMembership> GroupMemberships { get; init; }
+    public DbSet<GroupForumThread> GroupForumThreads { get; init; }
+    public DbSet<GroupForumMessage> GroupForumMessages { get; init; }
+    public DbSet<SoundTrack> SoundTracks { get; init; }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AdaDbContext).Assembly);
-    }
+    protected override void OnModelCreating(ModelBuilder modelBuilder) => ModelConfigurationProvider.Active.Apply(modelBuilder);
 }

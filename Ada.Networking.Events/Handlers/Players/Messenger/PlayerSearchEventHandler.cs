@@ -9,25 +9,31 @@ using Ada.Networking.Writers.Players.Messenger;
 namespace Ada.Networking.Events.Handlers.Players.Messenger;
 
 [PacketId(EventHandlerId.PlayerSearch)]
-public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler
+public class PlayerSearchEventHandler(IPlayerRepository playerRepository) : INetworkPacketEventHandler, IRunsOutsideRoomLock
 {
     public string? SearchQuery { get; set; }
     
     public async Task HandleAsync(INetworkClient client)
     {
-        if ((DateTime.Now - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
+        if (client.Player == null)
+        {
+            return;
+        }
+
+        if ((DateTime.UtcNow - client.Player.State.LastPlayerSearch).TotalMilliseconds < CooldownIntervals.PlayerSearch)
         {
             return;
         }
         
-        client.Player.State.LastPlayerSearch = DateTime.Now;
+        client.Player.State.LastPlayerSearch = DateTime.UtcNow;
 
-        if (string.IsNullOrEmpty(SearchQuery))
+        SearchQuery = SearchQuery?.Trim().Truncate(20);
+
+        if (string.IsNullOrEmpty(SearchQuery) ||
+            SearchQuery.Length < SearchLimits.MinPlayerQueryLength)
         {
             return;
         }
-
-        SearchQuery = SearchQuery.Truncate(20);
 
         var outgoingFriends = client
             .Player!

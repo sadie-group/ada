@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Hosting;
 using Ada.Core.Shared;
+using Microsoft.Extensions.Hosting;
 using Spectre.Console;
 
 namespace Ada.Console.Services;
@@ -21,14 +21,14 @@ public class ConsoleBannerService : IHostedService
 
         AnsiConsole.Write(
             new Markup("[hotpink]" + @"
-  /$$$$$$                  /$$ /$$          
- /$$__  $$                | $$|__/          
-| $$  \__/  /$$$$$$   /$$$$$$$ /$$  /$$$$$$ 
-|  $$$$$$  |____  $$ /$$__  $$| $$ /$$__  $$
- \____  $$  /$$$$$$$| $$  | $$| $$| $$$$$$$$
- /$$  \ $$ /$$__  $$| $$  | $$| $$| $$_____/
-|  $$$$$$/|  $$$$$$$|  $$$$$$$| $$|  $$$$$$$
- \______/  \_______/ \_______/|__/ \_______/" + "[/]")
+          /$$$$$$        /$$
+         /$$__  $$      | $$
+        | $$  \ $$  /$$$$$$$  /$$$$$$
+        | $$$$$$$$ /$$__  $$ |____  $$
+        | $$__  $$| $$  | $$  /$$$$$$$
+        | $$  | $$| $$  | $$ /$$__  $$
+        | $$  | $$|  $$$$$$$|  $$$$$$$
+        |__/  |__/ \_______/ \_______/" + "[/]")
                 .Centered()
         );
 

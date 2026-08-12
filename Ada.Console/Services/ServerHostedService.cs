@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using Ada.API;
+using Ada.Game.Players.Options;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Ada.API;
-using Ada.Game.Players.Options;
 
 namespace Ada.Console.Services;
 

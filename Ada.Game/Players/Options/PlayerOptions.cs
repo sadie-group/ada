@@ -2,5 +2,7 @@ namespace Ada.Game.Players.Options;
 
 public class PlayerOptions
 {
-    public required bool CanReuseSsoTokens { get; init; }
+    public bool CanReuseSsoTokens { get; init; }
+    public int SsoGraceSeconds { get; init; } = 5;
+    public bool RequireHashedSsoTokens { get; init; } = true;
 }

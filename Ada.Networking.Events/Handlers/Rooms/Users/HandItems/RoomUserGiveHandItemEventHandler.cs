@@ -12,6 +12,11 @@ public class RoomUserGiveHandItemEventHandler : INetworkPacketEventHandler
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.RoomUser == null)
+        {
+            return;
+        }
+
         var room = client.RoomUser.Room;
         
         if (!room.UserRepository.TryGetById(UserId, out var toUser) || toUser == null)
@@ -41,9 +46,9 @@ public class RoomUserGiveHandItemEventHandler : INetworkPacketEventHandler
         });
 
         fromUser.HandItemId = handItemId;
-        fromUser.HandItemSet = DateTime.Now;
+        fromUser.HandItemSet = DateTime.UtcNow;
         
         toUser.HandItemId = handItemId;
-        toUser.HandItemSet = DateTime.Now;
+        toUser.HandItemSet = DateTime.UtcNow;
     }
 }

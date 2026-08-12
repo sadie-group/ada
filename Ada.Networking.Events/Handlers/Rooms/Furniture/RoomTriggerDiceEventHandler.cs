@@ -15,6 +15,11 @@ public class RoomTriggerDiceEventHandler(IRoomFurnitureItemInteractorRepository 
     
     public async Task HandleAsync(INetworkClient client)
     {
+        if (client.RoomUser == null)
+        {
+            return;
+        }
+
         var roomFurnitureItem = client
             .RoomUser
             .Room

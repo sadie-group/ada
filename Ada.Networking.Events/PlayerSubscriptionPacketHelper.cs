@@ -11,12 +11,12 @@ public static class PlayerSubscriptionPacketHelper
         {
             var tillExpire = playerSub.ExpiresAt - playerSub.CreatedAt;
 
-            await player.NetworkObject.WriteToStreamAsync(new PlayerSubscriptionWriter
+            await player.NetworkObject!.WriteToStreamAsync(new PlayerSubscriptionWriter
             {
-                Name = playerSub.Subscription.Name.ToLower(),
+                Name = playerSub.Subscription?.Name?.ToLower() ?? string.Empty,
                 DaysLeft = (int)tillExpire.TotalDays,
                 MinutesTillExpire = (int)tillExpire.TotalMinutes,
-                MinutesSinceModified = (int)(DateTime.Now - player.State.LastSubscriptionModification).TotalMinutes,
+                MinutesSinceModified = (int)(DateTime.UtcNow - player.State.LastSubscriptionModification).TotalMinutes,
                 MemberPeriods = 0,
                 PeriodsSubscribedAhead = 0,
                 ResponseType = 1,
@@ -26,7 +26,7 @@ public static class PlayerSubscriptionPacketHelper
                 PastVipDays = 0
             });
 
-            player.State.LastSubscriptionModification = DateTime.Now;
+            player.State.LastSubscriptionModification = DateTime.UtcNow;
         }
     }
 }

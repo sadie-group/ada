@@ -1,14 +1,16 @@
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Rooms.Chat;
-using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Services;
+using Ada.API.Interfaces.Game.Rooms;
+using Ada.API.Interfaces.Game.WordFilter;
 using Ada.API.Interfaces.Networking.Client;
 using Ada.API.Interfaces.Networking.Events.Handlers;
 using Ada.Core.Enums.Game.Rooms;
+using Ada.Core.Enums.Game.WordFilter;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Core.Shared.Attributes;
-using Ada.Db;
 using Ada.Db.Models.Constants;
+using Ada.Game.Rooms;
+using Ada.Networking.Writers.Rooms.Users.Chat;
 using Ada.Networking.Writers.Rooms.Users;
 
 namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
@@ -17,8 +19,9 @@ namespace Ada.Networking.Events.Handlers.Rooms.Users.Chat;
 public class RoomUserWhisperEventHandler(
     IRoomRepository roomRepository, 
     ServerRoomConstants roomConstants,
-    IDbContextFactory<AdaDbContext> dbContextFactory,
-    IRoomHelperService roomHelperService)
+    IRoomHelperService roomHelperService,
+    IWordFilterService wordFilterService,
+    IRoomFloodProtectionService floodProtectionService)
     : INetworkPacketEventHandler
 {
     public required string Data { get; init; }
@@ -45,6 +48,42 @@ public class RoomUserWhisperEventHandler(
             return;
         }
 
+        var playerId = roomUser.Player.Player.Id;
+
+        if (floodProtectionService.IsMuted(playerId, out var remainingSeconds))
+        {
+            await roomUser.NetworkObject.WriteToStreamAsync(new RoomUserFloodControlWriter
+            {
+                Seconds = remainingSeconds
+            });
+            
+            return;
+        }
+
+        var muteSeconds = floodProtectionService.RegisterMessage(
+            playerId,
+            room.Room.ChatSettings?.ChatProtection ?? 0,
+            playerId == room.Room.OwnerId);
+
+        if (muteSeconds != null)
+        {
+            await roomUser.NetworkObject.WriteToStreamAsync(new RoomUserFloodControlWriter
+            {
+                Seconds = muteSeconds.Value
+            });
+            
+            return;
+        }
+
+        var filterResult = wordFilterService.Filter(whisperMessage, WordFilterContext.Whisper);
+
+        if (filterResult.IsBlocked)
+        {
+            return;
+        }
+
+        whisperMessage = filterResult.FilteredText;
+
         var chatMessage = new RoomChatMessageDto
         {
             RoomId = room.Room.Id,
@@ -67,8 +106,14 @@ public class RoomUserWhisperEventHandler(
         };
         
         await roomUser.NetworkObject.WriteToStreamAsync(packetBytes);
+
+        if (filterResult.IsShadowBlocked)
+        {
+            return;
+        }
+
         await targetUser.NetworkObject.WriteToStreamAsync(packetBytes);
-        
+
         room.Room.ChatMessages.Add(chatMessage);
     }
 }

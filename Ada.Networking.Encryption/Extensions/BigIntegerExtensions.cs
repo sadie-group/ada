@@ -1,19 +1,15 @@
 ﻿using System.Numerics;
+using System.Security.Cryptography;
 
 namespace Ada.Networking.Encryption.Extensions;
 
 public static class BigIntegerExtensions
 {
-    private static readonly Random Random = new();
-
     public static byte[] PerformCalculation(this byte[] src, RsaCalculateDelegate method)
     {
-        Array.Reverse(src);
-        BigInteger data = new(src);
+        var data = new BigInteger(src, isUnsigned: true, isBigEndian: true);
 
-        data = method(data);
-
-        var result = data.ToByteArray();
+        var result = method(data).ToByteArray();
         Array.Reverse(result);
 
         return result;
@@ -26,11 +22,11 @@ public static class BigIntegerExtensions
         BigInteger result;
         do
         {
-            Random.NextBytes(bytes);
+            RandomNumberGenerator.Fill(bytes);
             bytes[^1] &= 127;
             result = new BigInteger(bytes);
         }
-        while (result.IsProbablePrime(certainty));
+        while (!result.IsProbablePrime(certainty));
 
         return result;
     }
@@ -104,7 +100,7 @@ public static class BigIntegerExtensions
         BigInteger result;
         do
         {
-            Random.NextBytes(buffer);
+            RandomNumberGenerator.Fill(buffer);
             buffer[^1] &= 127;
             result = new BigInteger(buffer);
         } while (result < minValue || result >= maxValue);

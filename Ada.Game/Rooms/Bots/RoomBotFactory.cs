@@ -1,7 +1,7 @@
 ﻿using System.Drawing;
-using Microsoft.Extensions.DependencyInjection;
 using Ada.API.Interfaces.Game.Rooms;
 using Ada.API.Interfaces.Game.Rooms.Bots;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Ada.Game.Rooms.Bots;
 

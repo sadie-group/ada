@@ -1,5 +1,3 @@
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 using Ada.API.DTOs.Players.Furniture;
 using Ada.API.Interfaces.Game.Players;
 using Ada.API.Interfaces.Game.Rooms;
@@ -8,15 +6,15 @@ using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Furniture;
 using Ada.Core.Enums.Miscellaneous;
 using Ada.Db;
-using Ada.Db.Models.Players.Furniture;
 using Ada.Networking.Writers.Rooms.Furniture;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace Ada.Game.Rooms.Furniture;
 
 public class RoomFurnitureItemHelperService(
     IDbContextFactory<AdaDbContext> dbContextFactory,
-    IPlayerRepository playerRepository,
-    IMapper mapper) : IRoomFurnitureItemHelperService
+    IPlayerRepository playerRepository) : IRoomFurnitureItemHelperService
 {
     public async Task CycleInteractionStateForItemAsync(
         IRoomLogic room, 
@@ -41,16 +39,13 @@ public class RoomFurnitureItemHelperService(
         }
 
         await UpdateMetaDataForItemAsync(room, roomFurnitureItem, (state + 1).ToString());
-        
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        
-        var playerFurnitureItemEntity = mapper.Map<PlayerFurnitureItem>(roomFurnitureItem.PlayerFurnitureItem);
-        
-        dbContext
-            .Entry(playerFurnitureItemEntity)
-            .Property(x => x.MetaData).IsModified = true;
-        
-        await dbContext.SaveChangesAsync();
+
+        await dbContext.PlayerFurnitureItems
+            .IgnoreAutoIncludes()
+            .Where(x => x.Id == roomFurnitureItem.PlayerFurnitureItem.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.MetaData, roomFurnitureItem.PlayerFurnitureItem.MetaData));
     }
 
     public async Task UpdateMetaDataForItemAsync(

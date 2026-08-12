@@ -1,6 +1,6 @@
+using Ada.Db.Models.Players.Furniture;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ada.Db.Models.Players.Furniture;
 
 namespace Ada.Db.Configurations.Players.FurnitureItems;
 

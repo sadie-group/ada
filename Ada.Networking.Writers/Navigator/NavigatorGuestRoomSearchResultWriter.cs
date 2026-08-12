@@ -1,4 +1,4 @@
-﻿using Ada.API.Interfaces.Game.Players;
+using Ada.API;
 using Ada.API.Interfaces.Networking;
 using Ada.Core.Enums.Game.Rooms;
 using Ada.Core.Shared.Attributes;
@@ -13,24 +13,48 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
     public required List<RoomData> Rooms { get; init; }
     public required bool HasAdditional { get; init; }
     public required OfficialRoomEntryData OfficialRoomEntryData { get; init; }
-    public required IPlayerRepository PlayerRepository { get; init; }
+    public string GuestRoomOwnerUsername { get; init; } = "Unknown User";
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(GetType().GetProperty(nameof(OfficialRoomEntryData))!, async writer =>
+        writer.WriteInteger(SearchType);
+        writer.WriteString(SearchParam ?? "");
+        writer.WriteInteger(Rooms.Count);
+
+        foreach (var room in Rooms)
         {
-            if (!HasAdditional)
+            writer.WriteInteger(room.Id);
+            writer.WriteString(room.Name ?? "");
+            writer.WriteLong(room.OwnerId);
+            writer.WriteString(room.OwnerUsername ?? "");
+            writer.WriteInteger(room.AccessType);
+            writer.WriteInteger(room.UserCount);
+            writer.WriteInteger(room.MaxUsers);
+            writer.WriteString(room.Description ?? "");
+            writer.WriteInteger(room.TradeOption);
+            writer.WriteInteger(room.Score);
+            writer.WriteInteger(room.Ranking);
+            writer.WriteInteger(room.CategoryId);
+            writer.WriteInteger(room.Tags.Count);
+
+            foreach (var tag in room.Tags)
             {
-                return;
+                writer.WriteString(tag ?? "");
             }
-            
+
+            writer.WriteInteger(room.Bitmask);
+        }
+
+        writer.WriteBool(HasAdditional);
+
+        if (HasAdditional)
+        {
             writer.WriteInteger(OfficialRoomEntryData.Index);
             writer.WriteString(OfficialRoomEntryData.PopupCaption);
             writer.WriteString(OfficialRoomEntryData.PopupDescription);
             writer.WriteInteger(OfficialRoomEntryData.ShowDetails);
             writer.WriteString(OfficialRoomEntryData.PictureText);
             writer.WriteString(OfficialRoomEntryData.PictureRef);
-            
             writer.WriteInteger(OfficialRoomEntryData.FolderId);
             writer.WriteInteger(OfficialRoomEntryData.UserCount);
             writer.WriteInteger((int) OfficialRoomEntryData.Type);
@@ -43,16 +67,16 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
                 case OfficialRoomEntryDataType.GuestRoom:
                 {
                     var guestRoom = OfficialRoomEntryData.GuestRoom;
-                    
+
                     writer.WriteInteger(guestRoom!.Id);
                     writer.WriteString(guestRoom.Name);
                     writer.WriteLong(guestRoom.OwnerId);
-                    writer.WriteString(await PlayerRepository.GetPlayerUsernameByIdAsync(guestRoom.OwnerId) ?? "Unknown User");
-                    writer.WriteInteger((int) guestRoom.Settings.AccessType);
+                    writer.WriteString(GuestRoomOwnerUsername);
+                    writer.WriteInteger(guestRoom.Settings == null ? 0 : (int) guestRoom.Settings.AccessType);
                     writer.WriteInteger(OfficialRoomEntryData.UserCount);
                     writer.WriteInteger(guestRoom.MaxUsersAllowed);
                     writer.WriteString(guestRoom.Description);
-                    writer.WriteInteger((int) guestRoom.Settings.TradeOption);
+                    writer.WriteInteger(guestRoom.Settings == null ? 0 : (int) guestRoom.Settings.TradeOption);
                     writer.WriteInteger(guestRoom.PlayerLikes.Count);
                     writer.WriteInteger(0);
                     writer.WriteInteger(1);
@@ -62,7 +86,7 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
                     {
                         writer.WriteString(tag.Name);
                     }
-                
+
                     writer.WriteInteger((int) RoomBitmask.ShowOwner);
                     break;
                 }
@@ -72,6 +96,8 @@ public class NavigatorGuestRoomSearchResultWriter : AbstractPacketWriter
                     writer.WriteBool(OfficialRoomEntryData.Open);
                     break;
             }
-        });
+        }
+
+        writer.WriteString(GuestRoomOwnerUsername ?? "");
     }
 }

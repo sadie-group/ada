@@ -14,18 +14,18 @@ public class PlayerInventoryFurnitureItemsWriter : AbstractPacketWriter
     public required int CurrentPage { get; init; }
     public required List<PlayerFurnitureItemDto> Items { get; init; }
 
-    public override void OnConfigureRules()
+    public override void OnSerialize(INetworkPacketWriter writer)
     {
-        Override(GetType().GetProperty(nameof(Items))!, writer =>
-        {
-            writer.WriteInteger(Items.Count);
+        writer.WriteInteger(Pages);
+        writer.WriteInteger(CurrentPage);
+        writer.WriteInteger(Items.Count);
 
-            foreach (var item in Items)
-            {
-                WriteItem(item, writer);
-            }
-        });
+        foreach (var item in Items)
+        {
+            WriteItem(item, writer);
+        }
     }
+
 
     private static void WriteItem(PlayerFurnitureItemDto item, INetworkPacketWriter writer)
     {
