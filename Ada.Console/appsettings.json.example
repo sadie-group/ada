@@ -10,7 +10,7 @@
     ]
   },
   "ConnectionStrings": {
-    "Default": "Server=127.0.0.1;Database=sadie;Uid=root;Pwd="
+    "Default": "Server=127.0.0.1;Database=sadie;Uid=ada;Pwd="
   },
   "PluginDirectory": "",
   "PluginAssemblies": [],
@@ -25,8 +25,12 @@
     "Port": "2096",
     "UseWss": false,
     "CertificateFile": "",
-    "AllowInsecureTransport": false,
-    "AllowedOrigins": "",
+    "AllowInsecureTransport": true,
+    // Comma-separated list of origins the client is served from. Every connection whose Origin
+    // header isn't listed is refused, so an empty value fails startup rather than silently
+    // accepting sockets opened from any web page. Use "*" to accept any origin on purpose.
+    "AllowedOrigins": "*",
+    "TrustedProxies": "",
     "PacketOptions": {
       "BufferByteSize": 4024,
       "FrameLengthByteCount": 4
