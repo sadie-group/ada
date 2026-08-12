@@ -18,7 +18,7 @@ public class PlayerLoaderService(IDbContextFactory<AdaDbContext> dbContextFactor
         var digest = SsoTokenHasher.Hash(token);
         var acceptRaw = !playerOptions.Value.RequireHashedSsoTokens;
         var grace = TimeSpan.FromSeconds(Math.Clamp(playerOptions.Value.SsoGraceSeconds, 0, 60));
-        var expires = DateTime.Now.Subtract(grace);
+        var expires = DateTimeOffset.UtcNow.Subtract(grace);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
@@ -38,7 +38,7 @@ public class PlayerLoaderService(IDbContextFactory<AdaDbContext> dbContextFactor
             return mapper.Map<PlayerSsoTokenDto>(entity);
         }
 
-        var usedAt = DateTime.Now;
+        var usedAt = DateTimeOffset.UtcNow;
 
         var claimed = await dbContext.PlayerSsoToken
             .Where(x => x.Id == entity.Id && x.UsedAt == null)

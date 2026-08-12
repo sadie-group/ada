@@ -17,4 +17,5 @@ public class PlayerState : IPlayerState
     public int PendingDoorbellRoomId { get; set; }
     public PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
     public IPlayerUnseenItems UnseenItems { get; } = new PlayerUnseenItems();
+    public IPlayerNavigatorState Navigator { get; } = new PlayerNavigatorState();
 }

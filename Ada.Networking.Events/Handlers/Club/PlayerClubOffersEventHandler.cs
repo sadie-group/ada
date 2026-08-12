@@ -34,7 +34,7 @@ public class PlayerClubOffersEventHandler(
         if (clubSubscription != null)
         {
             var daysTotal = (clubSubscription.ExpiresAt - clubSubscription.CreatedAt).TotalDays;
-            var daysSinceStarted = (DateTime.Now - clubSubscription.CreatedAt).TotalDays;
+            var daysSinceStarted = (DateTimeOffset.UtcNow - clubSubscription.CreatedAt).TotalDays;
 
             daysRemaining = (int)(daysTotal - daysSinceStarted);
         }
