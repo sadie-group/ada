@@ -191,7 +191,17 @@ public class PlayerRepository(
 
     public Task BroadcastDataAsync(AbstractPacketWriter writer)
     {
-        PacketBroadcast.SendAndFlush(writer, _players.Values.Select(player => player.NetworkObject!));
+        var recipients = new List<Ada.API.INetworkObject>(_players.Count);
+
+        foreach (var player in _players.Values)
+        {
+            if (player.NetworkObject != null)
+            {
+                recipients.Add(player.NetworkObject);
+            }
+        }
+
+        PacketBroadcast.SendAndFlush(writer, recipients);
 
         return Task.CompletedTask;
     }

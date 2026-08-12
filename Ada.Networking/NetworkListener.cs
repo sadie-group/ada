@@ -21,6 +21,8 @@ public class NetworkListener(
     private readonly NetworkOptions _options = options.Value;
     private WebApplication? _app;
 
+    private const string _anyOrigin = "*";
+
     private readonly ConcurrentDictionary<IPAddress, int> _connectionsPerAddress = new();
     private int _connections;
 
@@ -112,6 +114,13 @@ public class NetworkListener(
 
         if (string.IsNullOrWhiteSpace(allowed))
         {
+            return false;
+        }
+
+        var entries = allowed.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (entries.Contains(_anyOrigin))
+        {
             return true;
         }
 
@@ -120,18 +129,17 @@ public class NetworkListener(
             return false;
         }
 
-        return allowed
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase));
+        return entries.Any(x => string.Equals(x, origin, StringComparison.OrdinalIgnoreCase));
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.AllowedOrigins))
+        if (_options.AllowedOrigins?.Contains(_anyOrigin, StringComparison.Ordinal) == true)
         {
             logger.LogWarning(
-                "NetworkOptions:AllowedOrigins is empty, so a socket opened from any web page is " +
-                "accepted. List the origins your client is served from to close that off.");
+                "NetworkOptions:AllowedOrigins is '{AnyOrigin}', so a socket opened from any web page is " +
+                "accepted. List the origins your client is served from to close that off.",
+                _anyOrigin);
         }
 
         if (!AddressResolver.HasTrustedProxies)

@@ -17,6 +17,14 @@ public class NetworkOptionsValidator : IValidateOptions<NetworkOptions>
             return ValidateOptionsResult.Fail($"{nameof(NetworkOptions)} 'CertificateFile' is set but doesn't exist.");
         }
 
+        if (string.IsNullOrWhiteSpace(options.AllowedOrigins))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(NetworkOptions)} 'AllowedOrigins' is empty, so every connection would be refused. " +
+                "List the origins your client is served from as a comma-separated value, or set it to '*' " +
+                "to accept a socket opened from any web page.");
+        }
+
         if (options.MaxConnections < 0)
         {
             return ValidateOptionsResult.Fail(
