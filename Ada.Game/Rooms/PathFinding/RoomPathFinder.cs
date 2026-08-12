@@ -1,7 +1,6 @@
 ﻿using System.Drawing;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding;
 using Ada.API.Interfaces.Game.Rooms.Pathfinding.ToGo;
-using Ada.API.Interfaces.Game.Rooms.Pathfinding.ToGo.Heuristics;
 using Ada.Game.Rooms.PathFinding.ToGo;
 using Ada.Game.Rooms.PathFinding.ToGo.Collections.PathFinder;
 using Ada.Game.Rooms.PathFinding.ToGo.Heuristics;
@@ -14,7 +13,7 @@ public class RoomPathFinder : IRoomPathFinder
     private const int _closed = 0;
     private const int _stepCost = 1;
     private readonly PathFinderOptions _opts;
-    private readonly ICalculateHeuristic _heuristic;
+    private readonly HeuristicFormula _heuristicFormula;
     private readonly PathFinderGraph _graph;
     private readonly Position[] _backtrackBuf;
     private readonly Lock _searchLock = new();
@@ -22,7 +21,7 @@ public class RoomPathFinder : IRoomPathFinder
     public RoomPathFinder(int height, int width, PathFinderOptions? opts = null)
     {
         _opts = opts ?? new PathFinderOptions();
-        _heuristic = HeuristicFactory.Create(_opts.HeuristicFormula);
+        _heuristicFormula = _opts.HeuristicFormula;
         _graph = new PathFinderGraph(height, width, _opts.UseDiagonals);
         _backtrackBuf = new Position[height * width];
     }
@@ -102,7 +101,7 @@ public class RoomPathFinder : IRoomPathFinder
                     g += CalculateModifier(q, s, end);
                 }
 
-                var n = new PathFinderNode(s.Position, g, _heuristic.Calculate(s.Position, end), q.Position);
+                var n = new PathFinderNode(s.Position, g, PositionHeuristic.Calculate(_heuristicFormula, s.Position, end), q.Position);
 
                 if (!_graph.WasVisited(s.Position) || n.F < s.F)
                 {
@@ -136,10 +135,7 @@ public class RoomPathFinder : IRoomPathFinder
 
         while (left < right)
         {
-            var tmp = _backtrackBuf[left];
-
-            _backtrackBuf[left] = _backtrackBuf[right];
-            _backtrackBuf[right] = tmp;
+            (_backtrackBuf[left], _backtrackBuf[right]) = (_backtrackBuf[right], _backtrackBuf[left]);
 
             left++;
             right--;

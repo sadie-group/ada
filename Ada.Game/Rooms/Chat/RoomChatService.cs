@@ -115,13 +115,7 @@ public static class RoomChatService
             return;
         }
 
-        var excludedIds = room.UserRepository
-            .GetAll()
-            .Where(x =>
-                x.Player.Player.OutgoingIgnores
-                    .Any(i => i.TargetPlayerId == roomUser.Player.Player.Id))
-            .Select(x => x.Player.Player.Id)
-            .ToList();
+        var excludedIds = ResolveIgnoringPlayerIds(room, playerId);
 
         await room.BroadcastDataAsync(
             BuildChatWriter(shouting, playerId, message, emotionId, bubble),
@@ -152,6 +146,27 @@ public static class RoomChatService
                 trigger,
                 roomUser);
         }
+    }
+
+    private static List<long>? ResolveIgnoringPlayerIds(IRoomLogic room, long senderId)
+    {
+        List<long>? excluded = null;
+
+        foreach (var user in room.UserRepository.GetAll())
+        {
+            foreach (var ignore in user.Player.Player.OutgoingIgnores)
+            {
+                if (ignore.TargetPlayerId != senderId)
+                {
+                    continue;
+                }
+
+                (excluded ??= []).Add(user.Player.Player.Id);
+                break;
+            }
+        }
+
+        return excluded;
     }
 
     private static AbstractPacketWriter BuildChatWriter(
