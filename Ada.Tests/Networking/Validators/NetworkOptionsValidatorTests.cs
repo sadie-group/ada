@@ -11,14 +11,14 @@ public class NetworkOptionsValidatorTests
     [Test]
     public void Validate_ValidOptions_Succeeds()
     {
-        var result = _validator.Validate(null, new NetworkOptions { Host = "127.0.0.1", Port = 30000, AllowInsecureTransport = true });
+        var result = _validator.Validate(null, new NetworkOptions { Host = "127.0.0.1", Port = 30000, AllowInsecureTransport = true, AllowedOrigins = "*" });
         Assert.That(result.Succeeded, Is.True);
     }
 
     [Test]
     public void Validate_DefaultConnectionCaps_Succeed()
     {
-        var options = new NetworkOptions { Host = "127.0.0.1", Port = 30000, AllowInsecureTransport = true };
+        var options = new NetworkOptions { Host = "127.0.0.1", Port = 30000, AllowInsecureTransport = true, AllowedOrigins = "*" };
 
         Assert.Multiple(() =>
         {
@@ -66,6 +66,7 @@ public class NetworkOptionsValidatorTests
         {
             Host = "127.0.0.1",
             AllowInsecureTransport = true,
+            AllowedOrigins = "*",
             MaxConnections = 0,
             MaxConnectionsPerAddress = 0
         };
@@ -93,7 +94,37 @@ public class NetworkOptionsValidatorTests
         {
             Host = "127.0.0.1",
             UseWss = false,
-            AllowInsecureTransport = true
+            AllowInsecureTransport = true,
+            AllowedOrigins = "*"
+        };
+
+        Assert.That(_validator.Validate(null, options).Succeeded, Is.True);
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void Validate_MissingAllowedOrigins_Fails(string? origins)
+    {
+        var options = new NetworkOptions
+        {
+            Host = "127.0.0.1",
+            AllowInsecureTransport = true,
+            AllowedOrigins = origins
+        };
+
+        Assert.That(_validator.Validate(null, options).Failed, Is.True,
+            "an empty allowlist refuses every connection, so it must be reported at startup");
+    }
+
+    [Test]
+    public void Validate_NamedAllowedOrigins_Succeeds()
+    {
+        var options = new NetworkOptions
+        {
+            Host = "127.0.0.1",
+            AllowInsecureTransport = true,
+            AllowedOrigins = "https://hotel.example, https://www.hotel.example"
         };
 
         Assert.That(_validator.Validate(null, options).Succeeded, Is.True);
@@ -122,7 +153,7 @@ public class NetworkOptionsValidatorTests
         var path = Path.GetTempFileName();
         try
         {
-            var options = new NetworkOptions { Host = "127.0.0.1", UseWss = true, CertificateFile = path };
+            var options = new NetworkOptions { Host = "127.0.0.1", UseWss = true, CertificateFile = path, AllowedOrigins = "*" };
             var result = _validator.Validate(null, options);
             Assert.That(result.Succeeded, Is.True);
         }
