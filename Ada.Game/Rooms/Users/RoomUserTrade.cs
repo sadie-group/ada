@@ -38,7 +38,14 @@ public class RoomUserTrade(
 
     public Task BroadcastToUsersAsync(AbstractPacketWriter writer)
     {
-        PacketBroadcast.SendAndFlush(writer, Users.Select(user => user.NetworkObject));
+        var recipients = new List<Ada.API.INetworkObject>(Users.Count);
+
+        foreach (var user in Users)
+        {
+            recipients.Add(user.NetworkObject);
+        }
+
+        PacketBroadcast.SendAndFlush(writer, recipients);
 
         return Task.CompletedTask;
     }
