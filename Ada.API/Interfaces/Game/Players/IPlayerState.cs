@@ -15,4 +15,5 @@ public interface IPlayerState
     int PendingDoorbellRoomId { get; set; }
     PlayerRoomEntryOverride? RoomEntryOverride { get; set; }
     IPlayerUnseenItems UnseenItems { get; }
+    IPlayerNavigatorState Navigator { get; }
 }

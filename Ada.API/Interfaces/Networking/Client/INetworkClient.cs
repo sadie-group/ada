@@ -10,7 +10,6 @@ public interface INetworkClient : IAsyncDisposable, INetworkObject
     string? MachineId { get; set; }
     bool EncryptionEnabled { get; }
 
-    bool TryApplyNegotiatedKey(byte[] sharedKey);
     DateTime LastPing { get; set; }
     DateTime LastPong { get; set; }
 }
